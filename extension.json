@@ -1,0 +1,46 @@
+{
+	"name": "EventBus",
+	"version": "0.1.0",
+	"author": [
+		"Eric Evans"
+	],
+	"url": "https://www.mediawiki.org/wiki/Extension:EventBus",
+	"descriptionmsg": "eventbus-desc",
+	"license-name": "GPL-2.0+",
+	"config": {
+		"EventServiceUrl": "http://localhost:3000/v1/events"
+	},
+	"AutoloadClasses": {
+		"EventBus": "EventBus.php",
+		"EventBusHooks": "EventBus.hooks.php"
+	},
+	"MessagesDirs": {
+		"EventBus": [
+			"i18n"
+		]
+	},
+	"Hooks": {
+		"PageContentSaveComplete": [
+			"EventBusHooks::onPageContentSaveComplete"
+		],
+		"ArticleDeleteComplete": [
+			"EventBusHooks::onArticleDeleteComplete"
+		],
+		"ArticleUndelete": [
+			"EventBusHooks::onArticleUndelete"
+		],
+		"ArticleUndelete": [
+			"EventBusHooks::onArticleUndelete"
+		],
+		"TitleMoveComplete": [
+			"EventBusHooks::onTitleMoveComplete"
+		],
+		"ArticleRevisionVisibilitySet": [
+			"EventBusHooks::onArticleRevisionVisibilitySet"
+		],
+		"UnitTestsList": [
+			"EventBusHooks::onUnitTestsList"
+		]
+	},
+	"manifest_version": 1
+}

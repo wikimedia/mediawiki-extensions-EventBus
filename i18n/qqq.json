@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Eric Evans"
+		]
+	},
+	"eventbus-desc": "{{desc|name=EventBus|url=https://www.mediawiki.org/wiki/Extension:EventBus}}"
+}

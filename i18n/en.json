@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Eric Evans"
+		]
+	},
+	"eventbus-desc": "Propagates change information to a RESTful event service."
+}
