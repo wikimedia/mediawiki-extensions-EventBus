@@ -56,7 +56,7 @@ class EventBusHooks {
 	 * @return string
 	 */
 	private static function newId() {
-		return UIDGenerator::newUUIDv4();
+		return UIDGenerator::newUUIDv1();
 	}
 
 	/**
