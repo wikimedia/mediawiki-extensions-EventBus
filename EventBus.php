@@ -25,14 +25,13 @@ use MediaWiki\Logger\LoggerFactory;
 
 class EventBus {
 
-	/**
-	 * @var EventBus
-	 */
+	/** HTTP request timeout in seconds */
+	const REQ_TIMEOUT = 5;
+
+	/** @var EventBus */
 	private static $instance;
 
-	/**
-	 * @var MultiHttpClient
-	 */
+	/** @var MultiHttpClient */
 	protected $http;
 
 	public function __construct() {
@@ -45,7 +44,9 @@ class EventBus {
 	 * @param array $events the events to send
 	 */
 	public function send( $events ) {
-		$eventServiceUrl = self::getConfig()->get( 'EventServiceUrl' );
+		$config = self::getConfig();
+		$eventServiceUrl = $config->get( 'EventServiceUrl' );
+		$eventServiceTimeout = $config->get( 'EventServiceTimeout' );
 
 		$ret = $this->http->run(
 			array(
@@ -53,6 +54,9 @@ class EventBus {
 				'method'  => 'POST',
 				'body'	  => FormatJson::encode( $events ),
 				'headers' => array( 'content-type' => 'application/json' )
+			),
+			array(
+				'reqTimeout' => $eventServiceTimeout ?: self::REQ_TIMEOUT
 			)
 		);
 

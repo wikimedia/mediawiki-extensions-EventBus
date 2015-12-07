@@ -12,6 +12,10 @@ To configure the URL of the event service:
 
     $wgEventServiceUrl = 'http://localhost:8085/v1/topics';
 
+To configure the event service request timeout:
+
+    $wgEventServiceTimeout = 5;    // 5 second timeout
+
 ## References
 
   * [Reliable publish / subscribe event bus](https://phabricator.wikimedia.org/T84923)

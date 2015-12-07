@@ -8,7 +8,8 @@
 	"descriptionmsg": "eventbus-desc",
 	"license-name": "GPL-2.0+",
 	"config": {
-		"EventServiceUrl": "http://localhost:3000/v1/events"
+		"EventServiceUrl": "http://localhost:3000/v1/events",
+		"EventServiceTimeout": 5
 	},
 	"AutoloadClasses": {
 		"EventBus": "EventBus.php",
