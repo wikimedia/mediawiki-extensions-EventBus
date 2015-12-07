@@ -106,7 +106,9 @@ class EventBusHooks {
 
 		$event = self::createEvent( '/edit/uri', 'mediawiki.page_edit', $attrs );
 
-		EventBus::getInstance()->send( array( $event ) );
+		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
+			EventBus::getInstance()->send( array( $event ) );
+		} );
 	}
 
 	/**
@@ -133,7 +135,9 @@ class EventBusHooks {
 
 		$event = self::createEvent( '/delete/uri', 'mediawiki.page_delete', $attrs );
 
-		EventBus::getInstance()->send( array( $event ) );
+		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
+			EventBus::getInstance()->send( array( $event ) );
+		} );
 	}
 
 	/**
@@ -160,7 +164,9 @@ class EventBusHooks {
 
 		$event = self::createEvent( '/restore/uri', 'mediawiki.page_restore', $attrs );
 
-		EventBus::getInstance()->send( array( $event ) );
+		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
+			EventBus::getInstance()->send( array( $event ) );
+		} );
 	}
 
 	/**
@@ -191,7 +197,9 @@ class EventBusHooks {
 
 		$event = self::createEvent( '/move/uri', 'mediawiki.page_move', $attrs );
 
-		EventBus::getInstance()->send( array( $event ) );
+		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
+			EventBus::getInstance()->send( array( $event ) );
+		} );
 	}
 
 	/**
@@ -203,30 +211,31 @@ class EventBusHooks {
 	 * @param array $revIds array of integer revision IDs
 	 */
 	public static function onArticleRevisionVisibilitySet( $title, $revIds ) {
-		$context = RequestContext::getMain();
-		$userId = $context->getUser()->getId();
-		$userText = $context->getUser()->getName();
+		DeferredUpdates::addCallableUpdate( function() use ( $revIds ) {
+			$user = RequestContext::getMain()->getUser();
+			$userId = $user->getId();
+			$userText = $user->getName();
 
-		$events = array();
-		$revCount = count( $revIds );
-		for ( $i = 0; $i < $revCount; $i++ ) {
-			$revision = Revision::newFromId( $revIds[$i] );
-			$attrs =  array(
-				'revision_id' => (int)$revIds[$i],
-				'hidden' => array(
-					'text' => $revision->isDeleted( Revision::DELETED_TEXT ),
-					'sha1' => $revision->isDeleted( Revision::DELETED_TEXT ),
-					'comment' => $revision->isDeleted( Revision::DELETED_COMMENT ),
-					'user' => $revision->isDeleted( Revision::DELETED_USER )
-				)
-			);
-			$attrs['user_id'] = $userId;
-			$attrs['user_text'] = $userText;
-			$events[$i] = self::createEvent( '/visibility_set/uri',
-				'mediawiki.revision_visibility_set', $attrs );
-		}
+			$events = array();
+			foreach ( $revIds as $revId ) {
+				$revision = Revision::newFromId( $revId );
+				$attrs =  array(
+					'revision_id' => (int)$revId,
+					'hidden' => array(
+						'text' => $revision->isDeleted( Revision::DELETED_TEXT ),
+						'sha1' => $revision->isDeleted( Revision::DELETED_TEXT ),
+						'comment' => $revision->isDeleted( Revision::DELETED_COMMENT ),
+						'user' => $revision->isDeleted( Revision::DELETED_USER )
+					),
+					'user_id' => $userId,
+					'user_text' => $userText
+				);
+				$events[] = self::createEvent( '/visibility_set/uri',
+					'mediawiki.revision_visibility_set', $attrs );
+			}
 
-		EventBus::getInstance()->send( $events );
+			EventBus::getInstance()->send( $events );
+		} );
 	}
 
 	/**
