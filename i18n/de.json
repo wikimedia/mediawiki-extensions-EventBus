@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Metalhead64"
+		]
+	},
+	"eventbus-desc": "Verbreitet Änderungsinformationen an einen RESTful-Ereignisdienst."
+}
