@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Orlodrim"
+		]
+	},
+	"eventbus-desc": "Propage des informations sur les modifications vers un service d'événements RESTful."
+}

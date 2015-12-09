@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Macofe"
+		]
+	},
+	"eventbus-desc": "Propaga información de cambio a un servicio de eventos RESTful."
+}

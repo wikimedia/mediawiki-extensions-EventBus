@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Bjankuloski06"
+		]
+	},
+	"eventbus-desc": "Разгласува информации за промена на служба за настани RESTful."
+}
