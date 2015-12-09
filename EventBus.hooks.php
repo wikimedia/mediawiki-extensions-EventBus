@@ -79,6 +79,12 @@ class EventBusHooks {
 	public static function onPageContentSaveComplete( $article, $user, $content, $summary, $isMinor,
 			$isWatch, $section, $flags, $revision, $status, $baseRevId
 	) {
+		// A null edit; Someone mashed 'Save', but no changes were recorded (no
+		// revision was created).
+		if ( is_null( $revision ) ) {
+			return;
+		}
+
 		$attrs = array();
 		$attrs['title'] = $article->getTitle()->getText();
 		$attrs['page_id'] = $article->getId();
