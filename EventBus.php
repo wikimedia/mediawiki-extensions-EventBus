@@ -21,6 +21,8 @@
  * @author Eric Evans
  */
 
+use MediaWiki\Logger\LoggerFactory;
+
 class EventBus {
 
 	/**
@@ -63,8 +65,11 @@ class EventBus {
 	}
 
 	private function onError( $ret ) {
-		$msg = empty( $ret['error'] ) ? $ret['code'] . ': ' . $ret['reason'] : $ret['error'];
-		wfDebugLog( 'EventBus', "Unable to deliver event: {$msg} : " . $ret['body'] );
+		$message = empty( $ret['error'] ) ? $ret['code'] . ': ' . $ret['reason'] : $ret['error'];
+		$context = array( 'response' => $ret['body'] );
+
+		$logger = LoggerFactory::getInstance( 'EventBus' );
+		$logger->error( "Unable to deliver event: ${message}", $context );
 	}
 
 	/**
