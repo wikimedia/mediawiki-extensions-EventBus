@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Beta16"
+		]
+	},
+	"eventbus-desc": "Propaga informazioni di modifiche a un servizio di eventi RESTful."
+}
