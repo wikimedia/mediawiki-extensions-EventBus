@@ -91,11 +91,18 @@ class EventBusHooks {
 		$attrs['page_id'] = $article->getId();
 		$attrs['namespace'] = $article->getTitle()->getNamespace();
 		$attrs['revision_id'] = $revision->getId();
-		$attrs['parent_revision_id'] = $baseRevId ? $baseRevId : $revision->getParentId();
 		$attrs['save_dt'] = wfTimestamp( TS_ISO_8601, $revision->getTimestamp() );
 		$attrs['user_id'] = $user->getId();
 		$attrs['user_text'] = $user->getName();
 		$attrs['summary'] = $summary;
+
+		// The parent_revision_id attribute is not required, but when supplied
+		// must have a minimum value of 1, so omit it entirely when there is no
+		// parent revision (i.e. page creation).
+		$parentId = $revision->getParentId();
+		if ( !is_null( $parentId ) ) {
+			$attrs['parent_revision_id'] = $parentId;
+		}
 
 		$event = self::createEvent( '/edit/uri', 'mediawiki.page_edit', $attrs );
 
