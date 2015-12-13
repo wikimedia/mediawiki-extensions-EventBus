@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Red Winged Duck"
+		]
+	},
+	"eventbus-desc": "Перадае зьмены зьвестак на RESTful-сэрвіс падзеяў."
+}

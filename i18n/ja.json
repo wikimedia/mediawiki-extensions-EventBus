@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Otokoume"
+		]
+	},
+	"eventbus-desc": "RESTful イベントサービスの変更情報を宣伝します。"
+}
