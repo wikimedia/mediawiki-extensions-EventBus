@@ -190,7 +190,7 @@ class EventBusHooks {
 		$attrs['old_title'] = $title->getText();
 		$attrs['page_id'] = $oldid;
 		$attrs['new_revision_id'] = $newRevision->getId();
-		$attrs['old_revision_id'] = $newtitle->getLatestRevId();
+		$attrs['old_revision_id'] = $newRevision->getParentId();
 		$attrs['user_id'] = $user->getId();
 		$attrs['user_text'] = $user->getName();
 		$attrs['summary'] = $reason;
