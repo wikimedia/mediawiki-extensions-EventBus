@@ -25,6 +25,7 @@ class EventBusHooks {
 
 	/** Event object stub */
 	private static function createEvent( $uri, $topic, $attrs ) {
+		global $wgServerName;
 		$event = array(
 			'meta' => array(
 				'uri' => $uri,
@@ -166,16 +167,17 @@ class EventBusHooks {
 	 * @param int $oldid database page_id of the page that's been moved
 	 * @param int $newid database page_id of the created redirect, or 0 if suppressed
 	 * @param string $reason reason for the move
+	 * @param Revision $newRevision revision created by the move
 	 */
 	public static function onTitleMoveComplete( Title $title, Title $newtitle, User $user, $oldid,
-			$newid, $reason = null
+			$newid, $reason, Revision $newRevision
 	) {
 		$attrs = array();
 		$attrs['new_title'] = $newtitle->getText();
 		$attrs['old_title'] = $title->getText();
 		$attrs['page_id'] = $oldid;
+		$attrs['new_revision_id'] = $newRevision->getId();
 		$attrs['old_revision_id'] = $newtitle->getLatestRevId();
-		$attrs['new_revision_id'] = $newtitle->getNextRevisionId( $attrs['old_revision_id'] );
 		$attrs['user_id'] = $user->getId();
 		$attrs['user_text'] = $user->getName();
 		$attrs['summary'] = $reason;
