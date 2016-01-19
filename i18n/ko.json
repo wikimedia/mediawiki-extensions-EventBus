@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Revi"
+		]
+	},
+	"eventbus-desc": "바뀜 정보를 REST 이벤트 서비스로 전파합니다."
+}
