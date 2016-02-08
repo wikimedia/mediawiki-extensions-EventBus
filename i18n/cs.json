@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Mormegil"
+		]
+	},
+	"eventbus-desc": "Propaguje informace o změnách do RESTové služby událostí."
+}
