@@ -61,50 +61,34 @@ class EventBusHooks {
 	}
 
 	/**
-	 * Occurs after the save page request has been processed.
+	 * Occurs after a revision is inserted into the DB
 	 *
-	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/PageContentSaveComplete
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/RevisionInsertComplete
 	 *
-	 * @param WikiPage $article
-	 * @param User $user
-	 * @param Content $content
-	 * @param string $summary
-	 * @param boolean $isMinor
-	 * @param boolean $isWatch
-	 * @param $section Deprecated
+	 * @param Revision $revision
+	 * @param string $data
 	 * @param integer $flags
-	 * @param {Revision|null} $revision
-	 * @param Status $status
-	 * @param integer $baseRevId
 	 */
-	public static function onPageContentSaveComplete( $article, $user, $content, $summary, $isMinor,
-			$isWatch, $section, $flags, $revision, $status, $baseRevId
-	) {
-		// A null edit; Someone mashed 'Save', but no changes were recorded (no
-		// revision was created).
-		if ( is_null( $revision ) ) {
-			return;
-		}
-
+	public static function onRevisionInsertComplete( $revision, $data, $flags ) {
 		$attrs = array();
-		$attrs['title'] = $article->getTitle()->getText();
-		$attrs['page_id'] = $article->getId();
-		$attrs['namespace'] = $article->getTitle()->getNamespace();
-		$attrs['revision_id'] = $revision->getId();
-		$attrs['save_dt'] = wfTimestamp( TS_ISO_8601, $revision->getTimestamp() );
-		$attrs['user_id'] = $user->getId();
-		$attrs['user_text'] = $user->getName();
-		$attrs['summary'] = $summary;
+		$attrs['page_title'] = $revision->getTitle()->getText();
+		$attrs['page_id'] = $revision->getPage();
+		$attrs['page_namespace'] = $revision->getTitle()->getNamespace();
+		$attrs['rev_id'] = $revision->getId();
+		$attrs['rev_timestamp'] = wfTimestamp( TS_ISO_8601, $revision->getTimestamp() );
+		$attrs['user_id'] = $revision->getUser();
+		$attrs['user_text'] = $revision->getUserText();
+		$attrs['comment'] = $revision->getComment();
 
 		// The parent_revision_id attribute is not required, but when supplied
 		// must have a minimum value of 1, so omit it entirely when there is no
 		// parent revision (i.e. page creation).
 		$parentId = $revision->getParentId();
 		if ( !is_null( $parentId ) ) {
-			$attrs['parent_revision_id'] = $parentId;
+			$attrs['rev_parent_id'] = $parentId;
 		}
 
-		$event = self::createEvent( '/edit/uri', 'mediawiki.page_edit', $attrs );
+		$event = self::createEvent( '/edit/uri', 'mediawiki.revision_create', $attrs );
 
 		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
 			EventBus::getInstance()->send( array( $event ) );
