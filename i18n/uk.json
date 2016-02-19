@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Piramidion"
+		]
+	},
+	"eventbus-desc": "Передає інформацію про зміни до сервісу подій RESTful."
+}
