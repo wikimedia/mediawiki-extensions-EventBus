@@ -84,7 +84,7 @@ class EventBusHooks {
 		// must have a minimum value of 1, so omit it entirely when there is no
 		// parent revision (i.e. page creation).
 		$parentId = $revision->getParentId();
-		if ( !is_null( $parentId ) ) {
+		if ( !is_null( $parentId ) && $parentId !== 0 ) {
 			$attrs['rev_parent_id'] = $parentId;
 		}
 
@@ -138,7 +138,9 @@ class EventBusHooks {
 		$attrs = array();
 		$attrs['title'] = $title->getText();
 		$attrs['new_page_id'] = $title->getArticleID();
-		$attrs['old_page_id'] = $oldPageId;
+		if ( !is_null( $oldPageId ) && $oldPageId !== 0 ) {
+		    $attrs['old_page_id'] = $oldPageId;
+		}
 		$attrs['namespace'] = $title->getNamespace();
 		$attrs['summary'] = $comment;
 
@@ -195,14 +197,18 @@ class EventBusHooks {
 	 * @param array $revIds array of integer revision IDs
 	 */
 	public static function onArticleRevisionVisibilitySet( $title, $revIds ) {
-		DeferredUpdates::addCallableUpdate( function() use ( $revIds ) {
-			$user = RequestContext::getMain()->getUser();
-			$userId = $user->getId();
-			$userText = $user->getName();
+		$user = RequestContext::getMain()->getUser();
+		$userId = $user->getId();
+		$userText = $user->getName();
 
-			$events = array();
-			foreach ( $revIds as $revId ) {
-				$revision = Revision::newFromId( $revId );
+		$events = array();
+		foreach ( $revIds as $revId ) {
+			$revision = Revision::newFromId( $revId );
+
+			// If the page gets deleted simultaneously with this code
+			// we can't access the revision any more, so can't send a
+			// meaningful event.
+			if ( !is_null( $revision ) ) {
 				$attrs =  array(
 					'revision_id' => (int)$revId,
 					'hidden' => array(
@@ -215,9 +221,11 @@ class EventBusHooks {
 					'user_text' => $userText
 				);
 				$events[] = self::createEvent( '/visibility_set/uri',
-					'mediawiki.revision_visibility_set', $attrs );
+						'mediawiki.revision_visibility_set', $attrs );
 			}
+		}
 
+		DeferredUpdates::addCallableUpdate( function() use ( $events ) {
 			EventBus::getInstance()->send( $events );
 		} );
 	}
