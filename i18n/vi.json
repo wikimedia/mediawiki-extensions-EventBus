@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Minh Nguyen"
+		]
+	},
+	"eventbus-desc": "Truyền bá các thông tin thay đổi đến một dịch vụ sự kiện có tính REST."
+}
