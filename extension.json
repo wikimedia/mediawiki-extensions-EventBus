@@ -1,6 +1,6 @@
 {
 	"name": "EventBus",
-	"version": "0.2.1",
+	"version": "0.2.2",
 	"author": [
 		"Eric Evans"
 	],
@@ -30,14 +30,17 @@
 		"ArticleUndelete": [
 			"EventBusHooks::onArticleUndelete"
 		],
-		"ArticleUndelete": [
-			"EventBusHooks::onArticleUndelete"
-		],
 		"TitleMoveComplete": [
 			"EventBusHooks::onTitleMoveComplete"
 		],
 		"ArticleRevisionVisibilitySet": [
 			"EventBusHooks::onArticleRevisionVisibilitySet"
+		],
+		"PageContentSaveComplete": [
+			"EventBusHooks::onPageContentSaveComplete"
+		],
+		"ArticlePurge": [
+			"EventBusHooks::onArticlePurge"
 		],
 		"UnitTestsList": [
 			"EventBusHooks::onUnitTestsList"

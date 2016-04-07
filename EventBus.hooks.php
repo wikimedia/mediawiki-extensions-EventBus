@@ -231,6 +231,65 @@ class EventBusHooks {
 	}
 
 	/**
+	 * Callback for article purge.
+	 *
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ArticlePurge
+	 *
+	 * @param WikiPage $wikiPage
+	 */
+	public static function onArticlePurge( $wikiPage ) {
+		global $wgCanonicalServer, $wgArticlePath;
+		// The $wgArticlePath contains '$1' string where the article title should appear.
+		$uri = $wgCanonicalServer . str_replace( '$1', $wikiPage->getTitle()->getText(), $wgArticlePath );
+		$event = self::createEvent( $uri, 'resource_change', array(
+			'tags' => array( 'purge' )
+		) );
+
+		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
+			EventBus::getInstance()->send( array( $event ) );
+		} );
+	}
+
+	/**
+	 * Occurs after the save page request has been processed.
+	 *
+	 * It's used to detect null edits and create 'resource_change' events for purges.
+	 * Actual edits are detected by the RevisionInsertComplete hook.
+	 *
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/PageContentSaveComplete
+	 *
+	 * @param WikiPage $article
+	 * @param User $user
+	 * @param Content $content
+	 * @param string $summary
+	 * @param boolean $isMinor
+	 * @param boolean $isWatch
+	 * @param $section Deprecated
+	 * @param integer $flags
+	 * @param {Revision|null} $revision
+	 * @param Status $status
+	 * @param integer $baseRevId
+	 */
+	public static function onPageContentSaveComplete( $article, $user, $content, $summary, $isMinor,
+				$isWatch, $section, $flags, $revision, $status, $baseRevId
+	) {
+		global $wgCanonicalServer, $wgArticlePath;
+
+		// In case of a null edit the status revision value will be null
+		if ( is_null( $status->getValue()['revision'] ) ) {
+			// The $wgArticlePath contains '$1' string where the article title should appear.
+			$uri = $wgCanonicalServer . str_replace( '$1', $article->getTitle()->getText(), $wgArticlePath );
+			$event = self::createEvent( $uri, 'resource_change', array(
+				'tags' => array( 'null_edit' )
+			) );
+
+			DeferredUpdates::addCallableUpdate( function() use ( $event ) {
+				EventBus::getInstance()->send( array( $event ) );
+			} );
+		}
+	}
+
+	/**
 	 * Load our unit tests
 	 */
 	public static function onUnitTestsList( array &$files ) {
