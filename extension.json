@@ -1,6 +1,6 @@
 {
 	"name": "EventBus",
-	"version": "0.2.2",
+	"version": "0.2.3",
 	"author": [
 		"Eric Evans"
 	],
@@ -41,6 +41,9 @@
 		],
 		"ArticlePurge": [
 			"EventBusHooks::onArticlePurge"
+		],
+		"BlockIpComplete": [
+			"EventBusHooks::onBlockIpComplete"
 		],
 		"UnitTestsList": [
 			"EventBusHooks::onUnitTestsList"

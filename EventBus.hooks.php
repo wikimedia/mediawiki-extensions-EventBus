@@ -290,6 +290,38 @@ class EventBusHooks {
 	}
 
 	/**
+	 * Occurs after the request to block an IP or user has been processed
+	 *
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/BlockIpComplete
+	 *
+	 * @param Block $block the Block object that was saved
+	 * @param User $user the user who did the block (not the one being blocked)
+	 */
+	public static function onBlockIpComplete( $block, $user ) {
+		$attrs = array();
+		$attrs['user_blocked'] = $block->getTarget()->getName();
+		if ( $block->mExpiry != 'infinity' ) {
+			$attrs['expiry'] = $block->mExpiry;
+		}
+
+		$attrs['blocks'] = array(
+			'name' => $block->mHideName,
+			'email' => $block->prevents( 'sendemail' ),
+			'user_talk' => $block->prevents( 'editownusertalk' ),
+			'account_create' => $block->prevents( 'createaccount' ),
+		);
+		$attrs['reason'] = $block->mReason;
+		$attrs['user_id'] = $user->getId();
+		$attrs['user_text'] = $user->getName();
+
+		$event = self::createEvent( '/user_block/uri', 'mediawiki.user_block', $attrs );
+
+		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
+			EventBus::getInstance()->send( array( $event ) );
+		} );
+	}
+
+	/**
 	 * Load our unit tests
 	 */
 	public static function onUnitTestsList( array &$files ) {
