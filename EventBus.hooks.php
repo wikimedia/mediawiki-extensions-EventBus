@@ -299,7 +299,8 @@ class EventBusHooks {
 	 */
 	public static function onBlockIpComplete( $block, $user ) {
 		$attrs = array();
-		$attrs['user_blocked'] = $block->getTarget()->getName();
+		$attrs['user_blocked'] = is_string( $block->getTarget() ) ?
+			$block->getTarget() : $block->getTarget()->getName();
 		if ( $block->mExpiry != 'infinity' ) {
 			$attrs['expiry'] = $block->mExpiry;
 		}
