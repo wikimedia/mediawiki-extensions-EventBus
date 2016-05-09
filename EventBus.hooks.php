@@ -26,16 +26,16 @@ class EventBusHooks {
 	/** Event object stub */
 	private static function createEvent( $uri, $topic, $attrs ) {
 		global $wgServerName;
-		$event = array(
-			'meta' => array(
+		$event = [
+			'meta' => [
 				'uri' => $uri,
 				'topic' => $topic,
 				'request_id' => self::getRequestId(),
 				'id' => self::newId(),
 				'dt' => date( 'c' ),
 				'domain' => $wgServerName ?: "unknown",
-			),
-		);
+			],
+		];
 		return $event + $attrs;
 	}
 
@@ -70,7 +70,7 @@ class EventBusHooks {
 	 * @param integer $flags
 	 */
 	public static function onRevisionInsertComplete( $revision, $data, $flags ) {
-		$attrs = array();
+		$attrs = [];
 		$attrs['page_title'] = $revision->getTitle()->getText();
 		$attrs['page_id'] = $revision->getPage();
 		$attrs['page_namespace'] = $revision->getTitle()->getNamespace();
@@ -91,7 +91,7 @@ class EventBusHooks {
 		$event = self::createEvent( '/edit/uri', 'mediawiki.revision_create', $attrs );
 
 		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
-			EventBus::getInstance()->send( array( $event ) );
+			EventBus::getInstance()->send( [ $event ] );
 		} );
 	}
 
@@ -110,7 +110,7 @@ class EventBusHooks {
 	public static function onArticleDeleteComplete( $article, $user, $reason, $id, $content,
 			$logEntry
 	) {
-		$attrs = array();
+		$attrs = [];
 		$attrs['title'] = $article->getTitle()->getText();
 		$attrs['page_id'] = $id;
 		$attrs['user_id'] = $user->getId();
@@ -120,7 +120,7 @@ class EventBusHooks {
 		$event = self::createEvent( '/delete/uri', 'mediawiki.page_delete', $attrs );
 
 		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
-			EventBus::getInstance()->send( array( $event ) );
+			EventBus::getInstance()->send( [ $event ] );
 		} );
 	}
 
@@ -135,7 +135,7 @@ class EventBusHooks {
 	 * @param int $oldPageId ID of page previously deleted (from archive table)
 	 */
 	public static function onArticleUndelete( Title $title, $create, $comment, $oldPageId ) {
-		$attrs = array();
+		$attrs = [];
 		$attrs['title'] = $title->getText();
 		$attrs['new_page_id'] = $title->getArticleID();
 		if ( !is_null( $oldPageId ) && $oldPageId !== 0 ) {
@@ -151,7 +151,7 @@ class EventBusHooks {
 		$event = self::createEvent( '/restore/uri', 'mediawiki.page_restore', $attrs );
 
 		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
-			EventBus::getInstance()->send( array( $event ) );
+			EventBus::getInstance()->send( [ $event ] );
 		} );
 	}
 
@@ -171,7 +171,7 @@ class EventBusHooks {
 	public static function onTitleMoveComplete( Title $title, Title $newtitle, User $user, $oldid,
 			$newid, $reason, Revision $newRevision
 	) {
-		$attrs = array();
+		$attrs = [];
 		$attrs['new_title'] = $newtitle->getText();
 		$attrs['old_title'] = $title->getText();
 		$attrs['page_id'] = $oldid;
@@ -184,7 +184,7 @@ class EventBusHooks {
 		$event = self::createEvent( '/move/uri', 'mediawiki.page_move', $attrs );
 
 		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
-			EventBus::getInstance()->send( array( $event ) );
+			EventBus::getInstance()->send( [ $event ] );
 		} );
 	}
 
@@ -201,7 +201,7 @@ class EventBusHooks {
 		$userId = $user->getId();
 		$userText = $user->getName();
 
-		$events = array();
+		$events = [];
 		foreach ( $revIds as $revId ) {
 			$revision = Revision::newFromId( $revId );
 
@@ -209,17 +209,17 @@ class EventBusHooks {
 			// we can't access the revision any more, so can't send a
 			// meaningful event.
 			if ( !is_null( $revision ) ) {
-				$attrs =  array(
+				$attrs =  [
 					'revision_id' => (int)$revId,
-					'hidden' => array(
+					'hidden' => [
 						'text' => $revision->isDeleted( Revision::DELETED_TEXT ),
 						'sha1' => $revision->isDeleted( Revision::DELETED_TEXT ),
 						'comment' => $revision->isDeleted( Revision::DELETED_COMMENT ),
 						'user' => $revision->isDeleted( Revision::DELETED_USER )
-					),
+					],
 					'user_id' => $userId,
 					'user_text' => $userText
-				);
+				];
 				$events[] = self::createEvent( '/visibility_set/uri',
 						'mediawiki.revision_visibility_set', $attrs );
 			}
@@ -241,12 +241,12 @@ class EventBusHooks {
 		global $wgCanonicalServer, $wgArticlePath;
 		// The $wgArticlePath contains '$1' string where the article title should appear.
 		$uri = $wgCanonicalServer . str_replace( '$1', $wikiPage->getTitle()->getText(), $wgArticlePath );
-		$event = self::createEvent( $uri, 'resource_change', array(
-			'tags' => array( 'purge' )
-		) );
+		$event = self::createEvent( $uri, 'resource_change', [
+			'tags' => [ 'purge' ]
+		] );
 
 		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
-			EventBus::getInstance()->send( array( $event ) );
+			EventBus::getInstance()->send( [ $event ] );
 		} );
 	}
 
@@ -279,12 +279,12 @@ class EventBusHooks {
 		if ( is_null( $status->getValue()['revision'] ) ) {
 			// The $wgArticlePath contains '$1' string where the article title should appear.
 			$uri = $wgCanonicalServer . str_replace( '$1', $article->getTitle()->getText(), $wgArticlePath );
-			$event = self::createEvent( $uri, 'resource_change', array(
-				'tags' => array( 'null_edit' )
-			) );
+			$event = self::createEvent( $uri, 'resource_change', [
+				'tags' => [ 'null_edit' ]
+			] );
 
 			DeferredUpdates::addCallableUpdate( function() use ( $event ) {
-				EventBus::getInstance()->send( array( $event ) );
+				EventBus::getInstance()->send( [ $event ] );
 			} );
 		}
 	}
@@ -298,19 +298,19 @@ class EventBusHooks {
 	 * @param User $user the user who did the block (not the one being blocked)
 	 */
 	public static function onBlockIpComplete( $block, $user ) {
-		$attrs = array();
+		$attrs = [];
 		$attrs['user_blocked'] = is_string( $block->getTarget() ) ?
 			$block->getTarget() : $block->getTarget()->getName();
 		if ( $block->mExpiry != 'infinity' ) {
 			$attrs['expiry'] = $block->mExpiry;
 		}
 
-		$attrs['blocks'] = array(
+		$attrs['blocks'] = [
 			'name' => $block->mHideName,
 			'email' => $block->prevents( 'sendemail' ),
 			'user_talk' => $block->prevents( 'editownusertalk' ),
 			'account_create' => $block->prevents( 'createaccount' ),
-		);
+		];
 		$attrs['reason'] = $block->mReason;
 		$attrs['user_id'] = $user->getId();
 		$attrs['user_text'] = $user->getName();
@@ -318,7 +318,7 @@ class EventBusHooks {
 		$event = self::createEvent( '/user_block/uri', 'mediawiki.user_block', $attrs );
 
 		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
-			EventBus::getInstance()->send( array( $event ) );
+			EventBus::getInstance()->send( [ $event ] );
 		} );
 	}
 

@@ -35,7 +35,7 @@ class EventBus {
 	protected $http;
 
 	public function __construct() {
-		$this->http = new MultiHttpClient( array() );
+		$this->http = new MultiHttpClient( [] );
 	}
 
 	/**
@@ -49,15 +49,15 @@ class EventBus {
 		$eventServiceTimeout = $config->get( 'EventServiceTimeout' );
 
 		$ret = $this->http->run(
-			array(
+			[
 				'url'	  => $eventServiceUrl,
 				'method'  => 'POST',
 				'body'	  => FormatJson::encode( $events ),
-				'headers' => array( 'content-type' => 'application/json' )
-			),
-			array(
+				'headers' => [ 'content-type' => 'application/json' ]
+			],
+			[
 				'reqTimeout' => $eventServiceTimeout ?: self::REQ_TIMEOUT
-			)
+			]
 		);
 
 		// 201: all events are accepted
@@ -70,7 +70,7 @@ class EventBus {
 
 	private function onError( $ret ) {
 		$message = empty( $ret['error'] ) ? $ret['code'] . ': ' . $ret['reason'] : $ret['error'];
-		$context = array( 'response' => $ret['body'] );
+		$context = [ 'response' => $ret['body'] ];
 
 		$logger = LoggerFactory::getInstance( 'EventBus' );
 		$logger->error( "Unable to deliver event: ${message}", $context );
