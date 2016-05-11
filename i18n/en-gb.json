@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Andibing"
+		]
+	},
+	"eventbus-desc": "Propagates change information to a RESTful event service."
+}
