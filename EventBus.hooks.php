@@ -311,7 +311,9 @@ class EventBusHooks {
 			'user_talk' => $block->prevents( 'editownusertalk' ),
 			'account_create' => $block->prevents( 'createaccount' ),
 		];
-		$attrs['reason'] = $block->mReason;
+		if ( !is_null( $block->mReason ) ) {
+			$attrs['reason'] = $block->mReason;
+		}
 		$attrs['user_id'] = $user->getId();
 		$attrs['user_text'] = $user->getName();
 
