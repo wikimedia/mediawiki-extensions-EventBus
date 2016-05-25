@@ -71,7 +71,7 @@ class EventBusHooks {
 	 */
 	public static function onRevisionInsertComplete( $revision, $data, $flags ) {
 		$attrs = [];
-		$attrs['page_title'] = $revision->getTitle()->getText();
+		$attrs['page_title'] = $revision->getTitle()->getPrefixedDBkey();
 		$attrs['page_id'] = $revision->getPage();
 		$attrs['page_namespace'] = $revision->getTitle()->getNamespace();
 		$attrs['rev_id'] = $revision->getId();
@@ -111,7 +111,7 @@ class EventBusHooks {
 			$logEntry
 	) {
 		$attrs = [];
-		$attrs['title'] = $article->getTitle()->getText();
+		$attrs['title'] = $article->getTitle()->getPrefixedDBkey();
 		$attrs['page_id'] = $id;
 		$attrs['user_id'] = $user->getId();
 		$attrs['user_text'] = $user->getName();
@@ -136,7 +136,7 @@ class EventBusHooks {
 	 */
 	public static function onArticleUndelete( Title $title, $create, $comment, $oldPageId ) {
 		$attrs = [];
-		$attrs['title'] = $title->getText();
+		$attrs['title'] = $title->getPrefixedDBkey();
 		$attrs['new_page_id'] = $title->getArticleID();
 		if ( !is_null( $oldPageId ) && $oldPageId !== 0 ) {
 		    $attrs['old_page_id'] = $oldPageId;
@@ -172,8 +172,8 @@ class EventBusHooks {
 			$newid, $reason, Revision $newRevision
 	) {
 		$attrs = [];
-		$attrs['new_title'] = $newtitle->getText();
-		$attrs['old_title'] = $title->getText();
+		$attrs['new_title'] = $newtitle->getPrefixedDBkey();
+		$attrs['old_title'] = $title->getPrefixedDBkey();
 		$attrs['page_id'] = $oldid;
 		$attrs['new_revision_id'] = $newRevision->getId();
 		$attrs['old_revision_id'] = $newRevision->getParentId();
@@ -240,7 +240,9 @@ class EventBusHooks {
 	public static function onArticlePurge( $wikiPage ) {
 		global $wgCanonicalServer, $wgArticlePath;
 		// The $wgArticlePath contains '$1' string where the article title should appear.
-		$uri = $wgCanonicalServer . str_replace( '$1', $wikiPage->getTitle()->getText(), $wgArticlePath );
+		$title = $wikiPage->getTitle()->getPrefixedURL();
+		$uri = $wgCanonicalServer . str_replace( '$1', $title, $wgArticlePath );
+
 		$event = self::createEvent( $uri, 'resource_change', [
 			'tags' => [ 'purge' ]
 		] );
@@ -278,7 +280,8 @@ class EventBusHooks {
 		// In case of a null edit the status revision value will be null
 		if ( is_null( $status->getValue()['revision'] ) ) {
 			// The $wgArticlePath contains '$1' string where the article title should appear.
-			$uri = $wgCanonicalServer . str_replace( '$1', $article->getTitle()->getText(), $wgArticlePath );
+			$title = $article->getTitle()->getPrefixedURL();
+			$uri = $wgCanonicalServer . str_replace( '$1', $title, $wgArticlePath );
 			$event = self::createEvent( $uri, 'resource_change', [
 				'tags' => [ 'null_edit' ]
 			] );
