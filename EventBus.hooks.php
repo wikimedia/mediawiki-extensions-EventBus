@@ -24,7 +24,7 @@
 class EventBusHooks {
 
 	/** Event object stub */
-	private static function createEvent( $uri, $topic, $attrs ) {
+	public static function createEvent( $uri, $topic, $attrs ) {
 		global $wgServerName;
 		$event = [
 			'meta' => [

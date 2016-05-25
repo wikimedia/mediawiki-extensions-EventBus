@@ -13,7 +13,9 @@
 	},
 	"AutoloadClasses": {
 		"EventBus": "EventBus.php",
-		"EventBusHooks": "EventBus.hooks.php"
+		"EventBusHooks": "EventBus.hooks.php",
+		"EventRelayerBus": "EventRelayerBus.php",
+		"PurgeEventRelayerBus": "PurgeEventRelayerBus.php"
 	},
 	"MessagesDirs": {
 		"EventBus": [

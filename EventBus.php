@@ -22,6 +22,7 @@
  */
 
 use MediaWiki\Logger\LoggerFactory;
+use MediaWiki\MediaWikiServices;
 
 class EventBus {
 
@@ -87,8 +88,12 @@ class EventBus {
 		return self::$instance;
 	}
 
+	/**
+	 * Retrieve main config
+	 * @return Config
+	 */
 	private static function getConfig() {
-		return ConfigFactory::getDefaultInstance()->makeConfig( 'main' );
+		return MediaWikiServices::getInstance()->getMainConfig();
 	}
 
 }
