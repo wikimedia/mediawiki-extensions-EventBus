@@ -61,6 +61,33 @@ class EventBusHooks {
 	}
 
 	/**
+	 * Creates a full article path
+	 *
+	 * @param Title $title article title object
+	 * @return string
+	 */
+	private static function getArticleURL( $title ) {
+		global $wgCanonicalServer, $wgArticlePath;
+		$titleURL = $title->getPrefixedURL();
+		// The $wgArticlePath contains '$1' string where the article title should appear.
+		return $wgCanonicalServer . str_replace( '$1', $titleURL, $wgArticlePath );
+	}
+
+	/**
+	 * Creates a full user page path
+	 *
+	 * @param string $userName userName
+	 * @returns string
+	 */
+	private static function getUserPageURL( $userName ) {
+		global $wgCanonicalServer, $wgArticlePath, $wgContLang;
+		$prefixedUserURL = $wgContLang->getNsText( NS_USER ) . ':' . $userName;
+		$encodedUserURL = wfUrlencode( strtr( $prefixedUserURL, ' ', '_' ) );
+		// The $wgArticlePath contains '$1' string where the article title should appear.
+		return $wgCanonicalServer . str_replace( '$1', $encodedUserURL, $wgArticlePath );
+	}
+
+	/**
 	 * Occurs after a revision is inserted into the DB
 	 *
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/RevisionInsertComplete
@@ -88,7 +115,8 @@ class EventBusHooks {
 			$attrs['rev_parent_id'] = $parentId;
 		}
 
-		$event = self::createEvent( '/edit/uri', 'mediawiki.revision_create', $attrs );
+		$event = self::createEvent( self::getArticleURL( $revision->getTitle() ),
+			'mediawiki.revision_create', $attrs );
 
 		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
 			EventBus::getInstance()->send( [ $event ] );
@@ -117,7 +145,8 @@ class EventBusHooks {
 		$attrs['user_text'] = $user->getName();
 		$attrs['summary'] = $reason;
 
-		$event = self::createEvent( '/delete/uri', 'mediawiki.page_delete', $attrs );
+		$event = self::createEvent( self::getArticleURL( $article->getTitle() ),
+			'mediawiki.page_delete', $attrs );
 
 		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
 			EventBus::getInstance()->send( [ $event ] );
@@ -148,7 +177,7 @@ class EventBusHooks {
 		$attrs['user_id'] = $context->getUser()->getId();
 		$attrs['user_text'] = $context->getUser()->getName();
 
-		$event = self::createEvent( '/restore/uri', 'mediawiki.page_restore', $attrs );
+		$event = self::createEvent( self::getArticleURL( $title ), 'mediawiki.page_restore', $attrs );
 
 		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
 			EventBus::getInstance()->send( [ $event ] );
@@ -181,7 +210,7 @@ class EventBusHooks {
 		$attrs['user_text'] = $user->getName();
 		$attrs['summary'] = $reason;
 
-		$event = self::createEvent( '/move/uri', 'mediawiki.page_move', $attrs );
+		$event = self::createEvent( self::getArticleURL( $newtitle ), 'mediawiki.page_move', $attrs );
 
 		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
 			EventBus::getInstance()->send( [ $event ] );
@@ -220,7 +249,7 @@ class EventBusHooks {
 					'user_id' => $userId,
 					'user_text' => $userText
 				];
-				$events[] = self::createEvent( '/visibility_set/uri',
+				$events[] = self::createEvent( self::getArticleURL( $title ),
 						'mediawiki.revision_visibility_set', $attrs );
 			}
 		}
@@ -238,12 +267,7 @@ class EventBusHooks {
 	 * @param WikiPage $wikiPage
 	 */
 	public static function onArticlePurge( $wikiPage ) {
-		global $wgCanonicalServer, $wgArticlePath;
-		// The $wgArticlePath contains '$1' string where the article title should appear.
-		$title = $wikiPage->getTitle()->getPrefixedURL();
-		$uri = $wgCanonicalServer . str_replace( '$1', $title, $wgArticlePath );
-
-		$event = self::createEvent( $uri, 'resource_change', [
+		$event = self::createEvent( self::getArticleURL( $wikiPage->getTitle() ), 'resource_change', [
 			'tags' => [ 'purge' ]
 		] );
 
@@ -275,14 +299,10 @@ class EventBusHooks {
 	public static function onPageContentSaveComplete( $article, $user, $content, $summary, $isMinor,
 				$isWatch, $section, $flags, $revision, $status, $baseRevId
 	) {
-		global $wgCanonicalServer, $wgArticlePath;
-
 		// In case of a null edit the status revision value will be null
 		if ( is_null( $status->getValue()['revision'] ) ) {
-			// The $wgArticlePath contains '$1' string where the article title should appear.
-			$title = $article->getTitle()->getPrefixedURL();
-			$uri = $wgCanonicalServer . str_replace( '$1', $title, $wgArticlePath );
-			$event = self::createEvent( $uri, 'resource_change', [
+
+			$event = self::createEvent( self::getArticleURL( $article->getTitle() ), 'resource_change', [
 				'tags' => [ 'null_edit' ]
 			] );
 
@@ -302,8 +322,9 @@ class EventBusHooks {
 	 */
 	public static function onBlockIpComplete( $block, $user ) {
 		$attrs = [];
-		$attrs['user_blocked'] = is_string( $block->getTarget() ) ?
-			$block->getTarget() : $block->getTarget()->getName();
+		$user_blocked = is_string( $block->getTarget() )
+			? $block->getTarget() : $block->getTarget()->getName();
+		$attrs['user_blocked'] = $user_blocked;
 		if ( $block->mExpiry != 'infinity' ) {
 			$attrs['expiry'] = $block->mExpiry;
 		}
@@ -320,8 +341,10 @@ class EventBusHooks {
 		$attrs['user_id'] = $user->getId();
 		$attrs['user_text'] = $user->getName();
 
-		$event = self::createEvent( '/user_block/uri', 'mediawiki.user_block', $attrs );
+		$event = self::createEvent( self::getUserPageURL( $user_blocked ),
+			'mediawiki.user_block', $attrs );
 
+		wfDebug( 'USER_URL' . json_encode( $event ) );
 		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
 			EventBus::getInstance()->send( [ $event ] );
 		} );
