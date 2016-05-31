@@ -68,7 +68,10 @@ class EventBusHooks {
 	 */
 	private static function getArticleURL( $title ) {
 		global $wgCanonicalServer, $wgArticlePath;
-		$titleURL = $title->getPrefixedURL();
+		// can't use wfUrlencode, because it doesn't encode slashes. RESTBase
+		// and services expect slashes to be encoded, so encode the whole title
+		// right away to avoid reencoding it in change-propagation
+		$titleURL = rawurlencode( $title->getPrefixedDBkey() );
 		// The $wgArticlePath contains '$1' string where the article title should appear.
 		return $wgCanonicalServer . str_replace( '$1', $titleURL, $wgArticlePath );
 	}
@@ -82,7 +85,7 @@ class EventBusHooks {
 	private static function getUserPageURL( $userName ) {
 		global $wgCanonicalServer, $wgArticlePath, $wgContLang;
 		$prefixedUserURL = $wgContLang->getNsText( NS_USER ) . ':' . $userName;
-		$encodedUserURL = wfUrlencode( strtr( $prefixedUserURL, ' ', '_' ) );
+		$encodedUserURL = rawurlencode( strtr( $prefixedUserURL, ' ', '_' ) );
 		// The $wgArticlePath contains '$1' string where the article title should appear.
 		return $wgCanonicalServer . str_replace( '$1', $encodedUserURL, $wgArticlePath );
 	}
