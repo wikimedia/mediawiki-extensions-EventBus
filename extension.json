@@ -1,8 +1,9 @@
 {
 	"name": "EventBus",
-	"version": "0.2.8",
+	"version": "0.2.9",
 	"author": [
-		"Eric Evans"
+		"Eric Evans",
+		"Petr Pchelko"
 	],
 	"url": "https://www.mediawiki.org/wiki/Extension:EventBus",
 	"descriptionmsg": "eventbus-desc",

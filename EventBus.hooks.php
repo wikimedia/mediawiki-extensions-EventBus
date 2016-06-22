@@ -109,6 +109,7 @@ class EventBusHooks {
 		$attrs['user_id'] = $revision->getUser();
 		$attrs['user_text'] = $revision->getUserText();
 		$attrs['comment'] = $revision->getComment();
+		$attrs['rev_by_bot'] = (bool) ( $flags & EDIT_FORCE_BOT );
 
 		// The parent_revision_id attribute is not required, but when supplied
 		// must have a minimum value of 1, so omit it entirely when there is no
@@ -347,7 +348,6 @@ class EventBusHooks {
 		$event = self::createEvent( self::getUserPageURL( $user_blocked ),
 			'mediawiki.user_block', $attrs );
 
-		wfDebug( 'USER_URL' . json_encode( $event ) );
 		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
 			EventBus::getInstance()->send( [ $event ] );
 		} );
