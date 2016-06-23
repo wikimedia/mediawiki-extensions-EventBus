@@ -71,7 +71,7 @@ class EventBus {
 
 	private function onError( $ret ) {
 		$message = empty( $ret['error'] ) ? $ret['code'] . ': ' . $ret['reason'] : $ret['error'];
-		$context = [ 'response' => $ret['body'] ];
+		$context = [ 'response' => [ 'body' => $ret['body'] ] ];
 
 		$logger = LoggerFactory::getInstance( 'EventBus' );
 		$logger->error( "Unable to deliver event: ${message}", $context );
