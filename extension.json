@@ -1,9 +1,10 @@
 {
 	"name": "EventBus",
-	"version": "0.2.9",
+	"version": "0.2.10",
 	"author": [
 		"Eric Evans",
-		"Petr Pchelko"
+		"Petr Pchelko",
+		"Marko Obrovac"
 	],
 	"url": "https://www.mediawiki.org/wiki/Extension:EventBus",
 	"descriptionmsg": "eventbus-desc",

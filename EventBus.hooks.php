@@ -101,6 +101,7 @@ class EventBusHooks {
 	 */
 	public static function onRevisionInsertComplete( $revision, $data, $flags ) {
 		$attrs = [];
+		$user = User::newFromId( $revision->getUser() );
 		$attrs['page_title'] = $revision->getTitle()->getPrefixedDBkey();
 		$attrs['page_id'] = $revision->getPage();
 		$attrs['page_namespace'] = $revision->getTitle()->getNamespace();
@@ -109,7 +110,7 @@ class EventBusHooks {
 		$attrs['user_id'] = $revision->getUser();
 		$attrs['user_text'] = $revision->getUserText();
 		$attrs['comment'] = $revision->getComment();
-		$attrs['rev_by_bot'] = (bool) ( $flags & EDIT_FORCE_BOT );
+		$attrs['rev_by_bot'] = $user->loadFromId() ? $user->isBot() : false;
 
 		// The parent_revision_id attribute is not required, but when supplied
 		// must have a minimum value of 1, so omit it entirely when there is no
