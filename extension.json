@@ -48,9 +48,6 @@
 		],
 		"BlockIpComplete": [
 			"EventBusHooks::onBlockIpComplete"
-		],
-		"UnitTestsList": [
-			"EventBusHooks::onUnitTestsList"
 		]
 	},
 	"manifest_version": 1
