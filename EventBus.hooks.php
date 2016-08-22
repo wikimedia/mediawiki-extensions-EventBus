@@ -28,32 +28,15 @@ class EventBusHooks {
 		global $wgServerName;
 		$event = [
 			'meta' => [
-				'uri'        => $uri,
-				'topic'      => $topic,
+				'uri' => $uri,
+				'topic' => $topic,
 				'request_id' => self::getRequestId(),
-				'id'         => self::newId(),
-				'dt'         => date( 'c' ),
-				'domain'     => $wgServerName ?: "unknown",
+				'id' => self::newId(),
+				'dt' => date( 'c' ),
+				'domain' => $wgServerName ?: "unknown",
 			],
 		];
 		return $event + $attrs;
-	}
-
-	/**
-	 * Given a User $user, returns an array suitable for
-	 * use as the performer JSON object in various Mediawiki
-	 * entity schemas.
-	 */
-	public static function createPerformerAttrs( $user ) {
-		$performerAttrs = [
-			'user_text'   => $user->getName(),
-			'user_groups' => $user->getEffectiveGroups(),
-			'user_is_bot' => $user->getId() ? $user->isBot() : false,
-		];
-		if ( $user->getId() ) {
-			$performerAttrs['user_id'] = $user->getId();
-		}
-		return $performerAttrs;
 	}
 
 	/**
@@ -117,40 +100,17 @@ class EventBusHooks {
 	 * @param integer $flags
 	 */
 	public static function onRevisionInsertComplete( $revision, $data, $flags ) {
-		global $wgDBname;
-		$events = [];
-
-		// Create a mediawiki revision create event.
-		$performer = User::newFromId( $revision->getUser() );
-		$performer->loadFromId();
-
-		$attrs = [
-			// Common Mediawiki entity fields
-			'database'           => $wgDBname,
-			'performer'          => self::createPerformerAttrs( $performer ),
-			'comment'            => $revision->getComment(),
-
-			// revision entity fields
-			'page_id'            => $revision->getPage(),
-			'page_title'         => $revision->getTitle()->getPrefixedDBkey(),
-			'page_namespace'     => $revision->getTitle()->getNamespace(),
-			'rev_id'             => $revision->getId(),
-			'rev_timestamp'      => wfTimestamp( TS_ISO_8601, $revision->getTimestamp() ),
-			'rev_sha1'           => $revision->getSha1(),
-			'rev_len'            => $revision->getSize(),
-			'rev_minor_edit'     => $revision->isMinor(),
-			'rev_content_model'  => $revision->getContentModel(),
-			'rev_content_format' => $revision->getContentModel(),
-		];
-
-		// It is possible that the $revision object does not have any content
-		// at the time of RevisionInsertComplete.  This might happen during
-		// a page restore, if the revision 'created' during the restore
-		// has its content hidden.
-		$content = $revision->getContent();
-		if ( !is_null( $content ) ) {
-			$attrs['page_is_redirect'] = $content->isRedirect();
-		}
+		$attrs = [];
+		$user = User::newFromId( $revision->getUser() );
+		$attrs['page_title'] = $revision->getTitle()->getPrefixedDBkey();
+		$attrs['page_id'] = $revision->getPage();
+		$attrs['page_namespace'] = $revision->getTitle()->getNamespace();
+		$attrs['rev_id'] = $revision->getId();
+		$attrs['rev_timestamp'] = wfTimestamp( TS_ISO_8601, $revision->getTimestamp() );
+		$attrs['user_id'] = $revision->getUser();
+		$attrs['user_text'] = $revision->getUserText();
+		$attrs['comment'] = $revision->getComment();
+		$attrs['rev_by_bot'] = $user->loadFromId() ? $user->isBot() : false;
 
 		// The parent_revision_id attribute is not required, but when supplied
 		// must have a minimum value of 1, so omit it entirely when there is no
@@ -160,40 +120,12 @@ class EventBusHooks {
 			$attrs['rev_parent_id'] = $parentId;
 		}
 
-		$events[] = self::createEvent(
-			self::getArticleURL( $revision->getTitle() ),
-			'mediawiki.revision-create',
-			$attrs
-		);
+		$event = self::createEvent( self::getArticleURL( $revision->getTitle() ),
+			'mediawiki.revision_create', $attrs );
 
-		// Create the deprecated mediawiki/revision_create event.
-		// This will be removed once consumers switch to the above event.
-		$attrsDeprecated = [];
-		$attrsDeprecated['page_title'] = $attrs['page_title'];
-		$attrsDeprecated['page_id'] = $attrs['page_id'];
-		$attrsDeprecated['page_namespace'] = $attrs['page_namespace'];
-		$attrsDeprecated['rev_id'] = $attrs['rev_id'];
-		$attrsDeprecated['rev_timestamp'] = $attrs['rev_timestamp'];
-		$attrsDeprecated['user_id'] = $revision->getUser();
-		$attrsDeprecated['user_text'] = $attrs['performer']['user_text'];
-		$attrsDeprecated['comment'] = $attrs['comment'];
-		$attrsDeprecated['rev_by_bot'] = $attrs['performer']['user_is_bot'];
-
-		if ( !is_null( $parentId ) && $parentId !== 0 ) {
-			$attrsDeprecated['rev_parent_id'] = $parentId;
-		}
-
-		$events[] = self::createEvent(
-			self::getArticleURL( $revision->getTitle() ),
-			'mediawiki.revision_create',
-			$attrsDeprecated
-		);
-
-		DeferredUpdates::addCallableUpdate(
-			function() use ( $events ) {
-				EventBus::getInstance()->send( $events );
-			}
-		);
+		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
+			EventBus::getInstance()->send( [ $event ] );
+		} );
 	}
 
 	/**
@@ -201,75 +133,29 @@ class EventBusHooks {
 	 *
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ArticleDeleteComplete
 	 *
-	 * @param WikiPage $wikiPage the WikiPage that was deleted
+	 * @param WikiPage $article the article that was deleted
 	 * @param User $user the user that deleted the article
 	 * @param string $reason the reason the article was deleted
 	 * @param int $id the ID of the article that was deleted
 	 * @param $content the content of the deleted article, or null in case of error
 	 * @param $logEntry the log entry used to record the deletion
-	 * @param $archivedRevisionCount the number of revisions archived during the page delete
 	 */
-	public static function onArticleDeleteComplete(
-		$wikiPage,
-		$user,
-		$reason,
-		$id,
-		$content,
-		$logEntry,
-		$archivedRevisionCount
+	public static function onArticleDeleteComplete( $article, $user, $reason, $id, $content,
+			$logEntry
 	) {
-		global $wgDBname;
-		$events = [];
+		$attrs = [];
+		$attrs['title'] = $article->getTitle()->getPrefixedDBkey();
+		$attrs['page_id'] = $id;
+		$attrs['user_id'] = $user->getId();
+		$attrs['user_text'] = $user->getName();
+		$attrs['summary'] = $reason;
 
-		// Create a mediawiki page delete event.
-		$attrs = [
-			// Common Mediawiki entity fields
-			'database'           => $wgDBname,
-			'performer'          => self::createPerformerAttrs( $user ),
-			'comment'            => $reason,
+		$event = self::createEvent( self::getArticleURL( $article->getTitle() ),
+			'mediawiki.page_delete', $attrs );
 
-			// page entity fields
-			'page_id'            => $id,
-			'page_title'         => $wikiPage->getTitle()->getPrefixedDBkey(),
-			'page_namespace'     => $wikiPage->getTitle()->getNamespace(),
-			'page_is_redirect'        => $wikiPage->isRedirect(),
-		];
-		$headRevision = $wikiPage->getRevision();
-		if ( !is_null( $headRevision ) ) {
-			$attrs['rev_id'] = $headRevision->getId();
-		}
-
-		// page delete specific fields:
-		if ( !is_null( $archivedRevisionCount ) ) {
-			$attrs['rev_count'] = $archivedRevisionCount;
-		}
-
-		$events[] = self::createEvent(
-			self::getArticleURL( $wikiPage->getTitle() ),
-			'mediawiki.page-delete',
-			$attrs
-		);
-
-		// Create the deprecated mediawiki/page_delete event.
-		// This will be removed once consumers switch to the above event.
-		$attrsDeprecated = [];
-		$attrsDeprecated['title'] = $attrs['page_title'];
-		$attrsDeprecated['page_id'] = $id;
-		$attrsDeprecated['user_id'] = $user->getId();
-		$attrsDeprecated['user_text'] = $attrs['performer']['user_text'];
-		$attrsDeprecated['summary'] = $reason;
-
-		$events[] = self::createEvent(
-			self::getArticleURL( $wikiPage->getTitle() ),
-			'mediawiki.page_delete',
-			$attrsDeprecated
-		);
-
-		DeferredUpdates::addCallableUpdate(
-			function() use ( $events ) {
-				EventBus::getInstance()->send( $events );
-			}
-		);
+		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
+			EventBus::getInstance()->send( [ $event ] );
+		} );
 	}
 
 	/**
@@ -283,67 +169,23 @@ class EventBusHooks {
 	 * @param int $oldPageId ID of page previously deleted (from archive table)
 	 */
 	public static function onArticleUndelete( Title $title, $create, $comment, $oldPageId ) {
-		global $wgDBname;
-		$events = [];
-
-		$performer = RequestContext::getMain()->getUser();
-
-		// Create a mediawiki page undelete event.
-		$attrs = [
-			// Common Mediawiki entity fields
-			'database'           => $wgDBname,
-			'performer'          => self::createPerformerAttrs( $performer ),
-			'comment'            => $comment,
-
-			// page entity fields
-			'page_id'            => $title->getArticleID(),
-			'page_title'         => $title->getPrefixedDBkey(),
-			'page_namespace'     => $title->getNamespace(),
-			'page_is_redirect'   => $title->isRedirect(),
-			'rev_id'             => $title->getLatestRevID(),
-		];
-
-		// If this page had a different id in the archive table,
-		// then save it as the prior_state page_id.  This will
-		// be the page_id that the page had before it was deleted,
-		// which is the same as the page_id that it had while it was
-		// in the archive table.
-		// Usually page_id will be the same, but there are some historical
-		// edge cases where a new page_id is created as part of an undelete.
-		if ( $oldPageId && $oldPageId != $attrs['page_id'] ) {
-			// page undelete specific fields:
-			$attrs['prior_state'] = [
-				'page_id' => $oldPageId,
-			];
-		}
-
-		$events[] = self::createEvent(
-			self::getArticleURL( $title ),
-			'mediawiki.page-undelete',
-			$attrs
-		);
-
-		// Create the deprecated mediawiki/page_restore event.
-		// This will be removed once consumers switch to the above event.
-		$attrsDeprecated = [];
-		$attrsDeprecated['title'] = $attrs['page_title'];
-		$attrsDeprecated['new_page_id'] = $attrs['page_id'];
+		$attrs = [];
+		$attrs['title'] = $title->getPrefixedDBkey();
+		$attrs['new_page_id'] = $title->getArticleID();
 		if ( !is_null( $oldPageId ) && $oldPageId !== 0 ) {
-		    $attrsDeprecated['old_page_id'] = $oldPageId;
+		    $attrs['old_page_id'] = $oldPageId;
 		}
-		$attrsDeprecated['namespace'] = $attrs['page_namespace'];
-		$attrsDeprecated['summary'] = $comment;
-		$attrsDeprecated['user_id'] = $performer->getId();
-		$attrsDeprecated['user_text'] = $attrs['performer']['user_text'];
+		$attrs['namespace'] = $title->getNamespace();
+		$attrs['summary'] = $comment;
 
-		$events[] = self::createEvent(
-			self::getArticleURL( $title ),
-			'mediawiki.page_restore',
-			$attrsDeprecated
-		);
+		$context = RequestContext::getMain();
+		$attrs['user_id'] = $context->getUser()->getId();
+		$attrs['user_text'] = $context->getUser()->getName();
 
-		DeferredUpdates::addCallableUpdate( function() use ( $events ) {
-			EventBus::getInstance()->send( $events );
+		$event = self::createEvent( self::getArticleURL( $title ), 'mediawiki.page_restore', $attrs );
+
+		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
+			EventBus::getInstance()->send( [ $event ] );
 		} );
 	}
 
@@ -352,91 +194,32 @@ class EventBusHooks {
 	 *
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/TitleMoveComplete
 	 *
-	 * @param Title $oldTitle the old title
-	 * @param Title $newTitle the new title
+	 * @param Title $title the old title
+	 * @param Title $newtitle the new title
 	 * @param User $user User who did the move
-	 * @param int $pageid database page_id of the page that's been moved
-	 * @param int $redirid database page_id of the created redirect, or 0 if suppressed
+	 * @param int $oldid database page_id of the page that's been moved
+	 * @param int $newid database page_id of the created redirect, or 0 if suppressed
 	 * @param string $reason reason for the move
 	 * @param Revision $newRevision revision created by the move
 	 */
-	public static function onTitleMoveComplete(
-		Title $oldTitle,
-		Title $newTitle,
-		User $user,
-		$pageid,
-		$redirid,
-		$reason,
-		Revision $newRevision
+	public static function onTitleMoveComplete( Title $title, Title $newtitle, User $user, $oldid,
+			$newid, $reason, Revision $newRevision
 	) {
-		global $wgDBname;
-		$events = [];
+		$attrs = [];
+		$attrs['new_title'] = $newtitle->getPrefixedDBkey();
+		$attrs['old_title'] = $title->getPrefixedDBkey();
+		$attrs['page_id'] = $oldid;
+		$attrs['new_revision_id'] = $newRevision->getId();
+		$attrs['old_revision_id'] = $newRevision->getParentId();
+		$attrs['user_id'] = $user->getId();
+		$attrs['user_text'] = $user->getName();
+		$attrs['summary'] = $reason;
 
-		// Create a mediawiki page delete event.
-		$attrs = [
-			// Common Mediawiki entity fields
-			'database'           => $wgDBname,
-			'performer'          => self::createPerformerAttrs( $user ),
-			'comment'            => $reason,
+		$event = self::createEvent( self::getArticleURL( $newtitle ), 'mediawiki.page_move', $attrs );
 
-			// page entity fields
-			'page_id'            => $pageid,
-			'page_title'         => $newTitle->getPrefixedDBkey(),
-			'page_namespace'     => $newTitle->getNamespace(),
-			'page_is_redirect'   => $newTitle->isRedirect(),
-			'rev_id'             => $newRevision->getId(),
-
-			// page move specific fields:
-			'prior_state'        => [
-				'page_title'     => $oldTitle->getPrefixedDBkey(),
-				'page_namespace' => $oldTitle->getNamespace(),
-				'rev_id'         => $newRevision->getParentId(),
-			],
-		];
-
-		// If a new redirect page was created during this move, then include
-		// some information about it.
-		if ( $redirid ) {
-			$attrs['new_redirect_page'] = [
-				'page_id'        => $redirid,
-				// Redirect pages created as part of a page move
-				// will have the same title and namespace that
-				// the target page had before the move.
-				'page_title'     => $attrs['prior_state']['page_title'],
-				'page_namespace' => $attrs['prior_state']['page_namespace'],
-				'rev_id'         => $oldTitle->getLatestRevID(),
-			];
-		}
-
-		$events[] = self::createEvent(
-			self::getArticleURL( $newTitle ),
-			'mediawiki.page-move',
-			$attrs
-		);
-
-		// Create the deprecated mediawiki/page_move event.
-		// This will be removed once consumers switch to the above event.
-		$attrsDeprecated = [];
-		$attrsDeprecated['new_title'] = $attrs['page_title'];
-		$attrsDeprecated['old_title'] = $attrs['prior_state']['page_title'];
-		$attrsDeprecated['page_id'] = $pageid;
-		$attrsDeprecated['new_revision_id'] = $attrs['rev_id'];
-		$attrsDeprecated['old_revision_id'] = $attrs['prior_state']['rev_id'];
-		$attrsDeprecated['user_id'] = $user->getId();
-		$attrsDeprecated['user_text'] = $attrs['performer']['user_text'];
-		$attrsDeprecated['summary'] = $reason;
-
-		$events[] = self::createEvent(
-			self::getArticleURL( $newTitle ),
-			'mediawiki.page_move',
-			$attrsDeprecated
-		);
-
-		DeferredUpdates::addCallableUpdate(
-			function() use ( $events ) {
-				EventBus::getInstance()->send( $events );
-			}
-		);
+		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
+			EventBus::getInstance()->send( [ $event ] );
+		} );
 	}
 
 	/**
@@ -446,121 +229,39 @@ class EventBusHooks {
 	 *
 	 * @param Title $title title object of the article
 	 * @param array $revIds array of integer revision IDs
-	 * @param array $visibilityChangeMap map of revision id to oldBits and newBits.
-	 *              This array can be examined to determine exactly what visibility
-	 *              bits have changed for each revision.  This array is of the form
-	 *              [id => ['oldBits' => $oldBits, 'newBits' => $newBits], ... ]
 	 */
-	public static function onArticleRevisionVisibilitySet( $title, $revIds, $visibilityChangeMap ) {
-		global $wgDBname;
+	public static function onArticleRevisionVisibilitySet( $title, $revIds ) {
+		$user = RequestContext::getMain()->getUser();
+		$userId = $user->getId();
+		$userText = $user->getName();
+
 		$events = [];
-
-		/**
-		 * Returns true if the Revision::DELETED_* field is set
-		 * in the $hiddenBits.  False otherwise.
-		 */
-		function isHidden( $hiddenBits, $field ) {
-			return ( $hiddenBits & $field ) == $field;
-		}
-
-		/**
-		 * Converts a revision visibility hidden bitfield to an array with keys
-		 * of each of the possible visibility settings name mapped to a boolean.
-		 */
-		function bitsToVisibilityObject( $bits ) {
-			return [
-				'text'    => !isHidden( $bits, Revision::DELETED_TEXT ),
-				'user'    => !isHidden( $bits, Revision::DELETED_USER ),
-				'comment' => !isHidden( $bits, Revision::DELETED_COMMENT ),
-			];
-		}
-
-		$performer = RequestContext::getMain()->getUser();
-		$performer->loadFromId();
-
-		// Create a  event
-		// for each revId that was changed.
 		foreach ( $revIds as $revId ) {
-			// Create the mediawiki/revision/visibilty-change event
-			$revision = Revision::newFromid( $revId );
+			$revision = Revision::newFromId( $revId );
 
-			// If the page is deleted simultaneously (null $revision) or if
-			// this revId is not in the $visibilityChangeMap, then we can't
-			// send a meaningful event.
-			if ( is_null( $revision ) ) {
-				wfDebug(
-					__METHOD__ . ' revision ' . $revId .
-					' could not be found and may have been deleted. Cannot ' .
-					"create mediawiki/revision/visibility-change event.\n"
-				);
-				continue;
-			} elseif ( !array_key_exists( $revId, $visibilityChangeMap ) ) {
-				// This shoudln't happen, log it.
-				wfDebug(
-					__METHOD__ . ' revision id ' . $revId .
-					' not found in visibilityChangeMap. Cannot create ' .
-					"mediawiki/revision/visibility-change event.\n"
-				);
-				continue;
-			} else {
-				$attrs = [
-					// Common Mediawiki entity fields:
-					'database'           => $wgDBname,
-					'performer'          => self::createPerformerAttrs( $performer ),
-					'comment'            => $revision->getComment(),
-
-					// revision entity fields:
-					'page_id'            => $revision->getPage(),
-					'page_title'         => $revision->getTitle()->getPrefixedDBkey(),
-					'page_namespace'     => $revision->getTitle()->getNamespace(),
-					'rev_id'             => $revision->getId(),
-					'rev_timestamp'      => wfTimestamp( TS_ISO_8601, $revision->getTimestamp() ),
-					'rev_sha1'           => $revision->getSha1(),
-					'rev_len'            => $revision->getSize(),
-					'rev_minor_edit'     => $revision->isMinor(),
-					'rev_content_model'  => $revision->getContentModel(),
-					'rev_content_format' => $revision->getContentModel(),
-					'page_is_redirect'   => $revision->getContent()->isRedirect(),
-
-					// visibility-change state fields:
-					'visibility'   => bitsToVisibilityObject( $visibilityChangeMap[$revId]['newBits'] ),
-					'prior_state' => [
-						'visibility' => bitsToVisibilityObject( $visibilityChangeMap[$revId]['oldBits'] ),
-					]
-				];
-				$events[] = self::createEvent(
-					self::getArticleURL( $title ),
-					'mediawiki.revision-visibility-change',
-					$attrs
-				);
-
-				// Create the deprecated mediawiki/revision_visibility_set
-				// event. This will be removed once consumers switch to the
-				// above event.
-				$attrsDeprecated = [
-					'revision_id' => $attrs['rev_id'],
+			// If the page gets deleted simultaneously with this code
+			// we can't access the revision any more, so can't send a
+			// meaningful event.
+			if ( !is_null( $revision ) ) {
+				$attrs =  [
+					'revision_id' => (int)$revId,
 					'hidden' => [
-						'text' => $attrs['visibility']['text'],
-						'sha1' => $attrs['visibility']['text'],
-						'comment' => $attrs['visibility']['comment'],
-						'user' => $attrs['visibility']['user'],
+						'text' => $revision->isDeleted( Revision::DELETED_TEXT ),
+						'sha1' => $revision->isDeleted( Revision::DELETED_TEXT ),
+						'comment' => $revision->isDeleted( Revision::DELETED_COMMENT ),
+						'user' => $revision->isDeleted( Revision::DELETED_USER )
 					],
-					'user_id' => $performer->getId(),
-					'user_text' => $performer->getName(),
+					'user_id' => $userId,
+					'user_text' => $userText
 				];
-				$events[] = self::createEvent(
-					self::getArticleURL( $title ),
-					'mediawiki.revision_visibility_set',
-					$attrsDeprecated
-				);
+				$events[] = self::createEvent( self::getArticleURL( $title ),
+						'mediawiki.revision_visibility_set', $attrs );
 			}
 		}
 
-		DeferredUpdates::addCallableUpdate(
-			function() use ( $events ) {
-				EventBus::getInstance()->send( $events );
-			}
-		);
+		DeferredUpdates::addCallableUpdate( function() use ( $events ) {
+			EventBus::getInstance()->send( $events );
+		} );
 	}
 
 	/**
@@ -623,110 +324,33 @@ class EventBusHooks {
 	 *
 	 * @param Block $block the Block object that was saved
 	 * @param User $user the user who did the block (not the one being blocked)
-	 * @param Block $previousBlock the previous block state for the block target.
-	 *        null if this is a new block target.
 	 */
-	public static function onBlockIpComplete( $block, $user, $previousBlock=null ) {
-		global $wgDBname;
-		$events = [];
-
-		/**
-		 * Given a Block $block, returns an array suitable for use
-		 * as a 'blocks' object in the user/blocks-change event schema.
-		 * This function exists just to DRY the code a bit.
-		 */
-		function getUserBlocksChangeAttributes( $block ) {
-			$blockAttrs = [
-				# mHideName is sometimes a string/int like '0'.
-				# Cast to int then to bool to make sure it is a proper bool.
-				'name'           => (bool)(int)$block->mHideName,
-				'email'          => (bool)$block->prevents( 'sendemail' ),
-				'user_talk'      => (bool)$block->prevents( 'editownusertalk' ),
-				'account_create' => (bool)$block->prevents( 'createaccount' ),
-			];
-			if ( $block->getExpiry() != 'infinity' ) {
-				$blockAttrs['expiry_dt'] = $block->getExpiry();
-			}
-			return $blockAttrs;
-		}
-
-		// This could be a User, a user_id, or a string (IP, etc.)
-		$blockTarget = $block->getTarget();
-
-		$attrs = [
-			// Common Mediawiki entity fields:
-			'database'           => $wgDBname,
-			'performer'          => self::createPerformerAttrs( $user ),
-			'comment'            => $block->mReason,
-		];
-
-		// user entity fields:
-
-		// Note that, except for null, it is always safe to treat the target
-		// as a string; for User objects this will return User::__toString()
-		// which in turn gives User::getName().
-		$attrs['user_text'] = (string)$blockTarget;
-
-		// if the blockTarget is a user, then set user_id.
-		if ( get_class( $blockTarget ) == 'User' ) {
-			// set user_id if the target User has a user_id
-			if ( $blockTarget->getId() ) {
-				$attrs['user_id'] = $blockTarget->getId();
-			}
-
-			// set user_groups, all Users will have this.
-			$attrs['user_groups'] = $blockTarget->getEffectiveGroups();
-		}
-
-		// blocks-change specific fields:
-		$attrs['blocks'] = getUserBlocksChangeAttributes( $block );
-
-		// If we had a prior block settings, emit them as prior_state.blocks.
-		if ( $previousBlock ) {
-			$attrs['prior_state'] = [
-				'blocks' => getUserBlocksChangeAttributes( $previousBlock )
-			];
-		}
-
-		$events[] = self::createEvent(
-			self::getUserPageURL( $block->getTarget() ),
-			'mediawiki.user-blocks-change',
-			$attrs
-		);
-
-		// Create the deprecated mediawiki/user_block
-		// event. This will be removed once consumers switch to the
-		// above event.
-		$attrsDeprecated = [];
+	public static function onBlockIpComplete( $block, $user ) {
+		$attrs = [];
 		$user_blocked = is_string( $block->getTarget() )
 			? $block->getTarget() : $block->getTarget()->getName();
-		$attrsDeprecated['user_blocked'] = $user_blocked;
+		$attrs['user_blocked'] = $user_blocked;
 		if ( $block->mExpiry != 'infinity' ) {
-			$attrsDeprecated['expiry'] = $block->mExpiry;
+			$attrs['expiry'] = $block->mExpiry;
 		}
 
-		$attrsDeprecated['blocks'] = [
-			'name' => (bool)$block->mHideName,
+		$attrs['blocks'] = [
+			'name' => $block->mHideName,
 			'email' => $block->prevents( 'sendemail' ),
 			'user_talk' => $block->prevents( 'editownusertalk' ),
 			'account_create' => $block->prevents( 'createaccount' ),
 		];
 		if ( !is_null( $block->mReason ) ) {
-			$attrsDeprecated['reason'] = $block->mReason;
+			$attrs['reason'] = $block->mReason;
 		}
-		$attrsDeprecated['user_id'] = $user->getId();
-		$attrsDeprecated['user_text'] = $user->getName();
+		$attrs['user_id'] = $user->getId();
+		$attrs['user_text'] = $user->getName();
 
-		$events[] = self::createEvent(
-			self::getUserPageURL( $user_blocked ),
-			'mediawiki.user_block',
-			$attrsDeprecated
-		);
+		$event = self::createEvent( self::getUserPageURL( $user_blocked ),
+			'mediawiki.user_block', $attrs );
 
-		DeferredUpdates::addCallableUpdate(
-			function() use ( $events ) {
-				EventBus::getInstance()->send( $events );
-			}
-		);
+		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
+			EventBus::getInstance()->send( [ $event ] );
+		} );
 	}
 }
