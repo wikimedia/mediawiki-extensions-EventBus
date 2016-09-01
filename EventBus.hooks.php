@@ -166,29 +166,6 @@ class EventBusHooks {
 			$attrs
 		);
 
-		// Create the deprecated mediawiki/revision_create event.
-		// This will be removed once consumers switch to the above event.
-		$attrsDeprecated = [];
-		$attrsDeprecated['page_title'] = $attrs['page_title'];
-		$attrsDeprecated['page_id'] = $attrs['page_id'];
-		$attrsDeprecated['page_namespace'] = $attrs['page_namespace'];
-		$attrsDeprecated['rev_id'] = $attrs['rev_id'];
-		$attrsDeprecated['rev_timestamp'] = $attrs['rev_timestamp'];
-		$attrsDeprecated['user_id'] = $revision->getUser();
-		$attrsDeprecated['user_text'] = $attrs['performer']['user_text'];
-		$attrsDeprecated['comment'] = $attrs['comment'];
-		$attrsDeprecated['rev_by_bot'] = $attrs['performer']['user_is_bot'];
-
-		if ( !is_null( $parentId ) && $parentId !== 0 ) {
-			$attrsDeprecated['rev_parent_id'] = $parentId;
-		}
-
-		$events[] = self::createEvent(
-			self::getArticleURL( $revision->getTitle() ),
-			'mediawiki.revision_create',
-			$attrsDeprecated
-		);
-
 		DeferredUpdates::addCallableUpdate(
 			function() use ( $events ) {
 				EventBus::getInstance()->send( $events );
@@ -250,21 +227,6 @@ class EventBusHooks {
 			$attrs
 		);
 
-		// Create the deprecated mediawiki/page_delete event.
-		// This will be removed once consumers switch to the above event.
-		$attrsDeprecated = [];
-		$attrsDeprecated['title'] = $attrs['page_title'];
-		$attrsDeprecated['page_id'] = $id;
-		$attrsDeprecated['user_id'] = $user->getId();
-		$attrsDeprecated['user_text'] = $attrs['performer']['user_text'];
-		$attrsDeprecated['summary'] = $reason;
-
-		$events[] = self::createEvent(
-			self::getArticleURL( $wikiPage->getTitle() ),
-			'mediawiki.page_delete',
-			$attrsDeprecated
-		);
-
 		DeferredUpdates::addCallableUpdate(
 			function() use ( $events ) {
 				EventBus::getInstance()->send( $events );
@@ -321,25 +283,6 @@ class EventBusHooks {
 			self::getArticleURL( $title ),
 			'mediawiki.page-undelete',
 			$attrs
-		);
-
-		// Create the deprecated mediawiki/page_restore event.
-		// This will be removed once consumers switch to the above event.
-		$attrsDeprecated = [];
-		$attrsDeprecated['title'] = $attrs['page_title'];
-		$attrsDeprecated['new_page_id'] = $attrs['page_id'];
-		if ( !is_null( $oldPageId ) && $oldPageId !== 0 ) {
-		    $attrsDeprecated['old_page_id'] = $oldPageId;
-		}
-		$attrsDeprecated['namespace'] = $attrs['page_namespace'];
-		$attrsDeprecated['summary'] = $comment;
-		$attrsDeprecated['user_id'] = $performer->getId();
-		$attrsDeprecated['user_text'] = $attrs['performer']['user_text'];
-
-		$events[] = self::createEvent(
-			self::getArticleURL( $title ),
-			'mediawiki.page_restore',
-			$attrsDeprecated
 		);
 
 		DeferredUpdates::addCallableUpdate( function() use ( $events ) {
@@ -412,24 +355,6 @@ class EventBusHooks {
 			self::getArticleURL( $newTitle ),
 			'mediawiki.page-move',
 			$attrs
-		);
-
-		// Create the deprecated mediawiki/page_move event.
-		// This will be removed once consumers switch to the above event.
-		$attrsDeprecated = [];
-		$attrsDeprecated['new_title'] = $attrs['page_title'];
-		$attrsDeprecated['old_title'] = $attrs['prior_state']['page_title'];
-		$attrsDeprecated['page_id'] = $pageid;
-		$attrsDeprecated['new_revision_id'] = $attrs['rev_id'];
-		$attrsDeprecated['old_revision_id'] = $attrs['prior_state']['rev_id'];
-		$attrsDeprecated['user_id'] = $user->getId();
-		$attrsDeprecated['user_text'] = $attrs['performer']['user_text'];
-		$attrsDeprecated['summary'] = $reason;
-
-		$events[] = self::createEvent(
-			self::getArticleURL( $newTitle ),
-			'mediawiki.page_move',
-			$attrsDeprecated
 		);
 
 		DeferredUpdates::addCallableUpdate(
@@ -532,26 +457,6 @@ class EventBusHooks {
 					self::getArticleURL( $title ),
 					'mediawiki.revision-visibility-change',
 					$attrs
-				);
-
-				// Create the deprecated mediawiki/revision_visibility_set
-				// event. This will be removed once consumers switch to the
-				// above event.
-				$attrsDeprecated = [
-					'revision_id' => $attrs['rev_id'],
-					'hidden' => [
-						'text' => $attrs['visibility']['text'],
-						'sha1' => $attrs['visibility']['text'],
-						'comment' => $attrs['visibility']['comment'],
-						'user' => $attrs['visibility']['user'],
-					],
-					'user_id' => $performer->getId(),
-					'user_text' => $performer->getName(),
-				];
-				$events[] = self::createEvent(
-					self::getArticleURL( $title ),
-					'mediawiki.revision_visibility_set',
-					$attrsDeprecated
 				);
 			}
 		}
@@ -692,35 +597,6 @@ class EventBusHooks {
 			self::getUserPageURL( $block->getTarget() ),
 			'mediawiki.user-blocks-change',
 			$attrs
-		);
-
-		// Create the deprecated mediawiki/user_block
-		// event. This will be removed once consumers switch to the
-		// above event.
-		$attrsDeprecated = [];
-		$user_blocked = is_string( $block->getTarget() )
-			? $block->getTarget() : $block->getTarget()->getName();
-		$attrsDeprecated['user_blocked'] = $user_blocked;
-		if ( $block->mExpiry != 'infinity' ) {
-			$attrsDeprecated['expiry'] = $block->mExpiry;
-		}
-
-		$attrsDeprecated['blocks'] = [
-			'name' => (bool)$block->mHideName,
-			'email' => $block->prevents( 'sendemail' ),
-			'user_talk' => $block->prevents( 'editownusertalk' ),
-			'account_create' => $block->prevents( 'createaccount' ),
-		];
-		if ( !is_null( $block->mReason ) ) {
-			$attrsDeprecated['reason'] = $block->mReason;
-		}
-		$attrsDeprecated['user_id'] = $user->getId();
-		$attrsDeprecated['user_text'] = $user->getName();
-
-		$events[] = self::createEvent(
-			self::getUserPageURL( $user_blocked ),
-			'mediawiki.user_block',
-			$attrsDeprecated
 		);
 
 		DeferredUpdates::addCallableUpdate(
