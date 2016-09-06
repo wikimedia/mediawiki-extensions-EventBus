@@ -150,6 +150,8 @@ class EventBusHooks {
 		$content = $revision->getContent();
 		if ( !is_null( $content ) ) {
 			$attrs['page_is_redirect'] = $content->isRedirect();
+		} else {
+			$attrs['page_is_redirect'] = false;
 		}
 
 		// The parent_revision_id attribute is not required, but when supplied
@@ -232,7 +234,7 @@ class EventBusHooks {
 			'page_id'            => $id,
 			'page_title'         => $wikiPage->getTitle()->getPrefixedDBkey(),
 			'page_namespace'     => $wikiPage->getTitle()->getNamespace(),
-			'page_is_redirect'        => $wikiPage->isRedirect(),
+			'page_is_redirect'   => $wikiPage->isRedirect(),
 		];
 		$headRevision = $wikiPage->getRevision();
 		if ( !is_null( $headRevision ) ) {
@@ -520,7 +522,6 @@ class EventBusHooks {
 					'rev_minor_edit'     => $revision->isMinor(),
 					'rev_content_model'  => $revision->getContentModel(),
 					'rev_content_format' => $revision->getContentModel(),
-					'page_is_redirect'   => $revision->getContent()->isRedirect(),
 
 					// visibility-change state fields:
 					'visibility'   => bitsToVisibilityObject( $visibilityChangeMap[$revId]['newBits'] ),
@@ -528,6 +529,17 @@ class EventBusHooks {
 						'visibility' => bitsToVisibilityObject( $visibilityChangeMap[$revId]['oldBits'] ),
 					]
 				];
+
+				// It is possible that the $revision object does not have any content
+				// at the time of RevisionVisibilityChange.  This might happen if the
+				// page content was hidden
+				$content = $revision->getContent();
+				if ( !is_null( $content ) ) {
+					$attrs['page_is_redirect'] = $content->isRedirect();
+				} else {
+					$attrs['page_is_redirect'] = false;
+				}
+
 				$events[] = self::createEvent(
 					self::getArticleURL( $title ),
 					'mediawiki.revision-visibility-change',
