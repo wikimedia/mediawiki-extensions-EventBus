@@ -97,7 +97,7 @@ class EventBusHooks {
 	 * Creates a full user page path
 	 *
 	 * @param string $userName userName
-	 * @returns string
+	 * @return string
 	 */
 	private static function getUserPageURL( $userName ) {
 		global $wgCanonicalServer, $wgArticlePath, $wgContLang;
@@ -105,6 +105,24 @@ class EventBusHooks {
 		$encodedUserURL = rawurlencode( strtr( $prefixedUserURL, ' ', '_' ) );
 		// The $wgArticlePath contains '$1' string where the article title should appear.
 		return $wgCanonicalServer . str_replace( '$1', $encodedUserURL, $wgArticlePath );
+	}
+
+	/**
+	 * Creates and sends a single resource_change event to EventBus
+	 *
+	 * @param Title $title article title object
+	 * @param Array $tags  the array of tags to use in the event
+	 */
+	private static function sendResourceChangedEvent( $title, $tags ) {
+		$event = self::createEvent(
+			self::getArticleURL( $title ),
+			'resource_change',
+			[ 'tags' => $tags ]
+		);
+
+		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
+			EventBus::getInstance()->send( [ $event ] );
+		} );
 	}
 
 	/**
@@ -488,13 +506,7 @@ class EventBusHooks {
 	 * @param WikiPage $wikiPage
 	 */
 	public static function onArticlePurge( $wikiPage ) {
-		$event = self::createEvent( self::getArticleURL( $wikiPage->getTitle() ), 'resource_change', [
-			'tags' => [ 'purge' ]
-		] );
-
-		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
-			EventBus::getInstance()->send( [ $event ] );
-		} );
+		self::sendResourceChangedEvent( $wikiPage->getTitle(), [ 'purge' ] );
 	}
 
 	/**
@@ -522,14 +534,7 @@ class EventBusHooks {
 	) {
 		// In case of a null edit the status revision value will be null
 		if ( is_null( $status->getValue()['revision'] ) ) {
-
-			$event = self::createEvent( self::getArticleURL( $article->getTitle() ), 'resource_change', [
-				'tags' => [ 'null_edit' ]
-			] );
-
-			DeferredUpdates::addCallableUpdate( function() use ( $event ) {
-				EventBus::getInstance()->send( [ $event ] );
-			} );
+			self::sendResourceChangedEvent( $article->getTitle(), [ 'null_edit' ] );
 		}
 	}
 
@@ -617,4 +622,24 @@ class EventBusHooks {
 			}
 		);
 	}
+
+	/**
+	 * Sends a resource_change event when the page_image property of a page is updated
+	 *
+	 * @param LinksUpdate $linksUpdate the update object
+	 */
+	public static function onPageImagesUpdate( $linksUpdate ) {
+		// gather the list of added and removed properties
+		$added = $linksUpdate->getAddedProperties();
+		$removed = $linksUpdate->getRemovedProperties();
+		// TODO: make it so as to use PageImages::PROP_NAME in the future
+		$prop = 'page_image';
+		// when a page image has been added, removed or changed either or both
+		// of the above arrays will contain the 'page_image' key
+		if ( isset( $added[$prop] ) || isset( $removed[$prop] ) ) {
+			// send the resource_change event
+			self::sendResourceChangedEvent( $linksUpdate->getTitle(), [ $prop ] );
+		}
+	}
+
 }
