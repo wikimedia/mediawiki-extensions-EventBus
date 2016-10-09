@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Jon Harald Søby"
+		]
+	},
+	"eventbus-desc": "Propagerer endringsinformasjon til en RESTful-hendelsestjeneste."
+}
