@@ -624,22 +624,52 @@ class EventBusHooks {
 	}
 
 	/**
-	 * Sends a resource_change event when the page_image property of a page is updated
+	 * Sends a page-properties-change event
 	 *
 	 * @param LinksUpdate $linksUpdate the update object
 	 */
-	public static function onPageImagesUpdate( $linksUpdate ) {
-		// gather the list of added and removed properties
-		$added = $linksUpdate->getAddedProperties();
-		$removed = $linksUpdate->getRemovedProperties();
-		// TODO: make it so as to use PageImages::PROP_NAME in the future
-		$prop = 'page_image';
-		// when a page image has been added, removed or changed either or both
-		// of the above arrays will contain the 'page_image' key
-		if ( isset( $added[$prop] ) || isset( $removed[$prop] ) ) {
-			// send the resource_change event
-			self::sendResourceChangedEvent( $linksUpdate->getTitle(), [ $prop ] );
-		}
-	}
+	public static function onLinksUpdateComplete( $linksUpdate ) {
+		global $wgDBname;
+		$events = [];
 
+		$removedProps = $linksUpdate->getRemovedProperties();
+		$addedProps = $linksUpdate->getAddedProperties();
+
+		if ( empty( $removedProps ) && empty( $addedProps ) ) {
+			return;
+		}
+
+		$title = $linksUpdate->getTitle();
+		$revision = $linksUpdate->getRevision();
+
+		// Create a mediawiki page delete event.
+		$attrs = [
+			// Common Mediawiki entity fields
+			'database'           => $wgDBname,
+			'performer'          => self::createPerformerAttrs( $linksUpdate->getTriggeringUser() ),
+
+			// page entity fields
+			'page_id'            => $title->getArticleID(),
+			'page_title'         => $title->getPrefixedDBkey(),
+			'page_namespace'     => $title->getNamespace(),
+			'page_is_redirect'   => $title->isRedirect(),
+			'rev_id'             =>$revision->getId(),
+
+			// page properties change specific fields:
+			'added_properties' => $addedProps,
+			'removed_properties' => $removedProps
+		];
+
+		$events[] = self::createEvent(
+			self::getArticleURL( $linksUpdate->getTitle() ),
+			'mediawiki.page-properties-change',
+			$attrs
+		);
+
+		DeferredUpdates::addCallableUpdate(
+			function() use ( $events ) {
+				EventBus::getInstance()->send( $events );
+			}
+		);
+	}
 }

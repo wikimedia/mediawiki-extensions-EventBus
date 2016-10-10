@@ -1,6 +1,6 @@
 {
 	"name": "EventBus",
-	"version": "0.2.11",
+	"version": "0.2.12",
 	"author": [
 		"Eric Evans",
 		"Petr Pchelko",
@@ -50,7 +50,7 @@
 			"EventBusHooks::onBlockIpComplete"
 		],
 		"LinksUpdateComplete": [
-			"EventBusHooks::onPageImagesUpdate"
+			"EventBusHooks::onLinksUpdateComplete"
 		]
 	},
 	"manifest_version": 1
