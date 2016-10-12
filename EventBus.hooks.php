@@ -641,12 +641,12 @@ class EventBusHooks {
 
 		$title = $linksUpdate->getTitle();
 		$revision = $linksUpdate->getRevision();
+		$user = $linksUpdate->getTriggeringUser();
 
 		// Create a mediawiki page delete event.
 		$attrs = [
 			// Common Mediawiki entity fields
 			'database'           => $wgDBname,
-			'performer'          => self::createPerformerAttrs( $linksUpdate->getTriggeringUser() ),
 
 			// page entity fields
 			'page_id'            => $title->getArticleID(),
@@ -655,6 +655,10 @@ class EventBusHooks {
 			'page_is_redirect'   => $title->isRedirect(),
 			'rev_id'             =>$revision->getId()
 		];
+
+		if ( !is_null( $user ) ) {
+			$attrs[ 'performer' ] = self::createPerformerAttrs( $user );
+		}
 
 		if ( !empty( $addedProps ) ) {
 			$attrs[ 'added_properties' ] = $addedProps;
