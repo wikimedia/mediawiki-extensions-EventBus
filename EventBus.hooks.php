@@ -653,12 +653,16 @@ class EventBusHooks {
 			'page_title'         => $title->getPrefixedDBkey(),
 			'page_namespace'     => $title->getNamespace(),
 			'page_is_redirect'   => $title->isRedirect(),
-			'rev_id'             =>$revision->getId(),
-
-			// page properties change specific fields:
-			'added_properties' => $addedProps,
-			'removed_properties' => $removedProps
+			'rev_id'             =>$revision->getId()
 		];
+
+		if ( !empty( $addedProps ) ) {
+			$attrs[ 'added_properties' ] = $addedProps;
+		}
+
+		if ( !empty( $removedProps ) ) {
+			$attrs[ 'removed_properties' ] = $removedProps;
+		}
 
 		$events[] = self::createEvent(
 			self::getArticleURL( $linksUpdate->getTitle() ),
