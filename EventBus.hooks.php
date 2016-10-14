@@ -155,11 +155,16 @@ class EventBusHooks {
 			'rev_id'             => $revision->getId(),
 			'rev_timestamp'      => wfTimestamp( TS_ISO_8601, $revision->getTimestamp() ),
 			'rev_sha1'           => $revision->getSha1(),
-			'rev_len'            => $revision->getSize(),
 			'rev_minor_edit'     => $revision->isMinor(),
 			'rev_content_model'  => $revision->getContentModel(),
 			'rev_content_format' => $revision->getContentModel(),
 		];
+
+		// It is possible rev_len is not known. It's not a required field,
+		// so don't set it if it's NULL
+		if ( !is_null( $revision->getSize() ) ) {
+			$attrs['rev_len'] = $revision->getSize();
+		}
 
 		// It is possible that the $revision object does not have any content
 		// at the time of RevisionInsertComplete.  This might happen during
@@ -653,19 +658,19 @@ class EventBusHooks {
 			'page_title'         => $title->getPrefixedDBkey(),
 			'page_namespace'     => $title->getNamespace(),
 			'page_is_redirect'   => $title->isRedirect(),
-			'rev_id'             =>$revision->getId()
+			'rev_id'             => $revision->getId()
 		];
 
 		if ( !is_null( $user ) ) {
-			$attrs[ 'performer' ] = self::createPerformerAttrs( $user );
+			$attrs['performer'] = self::createPerformerAttrs( $user );
 		}
 
 		if ( !empty( $addedProps ) ) {
-			$attrs[ 'added_properties' ] = $addedProps;
+			$attrs['added_properties'] = $addedProps;
 		}
 
 		if ( !empty( $removedProps ) ) {
-			$attrs[ 'removed_properties' ] = $removedProps;
+			$attrs['removed_properties'] = $removedProps;
 		}
 
 		$events[] = self::createEvent(
