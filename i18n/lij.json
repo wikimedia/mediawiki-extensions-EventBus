@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Giromin Cangiaxo"
+		]
+	},
+	"eventbus-desc": "O propaga de informaçioin de modiffiche a 'n serviççio d'eventi RESTful."
+}
