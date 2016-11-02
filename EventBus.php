@@ -37,6 +37,7 @@ class EventBus {
 
 	public function __construct() {
 		$this->http = new MultiHttpClient( [] );
+		$this->logger = LoggerFactory::getInstance( 'EventBus' );
 	}
 
 	/**
@@ -45,17 +46,25 @@ class EventBus {
 	 * @param array $events the events to send
 	 */
 	public function send( $events ) {
+		if ( empty( $events ) ) {
+			$context = [ 'backtrace' => debug_backtrace() ];
+			$this->logger->error( 'Must call send with at least 1 event.', $context );
+			return;
+		}
+
 		$config = self::getConfig();
 		$eventServiceUrl = $config->get( 'EventServiceUrl' );
 		$eventServiceTimeout = $config->get( 'EventServiceTimeout' );
 
+		$request = [
+			'url'		=> $eventServiceUrl,
+			'method'	=> 'POST',
+			'body'		=> FormatJson::encode( $events ),
+			'headers'	=> [ 'content-type' => 'application/json' ]
+		];
+
 		$ret = $this->http->run(
-			[
-				'url'	  => $eventServiceUrl,
-				'method'  => 'POST',
-				'body'	  => FormatJson::encode( $events ),
-				'headers' => [ 'content-type' => 'application/json' ]
-			],
+			$request,
 			[
 				'reqTimeout' => $eventServiceTimeout ?: self::REQ_TIMEOUT
 			]
@@ -71,10 +80,8 @@ class EventBus {
 
 	private function onError( $ret ) {
 		$message = empty( $ret['error'] ) ? $ret['code'] . ': ' . $ret['reason'] : $ret['error'];
-		$context = [ 'response' => [ 'body' => $ret['body'] ] ];
-
-		$logger = LoggerFactory::getInstance( 'EventBus' );
-		$logger->error( "Unable to deliver event: ${message}", $context );
+		$context = [ 'EventBus' => [ 'request' => $request, 'response' => $ret ] ];
+		$this->logger->error( "Unable to deliver event: ${message}", $context );
 	}
 
 	/**
