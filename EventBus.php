@@ -48,7 +48,7 @@ class EventBus {
 	public function send( $events ) {
 		if ( empty( $events ) ) {
 			$context = [ 'backtrace' => debug_backtrace() ];
-			$this->logger->error( 'Must call send with at least 1 event.', $context );
+			$this->logger->error( 'Must call send with at least 1 event. Aborting send.', $context );
 			return;
 		}
 
@@ -56,15 +56,30 @@ class EventBus {
 		$eventServiceUrl = $config->get( 'EventServiceUrl' );
 		$eventServiceTimeout = $config->get( 'EventServiceTimeout' );
 
-		$request = [
+		$body = FormatJson::encode( $events );
+
+		if ( empty ( $body ) ) {
+			$context = [
+				'backtrace' => debug_backtrace(),
+				'events' => $events,
+				'json_last_error' => json_last_error()
+			];
+			$this->logger->error(
+				'FormatJson::encode($events) failed: ' . $context['json_last_error'] .
+				'. Aborting send.', $context
+			);
+			return;
+		}
+
+		$req = [
 			'url'		=> $eventServiceUrl,
 			'method'	=> 'POST',
-			'body'		=> FormatJson::encode( $events ),
+			'body'		=> $body,
 			'headers'	=> [ 'content-type' => 'application/json' ]
 		];
 
-		$ret = $this->http->run(
-			$request,
+		$res = $this->http->run(
+			$req,
 			[
 				'reqTimeout' => $eventServiceTimeout ?: self::REQ_TIMEOUT
 			]
@@ -73,14 +88,14 @@ class EventBus {
 		// 201: all events are accepted
 		// 207: some but not all events are accepted
 		// 400: no events are accepted
-		if ( $ret['code'] != 201 ) {
-			$this->onError( $ret );
+		if ( $res['code'] != 201 ) {
+			$this->onError( $req, $res );
 		}
 	}
 
-	private function onError( $ret ) {
-		$message = empty( $ret['error'] ) ? $ret['code'] . ': ' . $ret['reason'] : $ret['error'];
-		$context = [ 'EventBus' => [ 'request' => $request, 'response' => $ret ] ];
+	private function onError( $req, $res ) {
+		$message = empty( $res['error'] ) ? $res['code'] . ': ' . $res['reason'] : $res['error'];
+		$context = [ 'EventBus' => [ 'request' => $req, 'response' => $res ] ];
 		$this->logger->error( "Unable to deliver event: ${message}", $context );
 	}
 
