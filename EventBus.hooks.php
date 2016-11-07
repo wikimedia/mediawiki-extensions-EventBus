@@ -23,6 +23,13 @@
 
 class EventBusHooks {
 
+	private static function replaceBinaryValues( $value ) {
+		if ( is_string( $value ) && !mb_check_encoding( $value, 'UTF-8' ) ) {
+			return 'data:application/octet-stream;base64,' . base64_encode( $value );
+		}
+		return $value;
+	}
+
 	/** Event object stub */
 	public static function createEvent( $uri, $topic, $attrs ) {
 		global $wgServerName;
@@ -666,11 +673,11 @@ class EventBusHooks {
 		}
 
 		if ( !empty( $addedProps ) ) {
-			$attrs['added_properties'] = $addedProps;
+			$attrs['added_properties'] = array_map( 'EventBusHooks::replaceBinaryValues', $addedProps );
 		}
 
 		if ( !empty( $removedProps ) ) {
-			$attrs['removed_properties'] = $removedProps;
+			$attrs['removed_properties'] = array_map( 'EventBusHooks::replaceBinaryValues', $removedProps );
 		}
 
 		$events[] = self::createEvent(
