@@ -664,9 +664,12 @@ class EventBusHooks {
 			'page_id'            => $title->getArticleID(),
 			'page_title'         => $title->getPrefixedDBkey(),
 			'page_namespace'     => $title->getNamespace(),
-			'page_is_redirect'   => $title->isRedirect(),
-			'rev_id'             => $revision->getId()
+			'page_is_redirect'   => $title->isRedirect()
 		];
+
+		if ( $revision ) {
+			$attrs['rev_id'] = $revision->getId();
+		}
 
 		if ( !is_null( $user ) ) {
 			$attrs['performer'] = self::createPerformerAttrs( $user );
