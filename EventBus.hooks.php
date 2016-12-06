@@ -18,101 +18,10 @@
  * http://www.gnu.org/copyleft/gpl.html
  *
  * @file
- * @author Eric Evans
+ * @author Eric Evans, Andrew Otto
  */
 
 class EventBusHooks {
-
-	private static function replaceBinaryValues( $value ) {
-		if ( is_string( $value ) && !mb_check_encoding( $value, 'UTF-8' ) ) {
-			return 'data:application/octet-stream;base64,' . base64_encode( $value );
-		}
-		return $value;
-	}
-
-	/** Event object stub */
-	public static function createEvent( $uri, $topic, $attrs ) {
-		global $wgServerName;
-		$event = [
-			'meta' => [
-				'uri'        => $uri,
-				'topic'      => $topic,
-				'request_id' => self::getRequestId(),
-				'id'         => self::newId(),
-				'dt'         => date( 'c' ),
-				'domain'     => $wgServerName ?: "unknown",
-			],
-		];
-		return $event + $attrs;
-	}
-
-	/**
-	 * Given a User $user, returns an array suitable for
-	 * use as the performer JSON object in various Mediawiki
-	 * entity schemas.
-	 */
-	public static function createPerformerAttrs( $user ) {
-		$performerAttrs = [
-			'user_text'   => $user->getName(),
-			'user_groups' => $user->getEffectiveGroups(),
-			'user_is_bot' => $user->getId() ? $user->isBot() : false,
-		];
-		if ( $user->getId() ) {
-			$performerAttrs['user_id'] = $user->getId();
-		}
-		return $performerAttrs;
-	}
-
-	/**
-	 * Returns the X-Request-ID header, if set, otherwise a newly generated
-	 * type 4 UUID string.
-	 *
-	 * @return string
-	 */
-	private static function getRequestId() {
-		$context = RequestContext::getMain();
-		$xreqid = $context->getRequest()->getHeader( 'x-request-id' );
-		return $xreqid ?: UIDGenerator::newUUIDv4();
-	}
-
-	/**
-	 * Creates a new type 1 UUID string.
-	 *
-	 * @return string
-	 */
-	private static function newId() {
-		return UIDGenerator::newUUIDv1();
-	}
-
-	/**
-	 * Creates a full article path
-	 *
-	 * @param Title $title article title object
-	 * @return string
-	 */
-	private static function getArticleURL( $title ) {
-		global $wgCanonicalServer, $wgArticlePath;
-		// can't use wfUrlencode, because it doesn't encode slashes. RESTBase
-		// and services expect slashes to be encoded, so encode the whole title
-		// right away to avoid reencoding it in change-propagation
-		$titleURL = rawurlencode( $title->getPrefixedDBkey() );
-		// The $wgArticlePath contains '$1' string where the article title should appear.
-		return $wgCanonicalServer . str_replace( '$1', $titleURL, $wgArticlePath );
-	}
-
-	/**
-	 * Creates a full user page path
-	 *
-	 * @param string $userName userName
-	 * @return string
-	 */
-	private static function getUserPageURL( $userName ) {
-		global $wgCanonicalServer, $wgArticlePath, $wgContLang;
-		$prefixedUserURL = $wgContLang->getNsText( NS_USER ) . ':' . $userName;
-		$encodedUserURL = rawurlencode( strtr( $prefixedUserURL, ' ', '_' ) );
-		// The $wgArticlePath contains '$1' string where the article title should appear.
-		return $wgCanonicalServer . str_replace( '$1', $encodedUserURL, $wgArticlePath );
-	}
 
 	/**
 	 * Creates and sends a single resource_change event to EventBus
@@ -121,8 +30,8 @@ class EventBusHooks {
 	 * @param Array $tags  the array of tags to use in the event
 	 */
 	private static function sendResourceChangedEvent( $title, $tags ) {
-		$event = self::createEvent(
-			self::getArticleURL( $title ),
+		$event = EventBus::createEvent(
+			EventBus::getArticleURL( $title ),
 			'resource_change',
 			[ 'tags' => $tags ]
 		);
@@ -152,7 +61,7 @@ class EventBusHooks {
 		$attrs = [
 			// Common Mediawiki entity fields
 			'database'           => $wgDBname,
-			'performer'          => self::createPerformerAttrs( $performer ),
+			'performer'          => EventBus::createPerformerAttrs( $performer ),
 			'comment'            => $revision->getComment(),
 
 			// revision entity fields
@@ -192,8 +101,8 @@ class EventBusHooks {
 			$attrs['rev_parent_id'] = $parentId;
 		}
 
-		$events[] = self::createEvent(
-			self::getArticleURL( $revision->getTitle() ),
+		$events[] = EventBus::createEvent(
+			EventBus::getArticleURL( $revision->getTitle() ),
 			'mediawiki.revision-create',
 			$attrs
 		);
@@ -234,7 +143,7 @@ class EventBusHooks {
 		$attrs = [
 			// Common Mediawiki entity fields
 			'database'           => $wgDBname,
-			'performer'          => self::createPerformerAttrs( $user ),
+			'performer'          => EventBus::createPerformerAttrs( $user ),
 			'comment'            => $reason,
 
 			// page entity fields
@@ -253,8 +162,8 @@ class EventBusHooks {
 			$attrs['rev_count'] = $archivedRevisionCount;
 		}
 
-		$events[] = self::createEvent(
-			self::getArticleURL( $wikiPage->getTitle() ),
+		$events[] = EventBus::createEvent(
+			EventBus::getArticleURL( $wikiPage->getTitle() ),
 			'mediawiki.page-delete',
 			$attrs
 		);
@@ -286,7 +195,7 @@ class EventBusHooks {
 		$attrs = [
 			// Common Mediawiki entity fields
 			'database'           => $wgDBname,
-			'performer'          => self::createPerformerAttrs( $performer ),
+			'performer'          => EventBus::createPerformerAttrs( $performer ),
 			'comment'            => $comment,
 
 			// page entity fields
@@ -311,8 +220,8 @@ class EventBusHooks {
 			];
 		}
 
-		$events[] = self::createEvent(
-			self::getArticleURL( $title ),
+		$events[] = EventBus::createEvent(
+			EventBus::getArticleURL( $title ),
 			'mediawiki.page-undelete',
 			$attrs
 		);
@@ -351,7 +260,7 @@ class EventBusHooks {
 		$attrs = [
 			// Common Mediawiki entity fields
 			'database'           => $wgDBname,
-			'performer'          => self::createPerformerAttrs( $user ),
+			'performer'          => EventBus::createPerformerAttrs( $user ),
 			'comment'            => $reason,
 
 			// page entity fields
@@ -383,8 +292,8 @@ class EventBusHooks {
 			];
 		}
 
-		$events[] = self::createEvent(
-			self::getArticleURL( $newTitle ),
+		$events[] = EventBus::createEvent(
+			EventBus::getArticleURL( $newTitle ),
 			'mediawiki.page-move',
 			$attrs
 		);
@@ -463,7 +372,7 @@ class EventBusHooks {
 				$attrs = [
 					// Common Mediawiki entity fields:
 					'database'           => $wgDBname,
-					'performer'          => self::createPerformerAttrs( $performer ),
+					'performer'          => EventBus::createPerformerAttrs( $performer ),
 					'comment'            => $revision->getComment(),
 
 					// revision entity fields:
@@ -495,8 +404,8 @@ class EventBusHooks {
 					$attrs['page_is_redirect'] = false;
 				}
 
-				$events[] = self::createEvent(
-					self::getArticleURL( $title ),
+				$events[] = EventBus::createEvent(
+					EventBus::getArticleURL( $title ),
 					'mediawiki.revision-visibility-change',
 					$attrs
 				);
@@ -590,7 +499,7 @@ class EventBusHooks {
 		$attrs = [
 			// Common Mediawiki entity fields:
 			'database'           => $wgDBname,
-			'performer'          => self::createPerformerAttrs( $user ),
+			'performer'          => EventBus::createPerformerAttrs( $user ),
 			'comment'            => $block->mReason,
 		];
 
@@ -622,8 +531,8 @@ class EventBusHooks {
 			];
 		}
 
-		$events[] = self::createEvent(
-			self::getUserPageURL( $block->getTarget() ),
+		$events[] = EventBus::createEvent(
+			EventBus::getUserPageURL( $block->getTarget() ),
 			'mediawiki.user-blocks-change',
 			$attrs
 		);
@@ -672,19 +581,19 @@ class EventBusHooks {
 		}
 
 		if ( !is_null( $user ) ) {
-			$attrs['performer'] = self::createPerformerAttrs( $user );
+			$attrs['performer'] = EventBus::createPerformerAttrs( $user );
 		}
 
 		if ( !empty( $addedProps ) ) {
-			$attrs['added_properties'] = array_map( 'EventBusHooks::replaceBinaryValues', $addedProps );
+			$attrs['added_properties'] = array_map( 'EventBus::replaceBinaryValues', $addedProps );
 		}
 
 		if ( !empty( $removedProps ) ) {
-			$attrs['removed_properties'] = array_map( 'EventBusHooks::replaceBinaryValues', $removedProps );
+			$attrs['removed_properties'] = array_map( 'EventBus::replaceBinaryValues', $removedProps );
 		}
 
-		$events[] = self::createEvent(
-			self::getArticleURL( $linksUpdate->getTitle() ),
+		$events[] = EventBus::createEvent(
+			EventBus::getArticleURL( $linksUpdate->getTitle() ),
 			'mediawiki.page-properties-change',
 			$attrs
 		);
