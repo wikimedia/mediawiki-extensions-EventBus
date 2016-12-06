@@ -26,18 +26,35 @@ use MediaWiki\MediaWikiServices;
 
 class EventBus {
 
-	/** HTTP request timeout in seconds */
-	const REQ_TIMEOUT = 5;
+	/** @const Default HTTP request timeout in seconds */
+	const DEFAULT_REQUEST_TIMEOUT = 5;
 
-	/** @var EventBus */
-	private static $instance;
+	/** @var array of EventBus instances */
+	private static $instances = [];
+
+	/** @var logger instance for all EventBus instances */
+	private static $logger;
 
 	/** @var MultiHttpClient */
 	protected $http;
 
-	public function __construct() {
+	/** @var EventServiceUrl for this EventBus instance */
+	protected $url;
+
+	/** @var HTTP request timeout for this EventBus instance */
+	protected $timeout;
+
+	/**
+	 * @param string     url  EventBus service endpoint URL. E.g. http://localhost:8085/v1/events
+	 * @param integer    timeout HTTP request timeout in seconds, defaults to 5.
+	 *
+	 * @constructor
+	 */
+	public function __construct( $url, $timeout = null ) {
 		$this->http = new MultiHttpClient( [] );
-		$this->logger = LoggerFactory::getInstance( 'EventBus' );
+
+		$this->url = $url;
+		$this->timeout = $timeout ?: self::DEFAULT_REQUEST_TIMEOUT;
 	}
 
 	/**
@@ -48,13 +65,9 @@ class EventBus {
 	public function send( $events ) {
 		if ( empty( $events ) ) {
 			$context = [ 'backtrace' => debug_backtrace() ];
-			$this->logger->error( 'Must call send with at least 1 event. Aborting send.', $context );
+			self::logger()->error( 'Must call send with at least 1 event. Aborting send.', $context );
 			return;
 		}
-
-		$config = self::getConfig();
-		$eventServiceUrl = $config->get( 'EventServiceUrl' );
-		$eventServiceTimeout = $config->get( 'EventServiceTimeout' );
 
 		// If we already have a JSON string of events, just use it as the body.
 		if ( is_string( $events ) ) {
@@ -70,7 +83,7 @@ class EventBus {
 		}
 
 		$req = [
-			'url'		=> $eventServiceUrl,
+			'url'		=> $this->url,
 			'method'	=> 'POST',
 			'body'		=> $body,
 			'headers'	=> [ 'content-type' => 'application/json' ]
@@ -79,7 +92,7 @@ class EventBus {
 		$res = $this->http->run(
 			$req,
 			[
-				'reqTimeout' => $eventServiceTimeout ?: self::REQ_TIMEOUT
+				'reqTimeout' => $this->timeout,
 			]
 		);
 
@@ -87,9 +100,13 @@ class EventBus {
 		// 207: some but not all events are accepted
 		// 400: no events are accepted
 		if ( $res['code'] != 201 ) {
-			$this->onError( $req, $res );
+			$message = empty( $res['error'] ) ? $res['code'] . ': ' . $res['reason'] : $res['error'];
+			$context = [ 'EventBus' => [ 'request' => $req, 'response' => $res ] ];
+			self::logger()->error( "Unable to deliver all events: ${message}", $context );
 		}
 	}
+
+	// == static helper functions below ==
 
 	/**
 	 * Serializes $events array to a JSON string.  If FormatJson::encode()
@@ -98,7 +115,7 @@ class EventBus {
 	 * @param array $events
 	 * @return string JSON
 	 */
-	public function serializeEvents( $events ) {
+	public static function serializeEvents( $events ) {
 		$serializedEvents = FormatJson::encode( $events );
 
 		if ( empty ( $serializedEvents ) ) {
@@ -107,7 +124,7 @@ class EventBus {
 				'events' => $events,
 				'json_last_error' => json_last_error()
 			];
-			$this->logger->error(
+			self::logger()->error(
 				'FormatJson::encode($events) failed: ' . $context['json_last_error'] .
 				'. Aborting send.', $context
 			);
@@ -116,25 +133,6 @@ class EventBus {
 
 		return $serializedEvents;
 	}
-
-	private function onError( $req, $res ) {
-		$message = empty( $res['error'] ) ? $res['code'] . ': ' . $res['reason'] : $res['error'];
-		$context = [ 'EventBus' => [ 'request' => $req, 'response' => $res ] ];
-		$this->logger->error( "Unable to deliver event: ${message}", $context );
-	}
-
-	/**
-	 * @return EventBus
-	 */
-	public static function getInstance() {
-		if ( self::$instance === null ) {
-			self::$instance = new self();
-		}
-
-		return self::$instance;
-	}
-
-	// == static helper functions below ==
 
 	/**
 	 * Creates a full article path
@@ -240,10 +238,51 @@ class EventBus {
 	}
 
 	/**
-	 * Retrieve main config
-	 * @return Config
+	 * Returns a singleton logger instance for all EventBus instances.
+	 * Use like: self::logger()->info( $mesage )
+	 * We use this so we don't have to check if the logger has been created
+	 * before attempting to log a message.
 	 */
-	private static function getConfig() {
-		return MediaWikiServices::getInstance()->getMainConfig();
+	private static function logger() {
+		if ( !self::$logger ) {
+			self::$logger = LoggerFactory::getInstance( 'EventBus' );
+		}
+		return self::$logger;
+	}
+
+	/**
+	 * @param array $config EventBus config object.  This must at least contain EventServiceUrl.
+	 *                      EventServiceTimeout is also a valid config key.  If null (default)
+	 *                      this will lookup config using
+	 *                      MediawikiServices::getInstance()->getMainConfig() and look for
+	 *                      for EventServiceUrl and EventServiceTimeout.
+	 *                      Note that instances are URL keyed singletons, so the first
+	 *                      instance created with a given URL will be the only one.
+	 *
+	 * @return EventBus
+	 */
+	public static function getInstance( $config = null ) {
+		if ( !$config ) {
+			$config = MediaWikiServices::getInstance()->getMainConfig();
+			$url = $config->get( 'EventServiceUrl' );
+			$timeout = $config->get( 'EventServiceTimeout' );
+		} else {
+			$url = $config['EventServiceUrl'];
+			$timeout = array_key_exists( 'EventServiceTimeout', $config ) ?
+				$config['EventServiceTimeout'] : null;
+		}
+
+		if ( !$url ) {
+			self::logger()->error(
+				'Failed configuration of EventBus instance. \'EventServiceUrl\' must be set in $config.'
+			);
+			return;
+		}
+
+		if ( !array_key_exists( $url, self::$instances ) ) {
+			self::$instances[$url] = new self( $url, $timeout );
+		}
+
+		return self::$instances[$url];
 	}
 }
