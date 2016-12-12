@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Cedric31"
+		]
+	},
+	"eventbus-desc": "Propaga d'informacions sus las modificacions cap a un servici d'eveniments RESTful."
+}
