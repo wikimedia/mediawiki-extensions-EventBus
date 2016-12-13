@@ -561,7 +561,6 @@ class EventBusHooks {
 		}
 
 		$title = $linksUpdate->getTitle();
-		$revision = $linksUpdate->getRevision();
 		$user = $linksUpdate->getTriggeringUser();
 
 		// Create a mediawiki page delete event.
@@ -573,11 +572,18 @@ class EventBusHooks {
 			'page_id'            => $title->getArticleID(),
 			'page_title'         => $title->getPrefixedDBkey(),
 			'page_namespace'     => $title->getNamespace(),
-			'page_is_redirect'   => $title->isRedirect()
+			'page_is_redirect'   => $title->isRedirect(),
 		];
 
+		// Use triggering revision's rev_id if it is set.
+		// If the LinksUpdate didn't have a triggering revision
+		// (probably because it was triggered by sysadmin maintenance).
+		// Use the page's latest revision.
+		$revision = $linksUpdate->getRevision();
 		if ( $revision ) {
 			$attrs['rev_id'] = $revision->getId();
+		} else {
+			$attrs['rev_id'] = $title->getLatestRevID();
 		}
 
 		if ( !is_null( $user ) ) {
