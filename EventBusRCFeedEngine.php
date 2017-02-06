@@ -15,7 +15,7 @@
  * );
  *
  */
-class EventBusRCFeedEngine implements RCFeedEngine {
+class EventBusRCFeedEngine extends RCFeedEngine {
 
 	/**
 	 * @param array        $feed will be used for EventBus $config.  Singleton instances
