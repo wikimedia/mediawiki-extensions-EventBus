@@ -27,7 +27,7 @@ class EventBusHooks {
 	 * Creates and sends a single resource_change event to EventBus
 	 *
 	 * @param Title $title article title object
-	 * @param Array $tags  the array of tags to use in the event
+	 * @param array $tags  the array of tags to use in the event
 	 */
 	private static function sendResourceChangedEvent( $title, $tags ) {
 		$event = EventBus::createEvent(
@@ -601,6 +601,52 @@ class EventBusHooks {
 		$events[] = EventBus::createEvent(
 			EventBus::getArticleURL( $linksUpdate->getTitle() ),
 			'mediawiki.page-properties-change',
+			$attrs
+		);
+
+		DeferredUpdates::addCallableUpdate(
+			function() use ( $events ) {
+				EventBus::getInstance()->send( $events );
+			}
+		);
+	}
+
+	/**
+	 * Sends a page-restrictions-change event
+	 *
+	 * @param WikiPage $article the article which restrictions were changed
+	 * @param User $user the user who have changed the article
+	 * @param array $protect set of new restrictions details
+	 * @param string $reason the reason for page protection
+	 */
+	public static function onArticleProtectComplete( $article, $user, $protect, $reason ) {
+		global $wgDBname;
+		$events = [];
+
+		// Create a mediawiki page restrictions change event.
+		$attrs = [
+			// Common Mediawiki entity fields
+			'database'           => $wgDBname,
+			'performer'          => EventBus::createPerformerAttrs( $user ),
+
+			// page entity fields
+			'page_id'            => $article->getId(),
+			'page_title'         => $article->getTitle()->getPrefixedDBkey(),
+			'page_namespace'     => $article->getTitle()->getNamespace(),
+			'page_is_redirect'   => $article->isRedirect(),
+
+			// page restrictions change specific fields:
+			'reason'             => $reason,
+			'page_restrictions'  => $protect
+		];
+
+		if ( $article->getRevision() ) {
+			$attrs['rev_id'] = $article->getRevision()->getId();
+		}
+
+		$events[] = EventBus::createEvent(
+			EventBus::getArticleURL( $article->getTitle() ),
+			'mediawiki.page-restrictions-change',
 			$attrs
 		);
 
