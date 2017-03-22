@@ -569,7 +569,7 @@ class EventBusHooks {
 			'database'           => $wgDBname,
 
 			// page entity fields
-			'page_id'            => $title->getArticleID(),
+			'page_id'            => $linksUpdate->mId,
 			'page_title'         => $title->getPrefixedDBkey(),
 			'page_namespace'     => $title->getNamespace(),
 			'page_is_redirect'   => $title->isRedirect(),
