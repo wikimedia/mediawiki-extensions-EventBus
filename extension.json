@@ -1,7 +1,7 @@
 
 {
 	"name": "EventBus",
-	"version": "0.2.12",
+	"version": "0.2.13",
 	"author": [
 		"Eric Evans",
 		"Petr Pchelko",
@@ -54,6 +54,9 @@
 		],
 		"LinksUpdateComplete": [
 			"EventBusHooks::onLinksUpdateComplete"
+		],
+		"ArticleProtectComplete": [
+			"EventBusHooks::onArticleProtectComplete"
 		]
 	},
 	"manifest_version": 1
