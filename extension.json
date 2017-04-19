@@ -20,7 +20,8 @@
 		"EventRelayerBus": "EventRelayerBus.php",
 		"PurgeEventRelayerBus": "PurgeEventRelayerBus.php",
 		"EventBusRCFeedEngine": "EventBusRCFeedEngine.php",
-		"EventBusRCFeedFormatter": "EventBusRCFeedFormatter.php"
+		"EventBusRCFeedFormatter": "EventBusRCFeedFormatter.php",
+		"JobQueueEventBus": "JobQueueEventBus.php"
 	},
 	"MessagesDirs": {
 		"EventBus": [
