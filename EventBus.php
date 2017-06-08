@@ -162,6 +162,15 @@ class EventBus {
 		if ( $user->getId() ) {
 			$performerAttrs['user_id'] = $user->getId();
 		}
+		if ( $user->getRegistration() ) {
+			$performerAttrs['user_registration_dt'] = wfTimestamp(
+				TS_ISO_8601, $user->getRegistration()
+			);
+		}
+		if ( $user->getEditCount() !== null ) {
+			$performerAttrs['user_edit_count'] = $user->getEditCount();
+		}
+
 		return $performerAttrs;
 	}
 
