@@ -51,59 +51,22 @@ class EventBusHooks {
 	 * @param integer $flags
 	 */
 	public static function onRevisionInsertComplete( $revision, $data, $flags ) {
-		global $wgDBname;
 		$events = [];
+		$topic = 'mediawiki.revision-create';
 
-		// Create a mediawiki revision create event.
-		$performer = User::newFromId( $revision->getUser() );
-		$performer->loadFromId();
-
-		$attrs = [
-			// Common Mediawiki entity fields
-			'database'           => $wgDBname,
-			'performer'          => EventBus::createPerformerAttrs( $performer ),
-			'comment'            => $revision->getComment(),
-
-			// revision entity fields
-			'page_id'            => $revision->getPage(),
-			'page_title'         => $revision->getTitle()->getPrefixedDBkey(),
-			'page_namespace'     => $revision->getTitle()->getNamespace(),
-			'rev_id'             => $revision->getId(),
-			'rev_timestamp'      => wfTimestamp( TS_ISO_8601, $revision->getTimestamp() ),
-			'rev_sha1'           => $revision->getSha1(),
-			'rev_minor_edit'     => $revision->isMinor(),
-			'rev_content_model'  => $revision->getContentModel(),
-			'rev_content_format' => $revision->getContentModel(),
-		];
-
-		// It is possible rev_len is not known. It's not a required field,
-		// so don't set it if it's NULL
-		if ( !is_null( $revision->getSize() ) ) {
-			$attrs['rev_len'] = $revision->getSize();
+		if ( is_null( $revision ) ) {
+			wfDebug(
+				__METHOD__ . ' new revision during RevisionInsertComplete ' .
+				' is null.  Cannot create ' . $topic . ' event.'
+			);
+			return;
 		}
 
-		// It is possible that the $revision object does not have any content
-		// at the time of RevisionInsertComplete.  This might happen during
-		// a page restore, if the revision 'created' during the restore
-		// has its content hidden.
-		$content = $revision->getContent();
-		if ( !is_null( $content ) ) {
-			$attrs['page_is_redirect'] = $content->isRedirect();
-		} else {
-			$attrs['page_is_redirect'] = false;
-		}
-
-		// The parent_revision_id attribute is not required, but when supplied
-		// must have a minimum value of 1, so omit it entirely when there is no
-		// parent revision (i.e. page creation).
-		$parentId = $revision->getParentId();
-		if ( !is_null( $parentId ) && $parentId !== 0 ) {
-			$attrs['rev_parent_id'] = $parentId;
-		}
+		$attrs = EventBus::createRevisionAttrs( $revision );
 
 		$events[] = EventBus::createEvent(
 			EventBus::getArticleURL( $revision->getTitle() ),
-			'mediawiki.revision-create',
+			$topic,
 			$attrs
 		);
 
@@ -428,6 +391,53 @@ class EventBusHooks {
 	 */
 	public static function onArticlePurge( $wikiPage ) {
 		self::sendResourceChangedEvent( $wikiPage->getTitle(), [ 'purge' ] );
+	}
+
+	/**
+	 * Occurs after the insert page request has been processed.  This is a page creation event.
+	 * Since page creation is really just a special case of revision create, this event
+	 * re-uses the mediawiki/revision/create schema.
+	 *
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/PageContentInsertComplete
+	 *
+	 * @param WikiPage $article
+	 * @param User $user
+	 * @param Content $content
+	 * @param string $summary
+	 * @param boolean $isMinor
+	 * @param boolean $isWatch
+	 * @param $section Deprecated
+	 * @param integer $flags
+	 * @param {Revision|null} $revision
+	 */
+	public static function onPageContentInsertComplete( $article, $user, $content, $summary, $isMinor,
+				$isWatch, $section, $flags, $revision
+	) {
+		$events = [];
+		$topic = 'mediawiki.page-create';
+
+		if ( is_null( $revision ) ) {
+			wfDebug(
+				__METHOD__ . ' new revision during PageContentInsertComplete for page_id: ' .
+				$article->getId() . ' page_title: ' . $article->getTitle() .
+				' is null.  Cannot create ' . $topic . ' event.'
+			);
+			return;
+		}
+
+		$attrs = EventBus::createRevisionAttrs( $revision );
+
+		$events[] = EventBus::createEvent(
+			EventBus::getArticleURL( $revision->getTitle() ),
+			$topic,
+			$attrs
+		);
+
+		DeferredUpdates::addCallableUpdate(
+			function() use ( $events ) {
+				EventBus::getInstance()->send( $events );
+			}
+		);
 	}
 
 	/**

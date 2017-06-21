@@ -175,6 +175,63 @@ class EventBus {
 	}
 
 	/**
+	 * Given a Revision $revision, returns an array suitable for
+	 * use in mediaiki/revision entity schemas.
+	 */
+	public static function createRevisionAttrs( $revision ) {
+		global $wgDBname;
+
+		// Create a mediawiki revision create event.
+		$performer = User::newFromId( $revision->getUser() );
+		$performer->loadFromId();
+
+		$attrs = [
+			// Common Mediawiki entity fields
+			'database'           => $wgDBname,
+			'performer'          => EventBus::createPerformerAttrs( $performer ),
+			'comment'            => $revision->getComment(),
+
+			// revision entity fields
+			'page_id'            => $revision->getPage(),
+			'page_title'         => $revision->getTitle()->getPrefixedDBkey(),
+			'page_namespace'     => $revision->getTitle()->getNamespace(),
+			'rev_id'             => $revision->getId(),
+			'rev_timestamp'      => wfTimestamp( TS_ISO_8601, $revision->getTimestamp() ),
+			'rev_sha1'           => $revision->getSha1(),
+			'rev_minor_edit'     => $revision->isMinor(),
+			'rev_content_model'  => $revision->getContentModel(),
+			'rev_content_format' => $revision->getContentModel(),
+		];
+
+		// It is possible rev_len is not known. It's not a required field,
+		// so don't set it if it's NULL
+		if ( !is_null( $revision->getSize() ) ) {
+			$attrs['rev_len'] = $revision->getSize();
+		}
+
+		// It is possible that the $revision object does not have any content
+		// at the time of RevisionInsertComplete.  This might happen during
+		// a page restore, if the revision 'created' during the restore
+		// has its content hidden.
+		$content = $revision->getContent();
+		if ( !is_null( $content ) ) {
+			$attrs['page_is_redirect'] = $content->isRedirect();
+		} else {
+			$attrs['page_is_redirect'] = false;
+		}
+
+		// The parent_revision_id attribute is not required, but when supplied
+		// must have a minimum value of 1, so omit it entirely when there is no
+		// parent revision (i.e. page creation).
+		$parentId = $revision->getParentId();
+		if ( !is_null( $parentId ) ) {
+			$attrs['rev_parent_id'] = $parentId;
+		}
+
+		return $attrs;
+	}
+
+	/**
 	 * Creates a full user page path
 	 *
 	 * @param string $userName userName

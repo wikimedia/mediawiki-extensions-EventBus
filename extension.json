@@ -43,6 +43,9 @@
 		"ArticleRevisionVisibilitySet": [
 			"EventBusHooks::onArticleRevisionVisibilitySet"
 		],
+		"PageContentInsertComplete": [
+			"EventBusHooks::onPageContentInsertComplete"
+		],
 		"PageContentSaveComplete": [
 			"EventBusHooks::onPageContentSaveComplete"
 		],
