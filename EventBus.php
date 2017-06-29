@@ -224,8 +224,16 @@ class EventBus {
 		// must have a minimum value of 1, so omit it entirely when there is no
 		// parent revision (i.e. page creation).
 		$parentId = $revision->getParentId();
+		// Assume that the content have changed by default
+		$attrs['rev_content_changed'] = true;
 		if ( !is_null( $parentId ) ) {
 			$attrs['rev_parent_id'] = $parentId;
+			if ( $parentId !== 0 ) {
+				$parentRev = Revision::newFromId( $parentId );
+				if ( !is_null( $parentRev ) ) {
+					$attrs['rev_content_changed'] = $parentRev->getSha1() !== $revision->getSha1();
+				}
+			}
 		}
 
 		return $attrs;
