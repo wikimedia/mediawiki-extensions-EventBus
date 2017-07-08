@@ -26,7 +26,7 @@ class EventBusRCFeedEngine extends RCFeedEngine {
 	 */
 	public function send( array $feed, $line ) {
 		DeferredUpdates::addCallableUpdate(
-			function() use ( $feed, $line ) {
+			function () use ( $feed, $line ) {
 				// construct EventBus config from RCFeed $feed uri.
 				$config = $feed;
 				// RCFeedEngines are selected via URI protocol schemes.  This engine

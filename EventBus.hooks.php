@@ -36,7 +36,7 @@ class EventBusHooks {
 			[ 'tags' => $tags ]
 		);
 
-		DeferredUpdates::addCallableUpdate( function() use ( $event ) {
+		DeferredUpdates::addCallableUpdate( function () use ( $event ) {
 			EventBus::getInstance()->send( [ $event ] );
 		} );
 	}
@@ -71,7 +71,7 @@ class EventBusHooks {
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function() use ( $events ) {
+			function () use ( $events ) {
 				EventBus::getInstance()->send( $events );
 			}
 		);
@@ -132,7 +132,7 @@ class EventBusHooks {
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function() use ( $events ) {
+			function () use ( $events ) {
 				EventBus::getInstance()->send( $events );
 			}
 		);
@@ -189,7 +189,7 @@ class EventBusHooks {
 			$attrs
 		);
 
-		DeferredUpdates::addCallableUpdate( function() use ( $events ) {
+		DeferredUpdates::addCallableUpdate( function () use ( $events ) {
 			EventBus::getInstance()->send( $events );
 		} );
 	}
@@ -262,7 +262,7 @@ class EventBusHooks {
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function() use ( $events ) {
+			function () use ( $events ) {
 				EventBus::getInstance()->send( $events );
 			}
 		);
@@ -376,7 +376,7 @@ class EventBusHooks {
 		}
 
 		DeferredUpdates::addCallableUpdate(
-			function() use ( $events ) {
+			function () use ( $events ) {
 				EventBus::getInstance()->send( $events );
 			}
 		);
@@ -434,7 +434,7 @@ class EventBusHooks {
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function() use ( $events ) {
+			function () use ( $events ) {
 				EventBus::getInstance()->send( $events );
 			}
 		);
@@ -548,7 +548,7 @@ class EventBusHooks {
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function() use ( $events ) {
+			function () use ( $events ) {
 				EventBus::getInstance()->send( $events );
 			}
 		);
@@ -615,7 +615,7 @@ class EventBusHooks {
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function() use ( $events ) {
+			function () use ( $events ) {
 				EventBus::getInstance()->send( $events );
 			}
 		);
@@ -661,7 +661,7 @@ class EventBusHooks {
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function() use ( $events ) {
+			function () use ( $events ) {
 				EventBus::getInstance()->send( $events );
 			}
 		);
