@@ -24,10 +24,16 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 	 * @see MachineReadableRCFeedFormatter::getLine
 	 */
 	public function getLine( array $feed, RecentChange $rc, $actionComment ) {
+		$attrs = parent::getLine( $feed, $rc, $actionComment );
+
+		if ( isset( $attrs['comment'] ) ) {
+			$attrs['parsedcomment'] = Linker::formatComment( $attrs['comment'], $rc->getTitle() );
+		}
+
 		$event = EventBus::createEvent(
 			EventBus::getArticleURL( $rc->getTitle() ),
 			self::TOPIC,
-			parent::getLine( $feed, $rc, $actionComment )
+			$attrs
 		);
 
 		// If timestamp exists on the recentchange event (it should),
@@ -36,6 +42,7 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 			$event['meta']['dt'] = date( 'c', $event['timestamp'] );
 		}
 		$events = [ $event ];
+
 		return EventBus::serializeEvents( $events );
 	}
 

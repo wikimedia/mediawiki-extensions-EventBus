@@ -177,6 +177,8 @@ class EventBus {
 	/**
 	 * Given a Revision $revision, returns an array suitable for
 	 * use in mediaiki/revision entity schemas.
+	 *
+	 * @param Revision $revision
 	 */
 	public static function createRevisionAttrs( $revision ) {
 		global $wgDBname;
@@ -234,6 +236,12 @@ class EventBus {
 					$attrs['rev_content_changed'] = $parentRev->getSha1() !== $revision->getSha1();
 				}
 			}
+		}
+
+		if ( !is_null( $revision->getComment() ) ) {
+			$attrs['parsedcomment'] = Linker::formatComment(
+				$revision->getComment(),
+				$revision->getTitle() );
 		}
 
 		return $attrs;

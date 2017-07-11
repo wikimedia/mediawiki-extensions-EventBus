@@ -125,6 +125,10 @@ class EventBusHooks {
 			$attrs['rev_count'] = $archivedRevisionCount;
 		}
 
+		if ( !is_null( $reason ) ) {
+			$attrs['parsedcomment'] = Linker::formatComment( $reason, $wikiPage->getTitle() );
+		}
+
 		$events[] = EventBus::createEvent(
 			EventBus::getArticleURL( $wikiPage->getTitle() ),
 			'mediawiki.page-delete',
@@ -181,6 +185,10 @@ class EventBusHooks {
 			$attrs['prior_state'] = [
 				'page_id' => $oldPageId,
 			];
+		}
+
+		if ( !is_null( $comment ) ) {
+			$attrs['parsedcomment'] = Linker::formatComment( $comment, $title );
 		}
 
 		$events[] = EventBus::createEvent(
@@ -253,6 +261,10 @@ class EventBusHooks {
 				'page_namespace' => $attrs['prior_state']['page_namespace'],
 				'rev_id'         => $oldTitle->getLatestRevID(),
 			];
+		}
+
+		if ( !is_null( $reason ) ) {
+			$attrs['parsedcomment'] = Linker::formatComment( $reason, $newTitle );
 		}
 
 		$events[] = EventBus::createEvent(
@@ -365,6 +377,12 @@ class EventBusHooks {
 					$attrs['page_is_redirect'] = $content->isRedirect();
 				} else {
 					$attrs['page_is_redirect'] = false;
+				}
+
+				if ( !is_null( $revision->getComment() ) ) {
+					$attrs['parsedcomment'] = Linker::formatComment(
+						$revision->getComment(),
+						$revision->getTitle() );
 				}
 
 				$events[] = EventBus::createEvent(
