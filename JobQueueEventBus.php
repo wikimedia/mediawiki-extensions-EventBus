@@ -91,7 +91,7 @@ class JobQueueEventBus extends JobQueue {
 		// (job ID => job fields map)
 		$events = [];
 		foreach ( $jobs as $job ) {
-			$item = JobQueueEventBus::createJobEvent( $job );
+			$item = self::createJobEvent( $job );
 			// hash identifier => de-duplicate
 			if ( strlen( $item['sha1'] ) ) {
 				$events[$item['sha1']] = $item;

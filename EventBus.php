@@ -190,7 +190,7 @@ class EventBus {
 		$attrs = [
 			// Common Mediawiki entity fields
 			'database'           => $wgDBname,
-			'performer'          => EventBus::createPerformerAttrs( $performer ),
+			'performer'          => self::createPerformerAttrs( $performer ),
 			'comment'            => $revision->getComment(),
 
 			// revision entity fields
