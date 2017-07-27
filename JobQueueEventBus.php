@@ -96,10 +96,10 @@ class JobQueueEventBus extends JobQueue {
 		foreach ( $jobs as $job ) {
 			$item = self::createJobEvent( $job );
 			// hash identifier => de-duplicate
-			if ( strlen( $item['sha1'] ) ) {
+			if ( isset( $item['sha1'] ) ) {
 				$events[$item['sha1']] = $item;
 			} else {
-				$events[$item['meta']['uuid']] = $item;
+				$events[$item['meta']['id']] = $item;
 			}
 		}
 
