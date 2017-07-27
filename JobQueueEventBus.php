@@ -4,7 +4,10 @@
 class JobQueueEventBus extends JobQueue {
 
 	private static function createJobEvent( IJobSpecification $job ) {
+		global $wgDBname;
+
 		$attrs = [
+			'database' => $wgDBname,
 			'type' => $job->getType(),
 			'page_namespace' => $job->getTitle()->getNamespace(),
 			'page_title' => $job->getTitle()->getPrefixedDBkey()
