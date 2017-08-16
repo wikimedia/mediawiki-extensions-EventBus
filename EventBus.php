@@ -118,7 +118,7 @@ class EventBus {
 	public static function serializeEvents( $events ) {
 		$serializedEvents = FormatJson::encode( $events );
 
-		if ( empty ( $serializedEvents ) ) {
+		if ( empty( $serializedEvents ) ) {
 			$context = [
 				'backtrace' => debug_backtrace(),
 				'events' => $events,
