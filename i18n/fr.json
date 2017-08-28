@@ -1,8 +1,9 @@
 {
 	"@metadata": {
 		"authors": [
-			"Orlodrim"
+			"Orlodrim",
+			"Verdy p"
 		]
 	},
-	"eventbus-desc": "Propage des informations sur les modifications vers un service d'événements RESTful."
+	"eventbus-desc": "Propage les informations de modification vers un service d’événements RESTful"
 }
