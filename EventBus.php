@@ -277,7 +277,7 @@ class EventBus {
 	 *
 	 * @param string $uri
 	 * @param string $topic
-	 * @param array  $attrs
+	 * @param array $attrs
 	 *
 	 * @return array $attrs + meta subobject
 	 */

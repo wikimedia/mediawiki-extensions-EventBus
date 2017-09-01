@@ -48,7 +48,7 @@ class EventBusHooks {
 	 *
 	 * @param Revision $revision
 	 * @param string $data
-	 * @param integer $flags
+	 * @param int $flags
 	 */
 	public static function onRevisionInsertComplete( $revision, $data, $flags ) {
 		$events = [];
@@ -422,10 +422,10 @@ class EventBusHooks {
 	 * @param User $user
 	 * @param Content $content
 	 * @param string $summary
-	 * @param boolean $isMinor
-	 * @param boolean $isWatch
+	 * @param bool $isMinor
+	 * @param bool $isWatch
 	 * @param $section Deprecated
-	 * @param integer $flags
+	 * @param int $flags
 	 * @param {Revision|null} $revision
 	 */
 	public static function onPageContentInsertComplete( $article, $user, $content, $summary, $isMinor,
@@ -470,13 +470,13 @@ class EventBusHooks {
 	 * @param User $user
 	 * @param Content $content
 	 * @param string $summary
-	 * @param boolean $isMinor
-	 * @param boolean $isWatch
+	 * @param bool $isMinor
+	 * @param bool $isWatch
 	 * @param $section Deprecated
-	 * @param integer $flags
+	 * @param int $flags
 	 * @param {Revision|null} $revision
 	 * @param Status $status
-	 * @param integer $baseRevId
+	 * @param int $baseRevId
 	 */
 	public static function onPageContentSaveComplete( $article, $user, $content, $summary, $isMinor,
 				$isWatch, $section, $flags, $revision, $status, $baseRevId

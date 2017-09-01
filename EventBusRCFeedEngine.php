@@ -18,7 +18,7 @@
 class EventBusRCFeedEngine extends RCFeedEngine {
 
 	/**
-	 * @param array        $feed will be used for EventBus $config.  Singleton instances
+	 * @param array $feed will be used for EventBus $config.  Singleton instances
 	 *                     are identified by $feed['uri'];
 	 * @param string|array $line to send
 	 *
