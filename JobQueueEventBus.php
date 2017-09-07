@@ -32,11 +32,16 @@ class JobQueueEventBus extends JobQueue {
 
 		$attrs['params'] = $params;
 
-		return EventBus::createEvent(
+		$event = EventBus::createEvent(
 			EventBus::getArticleURL( $job->getTitle() ),
 			'mediawiki.job.' . $job->getType(),
 			$attrs
 		);
+
+		// The jobs set a request ID unconditionally, so we should reuse that one
+		$event['meta']['request_id'] = $event['params']['requestId'];
+
+		return $event;
 	}
 
 	/**
