@@ -38,8 +38,12 @@ class JobQueueEventBus extends JobQueue {
 			$attrs
 		);
 
-		// The jobs set a request ID unconditionally, so we should reuse that one
-		$event['meta']['request_id'] = $event['params']['requestId'];
+		// If the job provides a requestId - use it, otherwise try to get one ourselves
+		if ( isset( $event['params']['requestId'] ) ) {
+			$event['meta']['request_id'] = $event['params']['requestId'];
+		} else {
+			$event['meta']['request_id'] = WebRequest::getRequestId();
+		}
 
 		return $event;
 	}
