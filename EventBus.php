@@ -116,7 +116,7 @@ class EventBus {
 	 * @return string JSON
 	 */
 	public static function serializeEvents( $events ) {
-		$serializedEvents = FormatJson::encode( $events );
+		$serializedEvents = FormatJson::encode( $events, false, FormatJson::UTF8_OK );
 
 		if ( empty( $serializedEvents ) ) {
 			$context = [
