@@ -86,9 +86,9 @@ class EventBusHooks {
 	 * @param User $user the user that deleted the article
 	 * @param string $reason the reason the article was deleted
 	 * @param int $id the ID of the article that was deleted
-	 * @param $content the content of the deleted article, or null in case of error
-	 * @param $logEntry the log entry used to record the deletion
-	 * @param $archivedRevisionCount the number of revisions archived during the page delete
+	 * @param Content|null $content the content of the deleted article, or null in case of error
+	 * @param ManualLogEntry $logEntry the log entry used to record the deletion
+	 * @param int $archivedRevisionCount the number of revisions archived during the page delete
 	 */
 	public static function onArticleDeleteComplete(
 		$wikiPage,
@@ -148,8 +148,8 @@ class EventBusHooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ArticleUndelete
 	 *
 	 * @param Title $title title corresponding to the article restored
-	 * @param $create whether the restoration caused the page to be created
-	 * @param $comment comment explaining the undeletion
+	 * @param bool $create whether the restoration caused the page to be created
+	 * @param string $comment comment explaining the undeletion
 	 * @param int $oldPageId ID of page previously deleted (from archive table)
 	 */
 	public static function onArticleUndelete( Title $title, $create, $comment, $oldPageId ) {
@@ -424,9 +424,9 @@ class EventBusHooks {
 	 * @param string $summary
 	 * @param bool $isMinor
 	 * @param bool $isWatch
-	 * @param $section Deprecated
+	 * @param string $section Deprecated
 	 * @param int $flags
-	 * @param {Revision|null} $revision
+	 * @param Revision|null $revision
 	 */
 	public static function onPageContentInsertComplete( $article, $user, $content, $summary, $isMinor,
 				$isWatch, $section, $flags, $revision
@@ -472,9 +472,9 @@ class EventBusHooks {
 	 * @param string $summary
 	 * @param bool $isMinor
 	 * @param bool $isWatch
-	 * @param $section Deprecated
+	 * @param string $section Deprecated
 	 * @param int $flags
-	 * @param {Revision|null} $revision
+	 * @param Revision|null $revision
 	 * @param Status $status
 	 * @param int $baseRevId
 	 */

@@ -17,7 +17,7 @@ class JobExecutor {
 	private static $logger;
 
 	/**
-	 * @param $jobEvent array the job event
+	 * @param array $jobEvent the job event
 	 * @return array containing the response status and the message
 	 */
 	public function execute( $jobEvent ) {
@@ -80,7 +80,7 @@ class JobExecutor {
 	}
 
 	/**
-	 * @param $jobEvent array containing the job EventBus event.
+	 * @param array $jobEvent containing the job EventBus event.
 	 * @return array containing the Job, status and potentially error message
 	 */
 	private function getJobFromParams( $jobEvent ) {

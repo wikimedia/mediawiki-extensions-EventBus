@@ -13,12 +13,14 @@ class EventRelayerBus extends EventRelayer {
 	 * @var EventBus
 	 */
 	private $bus;
+
 	/**
 	 * Channel map for event bus.
 	 * Maps MediaWiki notification channel names into EventBus channel names.
 	 * @var string[string]
 	 */
 	private $channels = [];
+
 	/**
 	 * Default URI for events
 	 * @var string
@@ -45,8 +47,9 @@ class EventRelayerBus extends EventRelayer {
 		return $this->uri;
 	}
 
-	/* Process an event and add result(s) to collection
-	 * @param array $events Collection of events
+	/**
+	 * Process an event and add result(s) to collection
+	 * @param array &$events Collection of events
 	 * @param array $event Current event
 	 * @param string $channel
 	 */

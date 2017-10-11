@@ -21,7 +21,7 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 	 * serialized (AKA formatted) as a JSON string by calling
 	 * EventBus serializeEvents().
 	 *
-	 * @see MachineReadableRCFeedFormatter::getLine
+	 * @inheritDoc
 	 */
 	public function getLine( array $feed, RecentChange $rc, $actionComment ) {
 		$attrs = parent::getLine( $feed, $rc, $actionComment );
@@ -54,6 +54,8 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 	 * the event at this time.  This class' getLine function will
 	 * serialize/format the event after it has augmented the
 	 * event returned here.
+	 *
+	 * @inheritDoc
 	 */
 	protected function formatArray( array $event ) {
 		return $event;

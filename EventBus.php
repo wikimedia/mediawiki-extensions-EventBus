@@ -45,8 +45,8 @@ class EventBus {
 	protected $timeout;
 
 	/**
-	 * @param string     url  EventBus service endpoint URL. E.g. http://localhost:8085/v1/events
-	 * @param integer    timeout HTTP request timeout in seconds, defaults to 5.
+	 * @param string $url EventBus service endpoint URL. E.g. http://localhost:8085/v1/events
+	 * @param int $timeout HTTP request timeout in seconds, defaults to 5.
 	 *
 	 * @constructor
 	 */
@@ -152,6 +152,8 @@ class EventBus {
 	 * Given a User $user, returns an array suitable for
 	 * use as the performer JSON object in various Mediawiki
 	 * entity schemas.
+	 * @param User $user
+	 * @return array
 	 */
 	public static function createPerformerAttrs( $user ) {
 		$performerAttrs = [
@@ -179,6 +181,7 @@ class EventBus {
 	 * use in mediaiki/revision entity schemas.
 	 *
 	 * @param Revision $revision
+	 * @return array
 	 */
 	public static function createRevisionAttrs( $revision ) {
 		global $wgDBname;
@@ -264,6 +267,8 @@ class EventBus {
 	/**
 	 * If $value is a string, but not UTF-8 encoded, then assume it is binary
 	 * and base64 encode it and prefix it with a content type.
+	 * @param mixed $value
+	 * @return mixed
 	 */
 	public static function replaceBinaryValues( $value ) {
 		if ( is_string( $value ) && !mb_check_encoding( $value, 'UTF-8' ) ) {
