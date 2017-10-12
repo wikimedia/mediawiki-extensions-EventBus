@@ -1,6 +1,9 @@
 <?php
 
 
+use Firebase\JWT\JWT;
+use MediaWiki\MediaWikiServices;
+
 class JobQueueEventBus extends JobQueue {
 
 	private static function createJobEvent( IJobSpecification $job ) {
@@ -45,7 +48,21 @@ class JobQueueEventBus extends JobQueue {
 			$event['meta']['request_id'] = WebRequest::getRequestId();
 		}
 
+		// Sign the event with mediawiki secret key
+		$event['mediawiki_signature'] = self::getEventSignature( $event );
+
 		return $event;
+	}
+
+	/**
+	 * Creates a cryptographic signature for the event
+	 *
+	 * @param array $event the event to sign
+	 * @return string
+	 */
+	private static function getEventSignature( $event ) {
+		$secret = MediaWikiServices::getInstance()->getMainConfig()->get( 'SecretKey' );
+		return JWT::encode( $event, $secret );
 	}
 
 	/**

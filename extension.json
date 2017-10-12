@@ -71,5 +71,6 @@
 	"SpecialPages": {
 		"RunSingleJob": "SpecialRunSingleJob"
 	},
-	"manifest_version": 1
+	"manifest_version": 1,
+	"load_composer_autoloader": true
 }

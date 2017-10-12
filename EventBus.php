@@ -60,7 +60,7 @@ class EventBus {
 	/**
 	 * Deliver an array of events to the remote service.
 	 *
-	 * @param array $events the events to send
+	 * @param array|string $events the events to send.
 	 */
 	public function send( $events ) {
 		if ( empty( $events ) ) {
