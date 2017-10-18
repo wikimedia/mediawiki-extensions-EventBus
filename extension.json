@@ -22,7 +22,8 @@
 		"EventBusRCFeedEngine": "EventBusRCFeedEngine.php",
 		"EventBusRCFeedFormatter": "EventBusRCFeedFormatter.php",
 		"JobQueueEventBus": "JobQueueEventBus.php",
-		"JobExecutor": "JobExecutor.php"
+		"JobExecutor": "JobExecutor.php",
+		"SpecialRunSingleJob": "SpecialRunSingleJob.php"
 	},
 	"MessagesDirs": {
 		"EventBus": [
@@ -63,6 +64,9 @@
 		"ArticleProtectComplete": [
 			"EventBusHooks::onArticleProtectComplete"
 		]
+	},
+	"SpecialPages": {
+		"RunSingleJob": "SpecialRunSingleJob"
 	},
 	"manifest_version": 1
 }
