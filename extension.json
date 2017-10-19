@@ -30,6 +30,9 @@
 			"i18n"
 		]
 	},
+	"ExtensionMessagesFiles": {
+		"EventBusAliasNoTranslate": "EventBus.notranslate-alias.php"
+	},
 	"Hooks": {
 		"RevisionInsertComplete": [
 			"EventBusHooks::onRevisionInsertComplete"
