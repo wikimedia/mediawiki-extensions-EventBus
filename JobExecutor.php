@@ -24,7 +24,12 @@ class JobExecutor {
 		$jobCreateResult = $this->getJobFromParams( $jobEvent );
 
 		if ( !$jobCreateResult['status'] ) {
-			$this->logger()->error( $jobCreateResult['message'] );
+			$this->logger()->error( 'Failed creating job from description',
+				[
+					'job_type' => $jobEvent['type'],
+					'message'  => $jobCreateResult['message']
+				]
+			);
 			return $jobCreateResult;
 		}
 
@@ -39,11 +44,30 @@ class JobExecutor {
 
 			$lbFactory->beginMasterChanges( $fnameTrxOwner );
 			$status = $job->run();
-			$message = $job->getLastError();
 			$lbFactory->commitMasterChanges( $fnameTrxOwner );
 
-			if ( !$status ) {
-				$this->logger()->error( $job->toString() . " error={$message}" );
+			if ( $status === false ) {
+				$message = $job->getLastError();
+				$this->logger()->error( 'Failed executing job: ' . $job->toString(),
+					[
+						'job_type' => $job->getType(),
+						'error'    => $message
+					]
+				);
+			} elseif ( !is_bool( $status ) ) {
+				$message = 'Success, but no status returned';
+				$this->logger()->warning( 'Non-boolean result returned by job: ' . $job->toString(),
+					[
+						'job_type'   => $job->getType(),
+						'job_result' => isset( $status ) ? $status : 'unset'
+					]
+				);
+				// For backwards compatibility with old job executor we should set the status
+				// to true here, as before anything other then boolean false was considered a success.
+				// TODO: After all the jobs are fixed to return proper result this should be removed.
+				$status = true;
+			} else {
+				$message = 'success';
 			}
 
 			// Important: this must be the last deferred update added (T100085, T154425)
@@ -53,20 +77,30 @@ class JobExecutor {
 		} catch ( Exception $e ) {
 			MWExceptionHandler::rollbackMasterChangesAndLog( $e );
 			$status = false;
-			$message = 'Error executing job: '
+			$message = 'Exception executing job: '
 					   . $job->toString() . ' : '
 					   . get_class( $e ) . ': ' . $e->getMessage();
-			$this->logger()->error( $message );
+			$this->logger()->error( $message,
+				[
+					'job_type'  => $job->getType(),
+					'exception' => $e
+				]
+			);
 		}
 
 		// Always attempt to call teardown() even if Job throws exception.
 		try {
 			$job->teardown( $status );
 		} catch ( Exception $e ) {
-			$message = 'Error tearing down job: '
+			$message = 'Exception tearing down job: '
 					   . $job->toString() . ' : '
 					   . get_class( $e ) . ': ' . $e->getMessage();
-			$this->logger()->error( $message );
+			$this->logger()->error( $message,
+				[
+					'job_type'  => $job->getType(),
+					'exception' => $e
+				]
+			);
 		}
 
 		// The JobRunner at this point makes some cleanups to prepare for
