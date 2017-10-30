@@ -101,7 +101,18 @@ class EventBus {
 		// 400: no events are accepted
 		if ( $res['code'] != 201 ) {
 			$message = empty( $res['error'] ) ? $res['code'] . ': ' . $res['reason'] : $res['error'];
-			$context = [ 'EventBus' => [ 'request' => $req, 'response' => $res ] ];
+			// In case the event posted was too big we don't want to log all the request body
+			// as it contains all
+			$context = [
+				'EventBus' => [
+					'events'   => $events,
+					'response' => $res
+				]
+			];
+			// Limit the maximum size of the logged context to 1 megabyte
+			if ( strlen( $body ) > 1048576 ) {
+				$context['EventBus']['events'] = array_column( $events, 'meta' );
+			}
 			self::logger()->error( "Unable to deliver all events: ${message}", $context );
 		}
 	}
