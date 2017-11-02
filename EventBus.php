@@ -64,7 +64,8 @@ class EventBus {
 	 */
 	public function send( $events ) {
 		if ( empty( $events ) ) {
-			$context = [ 'backtrace' => debug_backtrace() ];
+			// Logstash doesn't like the args, because they could be of various types
+			$context = [ 'exception' => new Exception() ];
 			self::logger()->error( 'Must call send with at least 1 event. Aborting send.', $context );
 			return;
 		}
@@ -131,7 +132,7 @@ class EventBus {
 
 		if ( empty( $serializedEvents ) ) {
 			$context = [
-				'backtrace' => debug_backtrace(),
+				'exception' => new Exception(),
 				'events' => $events,
 				'json_last_error' => json_last_error()
 			];
