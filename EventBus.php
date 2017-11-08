@@ -105,14 +105,13 @@ class EventBus {
 			// In case the event posted was too big we don't want to log all the request body
 			// as it contains all
 			$context = [
-				'EventBus' => [
-					'events'   => $events,
-					'response' => $res
-				]
+				'events'   => $events,
+				'response' => $res
 			];
-			// Limit the maximum size of the logged context to 1 megabyte
-			if ( strlen( $body ) > 1048576 ) {
-				$context['EventBus']['events'] = array_column( $events, 'meta' );
+			// Limit the maximum size of the logged context to 8 kilobytes as that's where logstash
+			// truncates the JSON anyway
+			if ( strlen( $body ) > 8192 ) {
+				$context['events'] = array_column( $events, 'meta' );
 			}
 			self::logger()->error( "Unable to deliver all events: ${message}", $context );
 		}
@@ -128,22 +127,35 @@ class EventBus {
 	 * @return string JSON
 	 */
 	public static function serializeEvents( $events ) {
-		$serializedEvents = FormatJson::encode( $events, false, FormatJson::ALL_OK );
-
-		if ( empty( $serializedEvents ) ) {
+		try {
+			$serializedEvents = FormatJson::encode( $events, false, FormatJson::ALL_OK );
+			if ( empty( $serializedEvents ) ) {
+				$context = [
+					'exception' => new Exception(),
+					'events' => $events,
+					'json_last_error' => json_last_error_msg()
+				];
+				self::logger()->error(
+					'FormatJson::encode($events) failed: ' . $context['json_last_error'] .
+					'. Aborting send.', $context
+				);
+				return;
+			}
+			return $serializedEvents;
+		} catch ( Exception $exception ) {
 			$context = [
-				'exception' => new Exception(),
-				'events' => $events,
-				'json_last_error' => json_last_error()
+				'exception' => $exception,
+				// The exception during serializing mostly happen when events are too big,
+				// so we will not be able to log a complete thing, so truncate to only log meta
+				'events' => array_column( $events, 'meta' ),
+				'json_last_error' => json_last_error_msg()
 			];
 			self::logger()->error(
-				'FormatJson::encode($events) failed: ' . $context['json_last_error'] .
+				'FormatJson::encode($events) thrown exception: ' . $context['json_last_error'] .
 				'. Aborting send.', $context
 			);
 			return;
 		}
-
-		return $serializedEvents;
 	}
 
 	/**
