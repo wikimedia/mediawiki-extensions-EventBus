@@ -105,8 +105,8 @@ class EventBus {
 			// In case the event posted was too big we don't want to log all the request body
 			// as it contains all
 			$context = [
-				'events'   => $events,
-				'response' => $res
+				'events'           => $events,
+				'service_response' => $res
 			];
 			// Limit the maximum size of the logged context to 8 kilobytes as that's where logstash
 			// truncates the JSON anyway
