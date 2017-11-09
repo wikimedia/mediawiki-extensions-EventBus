@@ -62,7 +62,7 @@ class JobQueueEventBus extends JobQueue {
 	 */
 	private static function getEventSignature( $event ) {
 		$secret = MediaWikiServices::getInstance()->getMainConfig()->get( 'SecretKey' );
-		return JWT::encode( $event, $secret );
+		return hash( 'sha256', JWT::encode( $event, $secret ) );
 	}
 
 	/**

@@ -83,10 +83,10 @@ class SpecialRunSingleJob extends UnlistedSpecialPage {
 		}
 		$signature = $event['mediawiki_signature'];
 		unset( $event['mediawiki_signature'] );
-		$expected_signature = JWT::encode(
+		$expected_signature = hash( 'sha256', JWT::encode(
 			$event,
 			MediaWikiServices::getInstance()->getMainConfig()->get( 'SecretKey' )
-		);
+		) );
 		if ( !hash_equals( $expected_signature, $signature ) ) {
 			wfHttpError( 403, 'Forbidden', 'Invalid mediawiki signature' );
 			return;
