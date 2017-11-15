@@ -27,7 +27,7 @@ use MediaWiki\MediaWikiServices;
 class EventBus {
 
 	/** @const Default HTTP request timeout in seconds */
-	const DEFAULT_REQUEST_TIMEOUT = 5;
+	const DEFAULT_REQUEST_TIMEOUT = 10;
 
 	/** @var array of EventBus instances */
 	private static $instances = [];
