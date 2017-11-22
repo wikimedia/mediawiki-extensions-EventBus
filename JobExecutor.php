@@ -16,11 +16,16 @@ class JobExecutor {
 	/** @var LoggerInterface instance for all JobExecutor instances */
 	private static $logger;
 
+	/** @var  \Liuggio\StatsdClient\Factory\StatsdDataFactoryInterface instance
+	 * for all JobExecutor instances  */
+	private static $stats;
+
 	/**
 	 * @param array $jobEvent the job event
 	 * @return array containing the response status and the message
 	 */
 	public function execute( $jobEvent ) {
+		$startTime = microtime( true );
 		$jobCreateResult = $this->getJobFromParams( $jobEvent );
 
 		if ( !$jobCreateResult['status'] ) {
@@ -107,6 +112,12 @@ class JobExecutor {
 		// the next Job execution. However since we run one job at a time
 		// we don't need that.
 
+		// Report pure job execution timing
+		self::stats()->timing(
+			"jobexecutor.{$job->getType()}.exec",
+			microtime( true ) - $startTime
+		);
+
 		return [
 			'status'  => $status,
 			'message' => $message
@@ -160,7 +171,7 @@ class JobExecutor {
 
 	/**
 	 * Returns a singleton logger instance for all JobExecutor instances.
-	 * Use like: self::logger()->info( $mesage )
+	 * Use like: self::logger()->info( $message )
 	 * We use this so we don't have to check if the logger has been created
 	 * before attempting to log a message.
 	 */
@@ -169,5 +180,16 @@ class JobExecutor {
 			self::$logger = LoggerFactory::getInstance( 'JobExecutor' );
 		}
 		return self::$logger;
+	}
+
+	/**
+	 * Returns a singleton stats reporter instance for all JobExecutor instances.
+	 * Use like self::stats()->increment( $key )
+	 */
+	private static function stats() {
+		if ( !self::$stats ) {
+			self::$stats = MediaWikiServices::getInstance()->getStatsdDataFactory();
+		}
+		return self::$stats;
 	}
 }
