@@ -393,6 +393,13 @@ class EventBusHooks {
 			}
 		}
 
+		if ( empty( $events ) ) {
+			// For revision-visibility-set it's possible that
+			// the page was deleted simultaneously and we can not
+			// send a meaningful event.
+			return;
+		}
+
 		DeferredUpdates::addCallableUpdate(
 			function () use ( $events ) {
 				EventBus::getInstance()->send( $events );
