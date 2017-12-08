@@ -649,12 +649,12 @@ class EventBusHooks {
 	/**
 	 * Sends a page-restrictions-change event
 	 *
-	 * @param WikiPage $article the article which restrictions were changed
+	 * @param WikiPage $wikiPage the article which restrictions were changed
 	 * @param User $user the user who have changed the article
 	 * @param array $protect set of new restrictions details
 	 * @param string $reason the reason for page protection
 	 */
-	public static function onArticleProtectComplete( $article, $user, $protect, $reason ) {
+	public static function onArticleProtectComplete( Wikipage $wikiPage, $user, $protect, $reason ) {
 		global $wgDBname;
 		$events = [];
 
@@ -665,22 +665,22 @@ class EventBusHooks {
 			'performer'          => EventBus::createPerformerAttrs( $user ),
 
 			// page entity fields
-			'page_id'            => $article->getId(),
-			'page_title'         => $article->getTitle()->getPrefixedDBkey(),
-			'page_namespace'     => $article->getTitle()->getNamespace(),
-			'page_is_redirect'   => $article->isRedirect(),
+			'page_id'            => $wikiPage->getId(),
+			'page_title'         => $wikiPage->getTitle()->getPrefixedDBkey(),
+			'page_namespace'     => $wikiPage->getTitle()->getNamespace(),
+			'page_is_redirect'   => $wikiPage->isRedirect(),
 
 			// page restrictions change specific fields:
 			'reason'             => $reason,
 			'page_restrictions'  => $protect
 		];
 
-		if ( $article->getRevision() ) {
-			$attrs['rev_id'] = $article->getRevision()->getId();
+		if ( $wikiPage->getRevision() ) {
+			$attrs['rev_id'] = $wikiPage->getRevision()->getId();
 		}
 
 		$events[] = EventBus::createEvent(
-			EventBus::getArticleURL( $article->getTitle() ),
+			EventBus::getArticleURL( $wikiPage->getTitle() ),
 			'mediawiki.page-restrictions-change',
 			$attrs
 		);
