@@ -473,7 +473,7 @@ class EventBusHooks {
 	 *
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/PageContentSaveComplete
 	 *
-	 * @param WikiPage $article
+	 * @param WikiPage $wikiPage
 	 * @param User $user
 	 * @param Content $content
 	 * @param string $summary
@@ -485,12 +485,13 @@ class EventBusHooks {
 	 * @param Status $status
 	 * @param int $baseRevId
 	 */
-	public static function onPageContentSaveComplete( $article, $user, $content, $summary, $isMinor,
-				$isWatch, $section, $flags, $revision, $status, $baseRevId
+	public static function onPageContentSaveComplete(
+		Wikipage $wikiPage, $user, $content, $summary, $isMinor,
+		$isWatch, $section, $flags, $revision, $status, $baseRevId
 	) {
 		// In case of a null edit the status revision value will be null
 		if ( is_null( $status->getValue()['revision'] ) ) {
-			self::sendResourceChangedEvent( $article->getTitle(), [ 'null_edit' ] );
+			self::sendResourceChangedEvent( $wikiPage->getTitle(), [ 'null_edit' ] );
 		}
 	}
 
