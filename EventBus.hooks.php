@@ -414,7 +414,7 @@ class EventBusHooks {
 	 *
 	 * @param WikiPage $wikiPage
 	 */
-	public static function onArticlePurge( $wikiPage ) {
+	public static function onArticlePurge( WikiPage $wikiPage ) {
 		self::sendResourceChangedEvent( $wikiPage->getTitle(), [ 'purge' ] );
 	}
 
