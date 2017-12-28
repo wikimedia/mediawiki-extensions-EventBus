@@ -42,6 +42,54 @@ class EventBusHooks {
 	}
 
 	/**
+	 * Checks if Revision::DELETED_* field is set in the $hiddenBits
+	 *
+	 * @param int $hiddenBits revision visibility bitfield
+	 * @param int $field Revision::DELETED_* field to check
+	 * @return bool
+	 */
+	private static function isHidden( $hiddenBits, $field ) {
+		return ( $hiddenBits & $field ) == $field;
+	}
+
+	/**
+	 * Converts a revision visibility hidden bitfield to an array with keys
+	 * of each of the possible visibility settings name mapped to a boolean.
+	 *
+	 * @param int $bits revision visibility bitfield
+	 * @return array
+	 */
+	private static function bitsToVisibilityObject( $bits ) {
+		return [
+			'text'    => !self::isHidden( $bits, Revision::DELETED_TEXT ),
+			'user'    => !self::isHidden( $bits, Revision::DELETED_USER ),
+			'comment' => !self::isHidden( $bits, Revision::DELETED_COMMENT ),
+		];
+	}
+
+	/**
+	 * Given a Block $block, returns an array suitable for use
+	 * as a 'blocks' object in the user/blocks-change event schema.
+	 *
+	 * @param Block $block
+	 * @return array
+	 */
+	private static function getUserBlocksChangeAttributes( $block ) {
+		$blockAttrs = [
+			# mHideName is sometimes a string/int like '0'.
+			# Cast to int then to bool to make sure it is a proper bool.
+			'name'           => (bool)(int)$block->mHideName,
+			'email'          => (bool)$block->prevents( 'sendemail' ),
+			'user_talk'      => (bool)$block->prevents( 'editownusertalk' ),
+			'account_create' => (bool)$block->prevents( 'createaccount' ),
+		];
+		if ( $block->getExpiry() != 'infinity' ) {
+			$blockAttrs['expiry_dt'] = $block->getExpiry();
+		}
+		return $blockAttrs;
+	}
+
+	/**
 	 * Occurs after a revision is inserted into the DB
 	 *
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/RevisionInsertComplete
@@ -296,26 +344,6 @@ class EventBusHooks {
 		global $wgDBname;
 		$events = [];
 
-		/**
-		 * Returns true if the Revision::DELETED_* field is set
-		 * in the $hiddenBits.  False otherwise.
-		 */
-		function isHidden( $hiddenBits, $field ) {
-			return ( $hiddenBits & $field ) == $field;
-		}
-
-		/**
-		 * Converts a revision visibility hidden bitfield to an array with keys
-		 * of each of the possible visibility settings name mapped to a boolean.
-		 */
-		function bitsToVisibilityObject( $bits ) {
-			return [
-				'text'    => !isHidden( $bits, Revision::DELETED_TEXT ),
-				'user'    => !isHidden( $bits, Revision::DELETED_USER ),
-				'comment' => !isHidden( $bits, Revision::DELETED_COMMENT ),
-			];
-		}
-
 		$performer = RequestContext::getMain()->getUser();
 		$performer->loadFromId();
 
@@ -363,9 +391,9 @@ class EventBusHooks {
 					'rev_content_format' => $revision->getContentModel(),
 
 					// visibility-change state fields:
-					'visibility'   => bitsToVisibilityObject( $visibilityChangeMap[$revId]['newBits'] ),
+					'visibility'   => self::bitsToVisibilityObject( $visibilityChangeMap[$revId]['newBits'] ),
 					'prior_state' => [
-						'visibility' => bitsToVisibilityObject( $visibilityChangeMap[$revId]['oldBits'] ),
+						'visibility' => self::bitsToVisibilityObject( $visibilityChangeMap[$revId]['oldBits'] ),
 					]
 				];
 
@@ -509,26 +537,6 @@ class EventBusHooks {
 		global $wgDBname;
 		$events = [];
 
-		/**
-		 * Given a Block $block, returns an array suitable for use
-		 * as a 'blocks' object in the user/blocks-change event schema.
-		 * This function exists just to DRY the code a bit.
-		 */
-		function getUserBlocksChangeAttributes( $block ) {
-			$blockAttrs = [
-				# mHideName is sometimes a string/int like '0'.
-				# Cast to int then to bool to make sure it is a proper bool.
-				'name'           => (bool)(int)$block->mHideName,
-				'email'          => (bool)$block->prevents( 'sendemail' ),
-				'user_talk'      => (bool)$block->prevents( 'editownusertalk' ),
-				'account_create' => (bool)$block->prevents( 'createaccount' ),
-			];
-			if ( $block->getExpiry() != 'infinity' ) {
-				$blockAttrs['expiry_dt'] = $block->getExpiry();
-			}
-			return $blockAttrs;
-		}
-
 		// This could be a User, a user_id, or a string (IP, etc.)
 		$blockTarget = $block->getTarget();
 
@@ -558,12 +566,12 @@ class EventBusHooks {
 		}
 
 		// blocks-change specific fields:
-		$attrs['blocks'] = getUserBlocksChangeAttributes( $block );
+		$attrs['blocks'] = self::getUserBlocksChangeAttributes( $block );
 
 		// If we had a prior block settings, emit them as prior_state.blocks.
 		if ( $previousBlock ) {
 			$attrs['prior_state'] = [
-				'blocks' => getUserBlocksChangeAttributes( $previousBlock )
+				'blocks' => self::getUserBlocksChangeAttributes( $previousBlock )
 			];
 		}
 
