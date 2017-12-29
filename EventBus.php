@@ -258,7 +258,7 @@ class EventBus {
 		if ( !is_null( $parentId ) ) {
 			$attrs['rev_parent_id'] = $parentId;
 			if ( $parentId !== 0 ) {
-				$parentRev = Revision::newFromId( $parentId, Revision::READ_NORMAL, $revision->getTitle() );
+				$parentRev = Revision::newFromId( $parentId );
 				if ( !is_null( $parentRev ) ) {
 					$attrs['rev_content_changed'] = $parentRev->getSha1() !== $revision->getSha1();
 				}
