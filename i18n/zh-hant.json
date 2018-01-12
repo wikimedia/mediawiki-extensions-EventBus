@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Kly"
+		]
+	},
+	"eventbus-desc": "傳播更改訊息至 RESTful 事件服務"
+}
