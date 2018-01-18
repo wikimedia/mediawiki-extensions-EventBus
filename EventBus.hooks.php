@@ -155,7 +155,6 @@ class EventBusHooks {
 			// Common Mediawiki entity fields
 			'database'           => $wgDBname,
 			'performer'          => EventBus::createPerformerAttrs( $user ),
-			'comment'            => $reason,
 
 			// page entity fields
 			'page_id'            => $id,
@@ -174,6 +173,7 @@ class EventBusHooks {
 		}
 
 		if ( !is_null( $reason ) ) {
+			$attrs['comment'] = $reason;
 			$attrs['parsedcomment'] = Linker::formatComment( $reason, $wikiPage->getTitle() );
 		}
 
@@ -211,7 +211,6 @@ class EventBusHooks {
 			// Common Mediawiki entity fields
 			'database'           => $wgDBname,
 			'performer'          => EventBus::createPerformerAttrs( $performer ),
-			'comment'            => $comment,
 
 			// page entity fields
 			'page_id'            => $title->getArticleID(),
@@ -236,6 +235,7 @@ class EventBusHooks {
 		}
 
 		if ( !is_null( $comment ) ) {
+			$attrs['comment'] = $comment;
 			$attrs['parsedcomment'] = Linker::formatComment( $comment, $title );
 		}
 
@@ -280,7 +280,6 @@ class EventBusHooks {
 			// Common Mediawiki entity fields
 			'database'           => $wgDBname,
 			'performer'          => EventBus::createPerformerAttrs( $user ),
-			'comment'            => $reason,
 
 			// page entity fields
 			'page_id'            => $pageid,
@@ -312,6 +311,7 @@ class EventBusHooks {
 		}
 
 		if ( !is_null( $reason ) ) {
+			$attrs['comment'] = $reason;
 			$attrs['parsedcomment'] = Linker::formatComment( $reason, $newTitle );
 		}
 
@@ -376,7 +376,6 @@ class EventBusHooks {
 					// Common Mediawiki entity fields:
 					'database'           => $wgDBname,
 					'performer'          => EventBus::createPerformerAttrs( $performer ),
-					'comment'            => $revision->getComment(),
 
 					// revision entity fields:
 					'page_id'            => $revision->getPage(),
@@ -407,10 +406,10 @@ class EventBusHooks {
 					$attrs['page_is_redirect'] = false;
 				}
 
-				if ( !is_null( $revision->getComment() ) ) {
-					$attrs['parsedcomment'] = Linker::formatComment(
-						$revision->getComment(),
-						$revision->getTitle() );
+				$comment = $revision->getComment();
+				if ( !is_null( $comment ) ) {
+					$attrs['comment'] = $comment;
+					$attrs['parsedcomment'] = Linker::formatComment( $comment, $revision->getTitle() );
 				}
 
 				$events[] = EventBus::createEvent(
@@ -544,8 +543,11 @@ class EventBusHooks {
 			// Common Mediawiki entity fields:
 			'database'           => $wgDBname,
 			'performer'          => EventBus::createPerformerAttrs( $user ),
-			'comment'            => $block->mReason,
 		];
+
+		if ( !is_null( $block->mReason ) ) {
+			$attrs['comment'] = $block->mReason;
+		}
 
 		// user entity fields:
 
