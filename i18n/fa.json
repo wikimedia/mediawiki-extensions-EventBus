@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Ladsgroup"
+		]
+	},
+	"eventbus-desc": "اطلاعات تغییرات را به یک سرویس مبتنی بر REST منتقل می‌کند"
+}
