@@ -2,7 +2,7 @@
 	"name": "mediawiki/EventBus",
 	"type": "mediawiki-extension",
 	"description": "Propagation of change events to a RESTful service",
-	"license": "GPL-2.0+",
+	"license": "GPL-2.0-or-later",
 	"minimum-stability": "dev",
 	"require": {
 		"firebase/php-jwt": "4.0.0"
