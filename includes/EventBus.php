@@ -21,8 +21,11 @@
  * @author Eric Evans, Andrew Otto
  */
 
+use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
+use MediaWiki\Storage\RevisionRecord;
+use MediaWiki\Storage\SuppressedDataException;
 use Psr\Log\LoggerInterface;
 
 class EventBus {
@@ -210,13 +213,14 @@ class EventBus {
 	/**
 	 * Creates a full article path
 	 *
-	 * @param Title $title article title object
+	 * @param LinkTarget $target article title object
 	 * @return string
 	 */
-	public static function getArticleURL( $title ) {
+	public static function getArticleURL( $target ) {
 		global $wgCanonicalServer, $wgArticlePath;
 
-		$titleURL = wfUrlencode( $title->getPrefixedDBkey() );
+		$titleFormatter = MediaWikiServices::getInstance()->getTitleFormatter();
+		$titleURL = wfUrlencode( $titleFormatter->getPrefixedDBkey( $target ) );
 		// The $wgArticlePath contains '$1' string where the article title should appear.
 		return $wgCanonicalServer . str_replace( '$1', $titleURL, $wgArticlePath );
 	}
@@ -250,74 +254,59 @@ class EventBus {
 	}
 
 	/**
-	 * Given a Revision $revision, returns an array suitable for
-	 * use in mediaiki/revision entity schemas.
+	 * Given a RevisionRecord $revision, returns an array suitable for
+	 * use in mediawiki/revision entity schemas.
 	 *
-	 * @param Revision $revision
+	 * @param RevisionRecord $revision
 	 * @return array
 	 */
-	public static function createRevisionAttrs( $revision ) {
+	public static function createRevisionRecordAttrs( $revision ) {
 		global $wgDBname;
 
-		// Create a mediawiki revision create event.
-		$performer = User::newFromId( $revision->getUser() );
-		$performer->loadFromId();
-
+		$linkTarget = $revision->getPageAsLinkTarget();
+		$titleFormatter = MediaWikiServices::getInstance()->getTitleFormatter();
 		$attrs = [
 			// Common Mediawiki entity fields
 			'database'           => $wgDBname,
-			'performer'          => self::createPerformerAttrs( $performer ),
-			'comment'            => $revision->getComment(),
 
 			// revision entity fields
-			'page_id'            => $revision->getPage(),
-			'page_title'         => $revision->getTitle()->getPrefixedDBkey(),
-			'page_namespace'     => $revision->getTitle()->getNamespace(),
+			'page_id'            => $revision->getPageId(),
+			'page_title'         => $titleFormatter->getPrefixedDBkey( $linkTarget ),
+			'page_namespace'     => $linkTarget->getNamespace(),
 			'rev_id'             => $revision->getId(),
 			'rev_timestamp'      => wfTimestamp( TS_ISO_8601, $revision->getTimestamp() ),
 			'rev_sha1'           => $revision->getSha1(),
 			'rev_minor_edit'     => $revision->isMinor(),
-			'rev_content_model'  => $revision->getContentModel(),
-			'rev_content_format' => $revision->getContentModel(),
+			'rev_content_model'  => $revision->getSlot( 'main' )->getModel(),
+			'rev_content_format' => $revision->getSlot( 'main' )->getFormat(),
+			'rev_len'            => $revision->getSize(),
 		];
 
-		// It is possible rev_len is not known. It's not a required field,
-		// so don't set it if it's NULL
-		if ( !is_null( $revision->getSize() ) ) {
-			$attrs['rev_len'] = $revision->getSize();
+		if ( !is_null( $revision->getUser() ) ) {
+			$performer = User::newFromId( $revision->getUser()->getId() );
+			$performer->loadFromId();
+			$attrs['performer'] = self::createPerformerAttrs( $performer );
 		}
 
 		// It is possible that the $revision object does not have any content
 		// at the time of RevisionInsertComplete.  This might happen during
 		// a page restore, if the revision 'created' during the restore
 		// has its content hidden.
-		$content = $revision->getContent();
-		if ( !is_null( $content ) ) {
-			$attrs['page_is_redirect'] = $content->isRedirect();
-		} else {
+		// TODO: In MCR Content::isRedirect should not be used to derive a redirect directly.
+		try {
+			$content = $revision->getContent( 'main' );
+			if ( !is_null( $content ) ) {
+				$attrs['page_is_redirect'] = $content->isRedirect();
+			} else {
+				$attrs['page_is_redirect'] = false;
+			}
+		} catch ( SuppressedDataException $e ) {
 			$attrs['page_is_redirect'] = false;
 		}
 
-		// The parent_revision_id attribute is not required, but when supplied
-		// must have a minimum value of 1, so omit it entirely when there is no
-		// parent revision (i.e. page creation).
-		$parentId = $revision->getParentId();
-		// Assume that the content have changed by default
-		$attrs['rev_content_changed'] = true;
-		if ( !is_null( $parentId ) ) {
-			$attrs['rev_parent_id'] = $parentId;
-			if ( $parentId !== 0 ) {
-				$parentRev = Revision::newFromId( $parentId );
-				if ( !is_null( $parentRev ) ) {
-					$attrs['rev_content_changed'] = $parentRev->getSha1() !== $revision->getSha1();
-				}
-			}
-		}
-
 		if ( !is_null( $revision->getComment() ) ) {
-			$attrs['parsedcomment'] = Linker::formatComment(
-				$revision->getComment(),
-				$revision->getTitle() );
+			$attrs['comment'] = $revision->getComment()->text;
+			$attrs['parsedcomment'] = Linker::formatComment( $revision->getComment()->text );
 		}
 
 		return $attrs;

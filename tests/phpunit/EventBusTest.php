@@ -1,5 +1,7 @@
 <?php
 
+use MediaWiki\MediaWikiServices;
+
 /**
  * @covers EventBus
  * @group EventBus
@@ -48,61 +50,34 @@ class EventBusTest extends MediaWikiTestCase {
 		$this->assertEquals( $user->getId(), $performerAttrs['user_id'] );
 	}
 
-	function newTestRevision( $text, $title = "Test",
-							  $model = CONTENT_MODEL_WIKITEXT, $format = null
-	) {
-		if ( is_string( $title ) ) {
-			$title = Title::newFromText( $title );
-		}
-
-		$content = ContentHandler::makeContent( $text, $title, $model, $format );
-
-		$rev = new Revision(
-			[
+	public function provideNewMutableRevisionFromArray() {
+		$store = MediaWikiServices::getInstance()->getRevisionStore();
+		yield 'Basic mutable revision' => [
+			$store->newMutableRevisionFromArray( [
 				'id' => 42,
 				'page' => 23,
-				'title' => $title,
-
-				'content' => $content,
-				'length' => $content->getSize(),
-				'comment' => "testing",
+				'timestamp' => '20171017114835',
+				'user_text' => '111.0.1.2',
+				'user' => 0,
 				'minor_edit' => false,
-
-				'content_format' => $format,
-			]
-		);
-
-		return $rev;
+				'deleted' => 0,
+				'len' => 46,
+				'parent_id' => 1,
+				'sha1' => 'rdqbbzs3pkhihgbs8qf2q9jsvheag5z',
+				'comment' => 'testing',
+				'content' => new WikitextContent( 'Some Content' ),
+			], 0, Title::makeTitle( 0, 'Test' ) )
+		];
 	}
 
-	public function testCreateRevisionAttrs() {
+	/**
+	 * @dataProvider provideNewMutableRevisionFromArray
+	 */
+	public function testCreateRevisionAttrs( $revisionRecord ) {
 		global $wgDBname;
+		$revisionAttrs = EventBus::createRevisionRecordAttrs( $revisionRecord );
 
-		$title = Title::newFromText( 'Test' );
-		$content = ContentHandler::makeContent(
-			'Bla bla bla',
-			$title,
-			CONTENT_MODEL_WIKITEXT,
-			null );
-
-		$rev = new Revision(
-			[
-				'id' => 42,
-				'page' => 23,
-				'title' => $title,
-				'rev_user' => $this->getTestUser( [ 'testers' ] ),
-
-				'content' => $content,
-				'length' => $content->getSize(),
-				'comment' => "testing",
-				'minor_edit' => false,
-
-				'content_format' => null,
-			]
-		);
-
-		$revisionAttrs = EventBus::createRevisionAttrs( $rev );
-
+		wfDebugLog( 'BLA', json_encode( $revisionAttrs ) );
 		$this->assertNotNull( $revisionAttrs );
 		$this->assertEquals( $revisionAttrs['database'], $wgDBname );
 		$this->assertNotNull( $revisionAttrs['performer'] );
@@ -114,8 +89,6 @@ class EventBusTest extends MediaWikiTestCase {
 		$this->assertEquals( 42, $revisionAttrs['rev_id'] );
 		$this->assertEquals( false, $revisionAttrs['rev_minor_edit'] );
 		$this->assertEquals( 'wikitext', $revisionAttrs['rev_content_model'] );
-		$this->assertEquals( 'wikitext', $revisionAttrs['rev_content_format'] );
 		$this->assertEquals( false, $revisionAttrs['page_is_redirect'] );
-		$this->assertEquals( true, $revisionAttrs['rev_content_changed'] );
 	}
 }

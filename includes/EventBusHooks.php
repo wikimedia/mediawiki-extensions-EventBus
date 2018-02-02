@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Hooks for production of events to an HTTP service.
  *
@@ -21,7 +22,18 @@
  * @author Eric Evans, Andrew Otto
  */
 
+use MediaWiki\MediaWikiServices;
+use MediaWiki\Storage\RevisionLookup;
+use MediaWiki\Storage\RevisionRecord;
+
 class EventBusHooks {
+
+	/**
+	 * @return RevisionLookup
+	 */
+	private static function getRevisionLookup() {
+		return MediaWikiServices::getInstance()->getRevisionLookup();
+	}
 
 	/**
 	 * Creates and sends a single resource_change event to EventBus
@@ -61,9 +73,9 @@ class EventBusHooks {
 	 */
 	private static function bitsToVisibilityObject( $bits ) {
 		return [
-			'text'    => !self::isHidden( $bits, Revision::DELETED_TEXT ),
-			'user'    => !self::isHidden( $bits, Revision::DELETED_USER ),
-			'comment' => !self::isHidden( $bits, Revision::DELETED_COMMENT ),
+			'text'    => !self::isHidden( $bits, RevisionRecord::DELETED_TEXT ),
+			'user'    => !self::isHidden( $bits, RevisionRecord::DELETED_USER ),
+			'comment' => !self::isHidden( $bits, RevisionRecord::DELETED_COMMENT ),
 		];
 	}
 
@@ -92,13 +104,11 @@ class EventBusHooks {
 	/**
 	 * Occurs after a revision is inserted into the DB
 	 *
-	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/RevisionInsertComplete
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/RevisionRecordInserted
 	 *
-	 * @param Revision $revision
-	 * @param string $data
-	 * @param int $flags
+	 * @param \MediaWiki\Storage\RevisionRecord $revision
 	 */
-	public static function onRevisionInsertComplete( $revision, $data, $flags ) {
+	public static function onRevisionRecordInserted( $revision ) {
 		$events = [];
 		$topic = 'mediawiki.revision-create';
 
@@ -110,10 +120,26 @@ class EventBusHooks {
 			return;
 		}
 
-		$attrs = EventBus::createRevisionAttrs( $revision );
+		$attrs = EventBus::createRevisionRecordAttrs( $revision );
+
+		// The parent_revision_id attribute is not required, but when supplied
+		// must have a minimum value of 1, so omit it entirely when there is no
+		// parent revision (i.e. page creation).
+		$parentId = $revision->getParentId();
+		// Assume that the content have changed by default
+		$attrs['rev_content_changed'] = true;
+		if ( !is_null( $parentId ) ) {
+			$attrs['rev_parent_id'] = $parentId;
+			if ( $parentId !== 0 ) {
+				$parentRev = self::getRevisionLookup()->getRevisionById( $parentId );
+				if ( !is_null( $parentRev ) ) {
+					$attrs['rev_content_changed'] = $parentRev->getSha1() !== $revision->getSha1();
+				}
+			}
+		}
 
 		$events[] = EventBus::createEvent(
-			EventBus::getArticleURL( $revision->getTitle() ),
+			EventBus::getArticleURL( $revision->getPageAsLinkTarget() ),
 			$topic,
 			$attrs
 		);
@@ -341,7 +367,6 @@ class EventBusHooks {
 	 *              [id => ['oldBits' => $oldBits, 'newBits' => $newBits], ... ]
 	 */
 	public static function onArticleRevisionVisibilitySet( $title, $revIds, $visibilityChangeMap ) {
-		global $wgDBname;
 		$events = [];
 
 		$performer = RequestContext::getMain()->getUser();
@@ -351,7 +376,7 @@ class EventBusHooks {
 		// for each revId that was changed.
 		foreach ( $revIds as $revId ) {
 			// Create the mediawiki/revision/visibilty-change event
-			$revision = Revision::newFromid( $revId );
+			$revision = self::getRevisionLookup()->getRevisionById( $revId );
 
 			// If the page is deleted simultaneously (null $revision) or if
 			// this revId is not in the $visibilityChangeMap, then we can't
@@ -372,48 +397,22 @@ class EventBusHooks {
 				);
 				continue;
 			} else {
-				$attrs = [
-					// Common Mediawiki entity fields:
-					'database'           => $wgDBname,
-					'performer'          => EventBus::createPerformerAttrs( $performer ),
-
-					// revision entity fields:
-					'page_id'            => $revision->getPage(),
-					'page_title'         => $revision->getTitle()->getPrefixedDBkey(),
-					'page_namespace'     => $revision->getTitle()->getNamespace(),
-					'rev_id'             => $revision->getId(),
-					'rev_timestamp'      => wfTimestamp( TS_ISO_8601, $revision->getTimestamp() ),
-					'rev_sha1'           => $revision->getSha1(),
-					'rev_len'            => $revision->getSize(),
-					'rev_minor_edit'     => $revision->isMinor(),
-					'rev_content_model'  => $revision->getContentModel(),
-					'rev_content_format' => $revision->getContentModel(),
-
-					// visibility-change state fields:
-					'visibility'   => self::bitsToVisibilityObject( $visibilityChangeMap[$revId]['newBits'] ),
-					'prior_state' => [
-						'visibility' => self::bitsToVisibilityObject( $visibilityChangeMap[$revId]['oldBits'] ),
-					]
+				$attrs = EventBus::createRevisionRecordAttrs( $revision );
+				$attrs['visibility'] = self::bitsToVisibilityObject( $visibilityChangeMap[$revId]['newBits'] );
+				$attrs['prior_state'] = [
+					'visibility' => self::bitsToVisibilityObject( $visibilityChangeMap[$revId]['oldBits'] )
 				];
 
-				// It is possible that the $revision object does not have any content
-				// at the time of RevisionVisibilityChange.  This might happen if the
-				// page content was hidden
-				$content = $revision->getContent();
-				if ( !is_null( $content ) ) {
-					$attrs['page_is_redirect'] = $content->isRedirect();
-				} else {
-					$attrs['page_is_redirect'] = false;
-				}
-
-				$comment = $revision->getComment();
-				if ( !is_null( $comment ) ) {
-					$attrs['comment'] = $comment;
-					$attrs['parsedcomment'] = Linker::formatComment( $comment, $revision->getTitle() );
+				// The parent_revision_id attribute is not required, but when supplied
+				// must have a minimum value of 1, so omit it entirely when there is no
+				// parent revision (i.e. page creation).
+				$parentId = $revision->getParentId();
+				if ( !is_null( $parentId ) ) {
+					$attrs['rev_parent_id'] = $parentId;
 				}
 
 				$events[] = EventBus::createEvent(
-					EventBus::getArticleURL( $title ),
+					EventBus::getArticleURL( $revision->getPageAsLinkTarget() ),
 					'mediawiki.revision-visibility-change',
 					$attrs
 				);
@@ -477,7 +476,7 @@ class EventBusHooks {
 			return;
 		}
 
-		$attrs = EventBus::createRevisionAttrs( $revision );
+		$attrs = EventBus::createRevisionRecordAttrs( $revision->getRevisionRecord() );
 
 		$events[] = EventBus::createEvent(
 			EventBus::getArticleURL( $revision->getTitle() ),
