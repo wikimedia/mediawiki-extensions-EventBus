@@ -1,6 +1,7 @@
 <?php
 
 /**
+ * @covers EventBus
  * @group EventBus
  */
 class EventBusTest extends MediaWikiTestCase {
