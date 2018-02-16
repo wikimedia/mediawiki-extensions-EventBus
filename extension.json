@@ -15,15 +15,15 @@
 		"EventServiceTimeout": 5
 	},
 	"AutoloadClasses": {
-		"EventBus": "EventBus.php",
-		"EventBusHooks": "EventBus.hooks.php",
-		"EventRelayerBus": "EventRelayerBus.php",
-		"PurgeEventRelayerBus": "PurgeEventRelayerBus.php",
-		"EventBusRCFeedEngine": "EventBusRCFeedEngine.php",
-		"EventBusRCFeedFormatter": "EventBusRCFeedFormatter.php",
-		"JobQueueEventBus": "JobQueueEventBus.php",
-		"JobExecutor": "JobExecutor.php",
-		"SpecialRunSingleJob": "SpecialRunSingleJob.php"
+		"EventBus": "includes/EventBus.php",
+		"EventBusHooks": "includes/EventBusHooks.php",
+		"EventRelayerBus": "includes/EventRelayerBus.php",
+		"PurgeEventRelayerBus": "includes/PurgeEventRelayerBus.php",
+		"EventBusRCFeedEngine": "includes/EventBusRCFeedEngine.php",
+		"EventBusRCFeedFormatter": "includes/EventBusRCFeedFormatter.php",
+		"JobQueueEventBus": "includes/JobQueueEventBus.php",
+		"JobExecutor": "includes/JobExecutor.php",
+		"SpecialRunSingleJob": "includes/SpecialRunSingleJob.php"
 	},
 	"MessagesDirs": {
 		"EventBus": [
