@@ -7,9 +7,12 @@
  * executing a Job
  */
 
-use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
+use MediaWiki\Logger\LoggerFactory;
 use Psr\Log\LoggerInterface;
+use Wikimedia\ScopedCallback;
+use Wikimedia\Rdbms\LBFactory;
+use Wikimedia\Rdbms\DBError;
 
 class JobExecutor {
 
@@ -19,6 +22,11 @@ class JobExecutor {
 	/** @var  \Liuggio\StatsdClient\Factory\StatsdDataFactoryInterface instance
 	 * for all JobExecutor instances  */
 	private static $stats;
+
+	/**
+	 * @var Config a references to the wiki config
+	 */
+	private static $config;
 
 	/**
 	 * @param array $jobEvent the job event
@@ -49,7 +57,7 @@ class JobExecutor {
 
 			$lbFactory->beginMasterChanges( $fnameTrxOwner );
 			$status = $job->run();
-			$lbFactory->commitMasterChanges( $fnameTrxOwner );
+			$this->commitMasterChanges( $lbFactory, $fnameTrxOwner );
 
 			if ( $status === false ) {
 				$message = $job->getLastError();
@@ -154,7 +162,14 @@ class JobExecutor {
 			];
 		}
 
-		$job = Job::factory( $jobType, $title, $jobEvent['params'] );
+		try {
+			$job = Job::factory( $jobType, $title, $jobEvent['params'] );
+		} catch ( Exception $e ) {
+			return [
+				'status'  => false,
+				'message' => $e->getMessage()
+			];
+		}
 
 		if ( is_null( $job ) ) {
 			return [
@@ -183,6 +198,17 @@ class JobExecutor {
 	}
 
 	/**
+	 * Returns a singleton config instance for all JobExecutor instances.
+	 * Use like: self::config()->get( 'SomeConfigParameter' )
+	 */
+	private static function config() {
+		if ( !self::$config ) {
+			self::$config = MediaWikiServices::getInstance()->getMainConfig();
+		}
+		return self::$config;
+	}
+
+	/**
 	 * Returns a singleton stats reporter instance for all JobExecutor instances.
 	 * Use like self::stats()->increment( $key )
 	 */
@@ -192,4 +218,76 @@ class JobExecutor {
 		}
 		return self::$stats;
 	}
+
+	/**
+	 * Issue a commit on all masters who are currently in a transaction and have
+	 * made changes to the database. It also supports sometimes waiting for the
+	 * local wiki's replica DBs to catch up. See the documentation for
+	 * $wgJobSerialCommitThreshold for more.
+	 *
+	 * The implementation reseblse the JobRunner::commitMasterChanges and will
+	 * be merged with it once the kafka-based JobQueue will be moved to use
+	 * the SpecialRunSingleJob and moved to the core.
+	 *
+	 * @param LBFactory $lbFactory
+	 * @param string $fnameTrxOwner
+	 * @throws DBError
+	 * @throws ConfigException
+	 */
+	private function commitMasterChanges( LBFactory $lbFactory, $fnameTrxOwner ) {
+		$syncThreshold = $this->config()->get( 'JobSerialCommitThreshold' );
+		$maxWriteDuration = $this->config()->get( 'MaxJobDBWriteDuration' );
+
+		$lb = $lbFactory->getMainLB( wfWikiID() );
+		if ( $syncThreshold !== false && $lb->getServerCount() > 1 ) {
+			// Generally, there is one master connection to the local DB
+			$dbwSerial = $lb->getAnyOpenConnection( $lb->getWriterIndex() );
+			// We need natively blocking fast locks
+			if ( $dbwSerial && $dbwSerial->namedLocksEnqueue() ) {
+				$time = $dbwSerial->pendingWriteQueryDuration( $dbwSerial::ESTIMATE_DB_APPLY );
+				if ( $time < $syncThreshold ) {
+					$dbwSerial = false;
+				}
+			} else {
+				$dbwSerial = false;
+			}
+		} else {
+			// There are no replica DBs or writes are all to foreign DB (we don't handle that)
+			$dbwSerial = false;
+		}
+
+		if ( !$dbwSerial ) {
+			$lbFactory->commitMasterChanges(
+				$fnameTrxOwner,
+				// Abort if any transaction was too big
+				[ 'maxWriteDuration' => $maxWriteDuration ]
+			);
+
+			return;
+		}
+
+		// Wait for an exclusive lock to commit
+		if ( !$dbwSerial->lock( 'jobexecutor-serial-commit', __METHOD__, 30 ) ) {
+			// This will trigger a rollback in the main loop
+			throw new DBError( $dbwSerial, "Timed out waiting on commit queue." );
+		}
+		$unlocker = new ScopedCallback( function () use ( $dbwSerial ) {
+			$dbwSerial->unlock( 'jobexecutor-serial-commit', __METHOD__ );
+		} );
+
+		// Wait for the replica DBs to catch up
+		$pos = $lb->getMasterPos();
+		if ( $pos ) {
+			$lb->waitForAll( $pos );
+		}
+
+		// Actually commit the DB master changes
+		$lbFactory->commitMasterChanges(
+			$fnameTrxOwner,
+			// Abort if any transaction was too big
+			[ 'maxWriteDuration' => $maxWriteDuration ]
+		);
+		ScopedCallback::consume( $unlocker );
+	}
+
 }
