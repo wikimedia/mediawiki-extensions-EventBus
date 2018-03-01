@@ -75,6 +75,15 @@ class JobQueueEventBus extends JobQueue {
 	}
 
 	/**
+	 * Find out if delayed jobs are supported for configuration validation
+	 *
+	 * @return bool Whether delayed jobs are supported
+	 */
+	protected function supportsDelayedJobs() {
+		return true;
+	}
+
+	/**
 	 * Get the default queue order to use if configuration does not specify one
 	 *
 	 * @return string One of (random, timestamp, fifo, undefined)
