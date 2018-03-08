@@ -318,7 +318,7 @@ class EventBus {
 				'topic'      => $topic,
 				'request_id' => self::getRequestId(),
 				'id'         => self::newId(),
-				'dt'         => date( 'c' ),
+				'dt'         => gmdate( 'c' ),
 				'domain'     => $wgServerName ?: "unknown",
 			],
 		];
