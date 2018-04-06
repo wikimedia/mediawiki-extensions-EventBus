@@ -23,25 +23,26 @@
 
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
+use Psr\Log\LoggerInterface;
 
 class EventBus {
 
-	/** @const Default HTTP request timeout in seconds */
+	/** @const int Default HTTP request timeout in seconds */
 	const DEFAULT_REQUEST_TIMEOUT = 10;
 
-	/** @var array of EventBus instances */
+	/** @var EventBus[] */
 	private static $instances = [];
 
-	/** @var logger instance for all EventBus instances */
+	/** @var LoggerInterface instance for all EventBus instances */
 	private static $logger;
 
 	/** @var MultiHttpClient */
 	protected $http;
 
-	/** @var EventServiceUrl for this EventBus instance */
+	/** @var string EventServiceUrl for this EventBus instance */
 	protected $url;
 
-	/** @var HTTP request timeout for this EventBus instance */
+	/** @var int HTTP request timeout for this EventBus instance */
 	protected $timeout;
 
 	/**
@@ -351,6 +352,7 @@ class EventBus {
 	 * Use like: self::logger()->info( $mesage )
 	 * We use this so we don't have to check if the logger has been created
 	 * before attempting to log a message.
+	 * @return LoggerInterface
 	 */
 	private static function logger() {
 		if ( !self::$logger ) {

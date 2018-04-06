@@ -138,6 +138,7 @@ class SpecialRunSingleJob extends UnlistedSpecialPage {
 	 * Use like: self::logger()->info( $mesage )
 	 * We use this so we don't have to check if the logger has been created
 	 * before attempting to log a message.
+	 * @return LoggerInterface
 	 */
 	private static function logger() {
 		if ( !self::$logger ) {

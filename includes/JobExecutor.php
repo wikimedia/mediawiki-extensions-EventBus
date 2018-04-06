@@ -7,6 +7,7 @@
  * executing a Job
  */
 
+use Liuggio\StatsdClient\Factory\StatsdDataFactoryInterface;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Logger\LoggerFactory;
 use Psr\Log\LoggerInterface;
@@ -19,7 +20,7 @@ class JobExecutor {
 	/** @var LoggerInterface instance for all JobExecutor instances */
 	private static $logger;
 
-	/** @var  \Liuggio\StatsdClient\Factory\StatsdDataFactoryInterface instance
+	/** @var StatsdDataFactoryInterface instance
 	 * for all JobExecutor instances  */
 	private static $stats;
 
@@ -189,6 +190,7 @@ class JobExecutor {
 	 * Use like: self::logger()->info( $message )
 	 * We use this so we don't have to check if the logger has been created
 	 * before attempting to log a message.
+	 * @return LoggerInterface
 	 */
 	private static function logger() {
 		if ( !self::$logger ) {
@@ -200,6 +202,7 @@ class JobExecutor {
 	/**
 	 * Returns a singleton config instance for all JobExecutor instances.
 	 * Use like: self::config()->get( 'SomeConfigParameter' )
+	 * @return Config
 	 */
 	private static function config() {
 		if ( !self::$config ) {
@@ -211,6 +214,7 @@ class JobExecutor {
 	/**
 	 * Returns a singleton stats reporter instance for all JobExecutor instances.
 	 * Use like self::stats()->increment( $key )
+	 * @return StatsdDataFactoryInterface
 	 */
 	private static function stats() {
 		if ( !self::$stats ) {
