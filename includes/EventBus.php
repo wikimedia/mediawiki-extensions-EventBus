@@ -27,6 +27,26 @@ use Psr\Log\LoggerInterface;
 
 class EventBus {
 
+	/**
+	 * @const int the special event type indicating no events should be accepted.
+	 */
+	const TYPE_NONE = 0;
+
+	/**
+	 * @const int the event type indicating that the event is a regular mediawiki event.
+	 */
+	const TYPE_EVENT = 1;
+
+	/**
+	 * @const int the event type indicating that the event is a serialized job.
+	 */
+	const TYPE_JOB = 2;
+
+	/**
+	 * @const int the event type indicating any event type. (TYPE_EVENT ^ TYPE_EVENT)
+	 */
+	const TYPE_ALL = 3;
+
 	/** @const int Default HTTP request timeout in seconds */
 	const DEFAULT_REQUEST_TIMEOUT = 10;
 
@@ -45,6 +65,9 @@ class EventBus {
 	/** @var int HTTP request timeout for this EventBus instance */
 	protected $timeout;
 
+	/** @var int which event types are allowed to be sent (TYPE_NONE|TYPE_EVENT|TYPE_JOB|TYPE_ALL) */
+	private $allowedEventTypes;
+
 	/**
 	 * @param string $url EventBus service endpoint URL. E.g. http://localhost:8085/v1/events
 	 * @param int $timeout HTTP request timeout in seconds, defaults to 5.
@@ -52,18 +75,42 @@ class EventBus {
 	 * @constructor
 	 */
 	public function __construct( $url, $timeout = null ) {
-		$this->http = new MultiHttpClient( [] );
+		global $wgEnableEventBus;
 
+		$this->http = new MultiHttpClient( [] );
 		$this->url = $url;
 		$this->timeout = $timeout ?: self::DEFAULT_REQUEST_TIMEOUT;
+
+		switch ( $wgEnableEventBus ) {
+			case 'TYPE_NONE':
+				$this->allowedEventTypes = self::TYPE_NONE;
+				break;
+			case 'TYPE_EVENT':
+				$this->allowedEventTypes = self::TYPE_EVENT;
+				break;
+			case 'TYPE_JOB':
+				$this->allowedEventTypes = self::TYPE_JOB;
+				break;
+			case 'TYPE_ALL':
+				$this->allowedEventTypes = self::TYPE_ALL;
+				break;
+			default:
+				self::$logger->log( 'warn',
+					'Unknown $wgEnableEventBus config parameter value ' . $wgEnableEventBus );
+				$this->allowedEventTypes = self::TYPE_ALL;
+		}
 	}
 
 	/**
 	 * Deliver an array of events to the remote service.
 	 *
 	 * @param array|string $events the events to send.
+	 * @param int $type the type of the event being sent.
 	 */
-	public function send( $events ) {
+	public function send( $events, $type = self::TYPE_EVENT ) {
+		if ( !$this->shouldSendEvent( $type ) ) {
+			return;
+		}
 		if ( empty( $events ) ) {
 			// Logstash doesn't like the args, because they could be of various types
 			$context = [ 'exception' => new Exception() ];
@@ -345,6 +392,10 @@ class EventBus {
 	 */
 	private static function newId() {
 		return UIDGenerator::newUUIDv1();
+	}
+
+	private function shouldSendEvent( $eventType ) {
+		return $this->allowedEventTypes & $eventType;
 	}
 
 	/**

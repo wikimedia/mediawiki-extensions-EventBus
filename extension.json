@@ -1,7 +1,7 @@
 
 {
 	"name": "EventBus",
-	"version": "0.2.13",
+	"version": "0.3.0",
 	"author": [
 		"Eric Evans",
 		"Petr Pchelko",
@@ -11,6 +11,7 @@
 	"descriptionmsg": "eventbus-desc",
 	"license-name": "GPL-2.0-or-later",
 	"config": {
+		"EnableEventBus": "TYPE_ALL",
 		"EventServiceUrl": "http://localhost:3000/v1/events",
 		"EventServiceTimeout": 5
 	},
