@@ -362,7 +362,13 @@ class EventBus {
 	public static function createEvent( $uri, $topic, $attrs, $wiki = false ) {
 		global $wgConf;
 		global $wgServerName;
-		$domain = $wiki ? $wgConf->get( 'wgServerName', $wiki ) : $wgServerName;
+
+		if ( $wiki ) {
+			$serverParts = wfParseUrl( $wgConf->get( 'wgCanonicalServer', $wiki ) );
+			$domain = $serverParts['host'];
+		} else {
+			$domain = $wgServerName;
+		}
 
 		$event = [
 			'meta' => [
@@ -371,9 +377,10 @@ class EventBus {
 				'request_id' => self::getRequestId(),
 				'id'         => self::newId(),
 				'dt'         => gmdate( 'c' ),
-				'domain'     => $domain,
+				'domain'     => $domain ?: $wgServerName,
 			],
 		];
+
 		return $event + $attrs;
 	}
 

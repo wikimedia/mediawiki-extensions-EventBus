@@ -10,7 +10,7 @@ class JobQueueEventBus extends JobQueue {
 		global $wgDBname;
 
 		$attrs = [
-			'database' => $this->getWiki() || $wgDBname,
+			'database' => $this->getWiki() ?: $wgDBname,
 			'type' => $job->getType(),
 			'page_namespace' => $job->getTitle()->getNamespace(),
 			'page_title' => $job->getTitle()->getPrefixedDBkey()
