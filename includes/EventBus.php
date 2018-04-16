@@ -355,11 +355,15 @@ class EventBus {
 	 * @param string $uri
 	 * @param string $topic
 	 * @param array $attrs
+	 * @param string|bool $wiki
 	 *
 	 * @return array $attrs + meta subobject
 	 */
-	public static function createEvent( $uri, $topic, $attrs ) {
+	public static function createEvent( $uri, $topic, $attrs, $wiki = false ) {
+		global $wgConf;
 		global $wgServerName;
+		$domain = $wiki ? $wgConf->get( 'wgServerName', $wiki ) : $wgServerName;
+
 		$event = [
 			'meta' => [
 				'uri'        => $uri,
@@ -367,7 +371,7 @@ class EventBus {
 				'request_id' => self::getRequestId(),
 				'id'         => self::newId(),
 				'dt'         => gmdate( 'c' ),
-				'domain'     => $wgServerName ?: "unknown",
+				'domain'     => $domain,
 			],
 		];
 		return $event + $attrs;

@@ -6,11 +6,11 @@ use MediaWiki\MediaWikiServices;
 
 class JobQueueEventBus extends JobQueue {
 
-	private static function createJobEvent( IJobSpecification $job ) {
+	private function createJobEvent( IJobSpecification $job ) {
 		global $wgDBname;
 
 		$attrs = [
-			'database' => $wgDBname,
+			'database' => $this->getWiki() || $wgDBname,
 			'type' => $job->getType(),
 			'page_namespace' => $job->getTitle()->getNamespace(),
 			'page_title' => $job->getTitle()->getPrefixedDBkey()
@@ -38,7 +38,8 @@ class JobQueueEventBus extends JobQueue {
 		$event = EventBus::createEvent(
 			EventBus::getArticleURL( $job->getTitle() ),
 			'mediawiki.job.' . $job->getType(),
-			$attrs
+			$attrs,
+			$this->getWiki()
 		);
 
 		// If the job provides a requestId - use it, otherwise try to get one ourselves
@@ -129,7 +130,7 @@ class JobQueueEventBus extends JobQueue {
 		// (job ID => job fields map)
 		$events = [];
 		foreach ( $jobs as $job ) {
-			$item = self::createJobEvent( $job );
+			$item = $this->createJobEvent( $job );
 			// hash identifier => de-duplicate
 			if ( isset( $item['sha1'] ) ) {
 				$events[$item['sha1']] = $item;
