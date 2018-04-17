@@ -122,6 +122,7 @@ class EventBus {
 		if ( is_string( $events ) ) {
 			$body = $events;
 		} else {
+			self::validateJSONSerializable( $events );
 			// Else serialize the array of events to a JSON string.
 			$body = self::serializeEvents( $events );
 			// If not $body, then something when wrong.
@@ -394,6 +395,42 @@ class EventBus {
 		$context = RequestContext::getMain();
 		$xreqid = $context->getRequest()->getHeader( 'x-request-id' );
 		return $xreqid ?: UIDGenerator::newUUIDv4();
+	}
+
+	/**
+	 * Checks a part of the event for JSON-serializability
+	 *
+	 * @param array $originalEvent an original event that is being checked.
+	 * @param array $eventPart the sub-object nested in the original event to be checked.
+	 */
+	private static function checkEventPart( $originalEvent, $eventPart ) {
+		foreach ( $eventPart as $p => $v ) {
+			if ( is_array( $v ) ) {
+				self::checkEventPart( $originalEvent, $v );
+			} elseif ( !is_scalar( $v ) && $v !== null ) {
+				// Only log the first appearance of non-scalar property per event as jobs
+				// might contain hundreds of properties and we do not want to log everything.
+				self::logger()->error( 'Non-scalar value found in the event', [
+					'events' => self::serializeEvents( [ $originalEvent ] ),
+					'prop_name' => $p,
+					'prop_val_type' => get_class( $v )
+				] );
+				// Follow to the next event in the array
+				return;
+			}
+		}
+	}
+
+	/**
+	 * Checks if the event is JSON-serializable (contains only scalar values)
+	 * and logs the event if non-scalar found.
+	 *
+	 * @param array $events
+	 */
+	private static function validateJSONSerializable( $events ) {
+		foreach ( $events as $event ) {
+			self::checkEventPart( $event, $event );
+		}
 	}
 
 	/**
