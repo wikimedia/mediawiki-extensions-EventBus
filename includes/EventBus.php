@@ -360,12 +360,15 @@ class EventBus {
 	 * @return array $attrs + meta subobject
 	 */
 	public static function createEvent( $uri, $topic, $attrs, $wiki = false ) {
-		global $wgConf;
 		global $wgServerName;
 
 		if ( $wiki ) {
-			$serverParts = wfParseUrl( $wgConf->get( 'wgCanonicalServer', $wiki ) );
-			$domain = $serverParts['host'];
+			$wikiRef = WikiMap::getWiki( $wiki );
+			if ( is_null( $wikiRef ) ) {
+				$domain = $wgServerName;
+			} else {
+				$domain = $wikiRef->getDisplayName();
+			}
 		} else {
 			$domain = $wgServerName;
 		}
