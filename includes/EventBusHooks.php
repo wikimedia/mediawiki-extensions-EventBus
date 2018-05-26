@@ -529,7 +529,7 @@ class EventBusHooks {
 	 *
 	 * @param Block $block the Block object that was saved
 	 * @param User $user the user who did the block (not the one being blocked)
-	 * @param Block $previousBlock the previous block state for the block target.
+	 * @param Block|null $previousBlock the previous block state for the block target.
 	 *        null if this is a new block target.
 	 */
 	public static function onBlockIpComplete( $block, $user, $previousBlock=null ) {

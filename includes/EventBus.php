@@ -70,7 +70,7 @@ class EventBus {
 
 	/**
 	 * @param string $url EventBus service endpoint URL. E.g. http://localhost:8085/v1/events
-	 * @param int $timeout HTTP request timeout in seconds, defaults to 5.
+	 * @param int|null $timeout HTTP request timeout in seconds, defaults to 5.
 	 *
 	 * @constructor
 	 */
@@ -464,7 +464,7 @@ class EventBus {
 	}
 
 	/**
-	 * @param array $config EventBus config object.  This must at least contain EventServiceUrl.
+	 * @param array|null $config EventBus config object.  This must at least contain EventServiceUrl.
 	 *                      EventServiceTimeout is also a valid config key.  If null (default)
 	 *                      this will lookup config using
 	 *                      MediawikiServices::getInstance()->getMainConfig() and look for
