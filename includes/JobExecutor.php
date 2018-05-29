@@ -48,6 +48,13 @@ class JobExecutor {
 		}
 
 		$job = $jobCreateResult['job'];
+		$this->logger()->debug( 'Beginning job execution',
+			[
+				'job' => $job->toString(),
+				'job_type' => $job->getType()
+			]
+		);
+
 		$lbFactory = MediaWikiServices::getInstance()->getDBLoadBalancerFactory();
 
 		WebRequest::overrideRequestId( $job->getRequestId() );
@@ -122,9 +129,18 @@ class JobExecutor {
 		// we don't need that.
 
 		// Report pure job execution timing
+		$jobDuration = microtime( true ) - $startTime;
 		self::stats()->timing(
 			"jobexecutor.{$job->getType()}.exec",
-			microtime( true ) - $startTime
+			$jobDuration
+		);
+		$this->logger()->info( 'Finished job execution',
+			[
+				'job' => $job->toString(),
+				'job_type' => $job->getType(),
+				'job_status' => $status,
+				'job_duration' => $jobDuration
+			]
 		);
 
 		return [
