@@ -304,7 +304,7 @@ class EventBus {
 			$attrs['page_is_redirect'] = false;
 		}
 
-		if ( !is_null( $revision->getComment() ) ) {
+		if ( !is_null( $revision->getComment() ) && strlen( $revision->getComment()->text ) ) {
 			$attrs['comment'] = $revision->getComment()->text;
 			$attrs['parsedcomment'] = Linker::formatComment( $revision->getComment()->text );
 		}

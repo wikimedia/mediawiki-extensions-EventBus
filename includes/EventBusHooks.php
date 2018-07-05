@@ -198,7 +198,7 @@ class EventBusHooks {
 			$attrs['rev_count'] = $archivedRevisionCount;
 		}
 
-		if ( !is_null( $reason ) ) {
+		if ( !is_null( $reason ) && strlen( $reason ) ) {
 			$attrs['comment'] = $reason;
 			$attrs['parsedcomment'] = Linker::formatComment( $reason, $wikiPage->getTitle() );
 		}
@@ -260,7 +260,7 @@ class EventBusHooks {
 			];
 		}
 
-		if ( !is_null( $comment ) ) {
+		if ( !is_null( $comment ) && strlen( $comment ) ) {
 			$attrs['comment'] = $comment;
 			$attrs['parsedcomment'] = Linker::formatComment( $comment, $title );
 		}
@@ -336,7 +336,7 @@ class EventBusHooks {
 			];
 		}
 
-		if ( !is_null( $reason ) ) {
+		if ( !is_null( $reason ) && strlen( $reason ) ) {
 			$attrs['comment'] = $reason;
 			$attrs['parsedcomment'] = Linker::formatComment( $reason, $newTitle );
 		}
