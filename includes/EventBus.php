@@ -277,10 +277,23 @@ class EventBus {
 			'rev_timestamp'      => wfTimestamp( TS_ISO_8601, $revision->getTimestamp() ),
 			'rev_sha1'           => $revision->getSha1(),
 			'rev_minor_edit'     => $revision->isMinor(),
-			'rev_content_model'  => $revision->getSlot( 'main' )->getModel(),
-			'rev_content_format' => $revision->getSlot( 'main' )->getFormat(),
 			'rev_len'            => $revision->getSize(),
 		];
+
+		$attrs['rev_content_model'] = $contentModel = $revision->getSlot( 'main' )->getModel();
+
+		$contentFormat = $revision->getSlot( 'main' )->getFormat();
+		if ( is_null( $contentFormat ) ) {
+			try {
+				$contentFormat = ContentHandler::getForModelID( $contentModel )->getDefaultFormat();
+			}
+			catch ( MWException $e ) {
+				// Ignore, the `rev_content_format` is not required.
+			}
+		}
+		if ( !is_null( $contentFormat ) ) {
+			$attrs['rev_content_format'] = $contentFormat;
+		}
 
 		if ( !is_null( $revision->getUser() ) ) {
 			$performer = User::newFromId( $revision->getUser()->getId() );
