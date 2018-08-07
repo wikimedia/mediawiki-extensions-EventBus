@@ -701,4 +701,69 @@ class EventBusHooks {
 			}
 		);
 	}
+
+	/** Called after tags have been updated with the ChangeTags::updateTags function.
+	 *
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ChangeTagsAfterUpdateTags
+	 *
+	 * @param array $addedTags tags effectively added in the update
+	 * @param array $removedTags tags effectively removed in the update
+	 * @param array $prevTags tags that were present prior to the update
+	 * @param int|null $rc_id recentchanges table id
+	 * @param int|null $rev_id revision table id
+	 * @param int|null $log_id logging table id
+	 * @param string|null $params tag params
+	 * @param RecentChange|null $rc RecentChange being tagged when the tagging accompanies
+	 * the action, or null
+	 * @param User|null $user User who performed the tagging when the tagging is subsequent
+	 * to the action, or null
+	 */
+	public static function onChangeTagsAfterUpdateTags(
+		$addedTags,
+		$removedTags,
+		$prevTags,
+		$rc_id,
+		$rev_id,
+		$log_id,
+		$params,
+		$rc,
+		$user
+	) {
+		if ( is_null( $rev_id ) ) {
+			// We're only interested for revision (edits) tags for now.
+			return;
+		}
+
+		$revisionRecord = self::getRevisionLookup()->getRevisionById( $rev_id );
+		if ( is_null( $revisionRecord ) ) {
+			// Revision might already have been deleted, so we're not interested in tagging those.
+			return;
+		}
+
+		$attrs = EventBus::createRevisionRecordAttrs( $revisionRecord );
+
+		// If the user changing the tags is provided, override the performer in the event
+		if ( !is_null( $user ) ) {
+			$attrs['performer'] = EventBus::createPerformerAttrs( $user );
+		}
+
+		$newTags = array_unique( array_diff( array_merge( $prevTags, $addedTags ), $removedTags ) );
+		$attrs['tags'] = $newTags;
+		$attrs['prior_state'] = [
+			'tags' => $prevTags
+		];
+
+		$events[] = EventBus::createEvent(
+			EventBus::getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
+			'mediawiki.revision-tags-change',
+			$attrs
+		);
+
+		DeferredUpdates::addCallableUpdate(
+			function () use ( $events ) {
+				EventBus::getInstance()->send( $events );
+			}
+		);
+	}
+
 }

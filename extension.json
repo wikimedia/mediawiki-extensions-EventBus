@@ -67,6 +67,9 @@
 		],
 		"ArticleProtectComplete": [
 			"EventBusHooks::onArticleProtectComplete"
+		],
+	  	"ChangeTagsAfterUpdateTags": [
+		  	"EventBusHooks::onChangeTagsAfterUpdateTags"
 		]
 	},
 	"SpecialPages": {
