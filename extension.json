@@ -68,8 +68,8 @@
 		"ArticleProtectComplete": [
 			"EventBusHooks::onArticleProtectComplete"
 		],
-	  	"ChangeTagsAfterUpdateTags": [
-		  	"EventBusHooks::onChangeTagsAfterUpdateTags"
+		"ChangeTagsAfterUpdateTags": [
+			"EventBusHooks::onChangeTagsAfterUpdateTags"
 		]
 	},
 	"SpecialPages": {
