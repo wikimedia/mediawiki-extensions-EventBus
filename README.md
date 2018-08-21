@@ -34,7 +34,7 @@ $wgRCEngines = array(
 );
 ```
 
-Substitude `uri` with the `$wgEventServiceUrl`, but with  `eventbus://` instead of `http://`.
+Substitute `uri` with the `$wgEventServiceUrl`, but with  `eventbus://` instead of `http://`.
 
 Note that the protocol schema part of the `uri` configured in`$wgRCFeeds` starts with
 `eventbus://`.  `$wgRCEngines` config are mapped from protocol schemes.  However,
