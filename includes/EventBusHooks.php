@@ -607,7 +607,9 @@ class EventBusHooks {
 		}
 
 		$title = $linksUpdate->getTitle();
-		$user = $linksUpdate->getTriggeringUser();
+		$user = $linksUpdate->getCauseAgent() ?
+			User::newFromName( $linksUpdate->getCauseAgent(), false ) :
+			null;
 
 		// Create a mediawiki page delete event.
 		$attrs = [
