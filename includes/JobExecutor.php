@@ -143,6 +143,12 @@ class JobExecutor {
 			]
 		);
 
+		if ( !$job->allowRetries() ) {
+			// Report success if the job doesn't allow retries
+			// even if actually the job has failed.
+			$status = true;
+		}
+
 		return [
 			'status'  => $status,
 			'message' => $message
