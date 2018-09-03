@@ -531,7 +531,7 @@ class EventBusHooks {
 	 * @param Block|null $previousBlock the previous block state for the block target.
 	 *        null if this is a new block target.
 	 */
-	public static function onBlockIpComplete( $block, $user, $previousBlock=null ) {
+	public static function onBlockIpComplete( $block, $user, $previousBlock = null ) {
 		global $wgDBname;
 		$events = [];
 
