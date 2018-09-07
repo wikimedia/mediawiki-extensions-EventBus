@@ -102,56 +102,6 @@ class EventBusHooks {
 	}
 
 	/**
-	 * Occurs after a revision is inserted into the DB
-	 *
-	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/RevisionRecordInserted
-	 *
-	 * @param \MediaWiki\Storage\RevisionRecord $revision
-	 */
-	public static function onRevisionRecordInserted( $revision ) {
-		$events = [];
-		$topic = 'mediawiki.revision-create';
-
-		if ( is_null( $revision ) ) {
-			wfDebug(
-				__METHOD__ . ' new revision during RevisionInsertComplete ' .
-				' is null.  Cannot create ' . $topic . ' event.'
-			);
-			return;
-		}
-
-		$attrs = EventBus::createRevisionRecordAttrs( $revision );
-
-		// The parent_revision_id attribute is not required, but when supplied
-		// must have a minimum value of 1, so omit it entirely when there is no
-		// parent revision (i.e. page creation).
-		$parentId = $revision->getParentId();
-		// Assume that the content have changed by default
-		$attrs['rev_content_changed'] = true;
-		if ( !is_null( $parentId ) ) {
-			$attrs['rev_parent_id'] = $parentId;
-			if ( $parentId !== 0 ) {
-				$parentRev = self::getRevisionLookup()->getRevisionById( $parentId );
-				if ( !is_null( $parentRev ) ) {
-					$attrs['rev_content_changed'] = $parentRev->getSha1() !== $revision->getSha1();
-				}
-			}
-		}
-
-		$events[] = EventBus::createEvent(
-			EventBus::getArticleURL( $revision->getPageAsLinkTarget() ),
-			$topic,
-			$attrs
-		);
-
-		DeferredUpdates::addCallableUpdate(
-			function () use ( $events ) {
-				EventBus::getInstance()->send( $events );
-			}
-		);
-	}
-
-	/**
 	 * Occurs after the delete article request has been processed.
 	 *
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ArticleDeleteComplete
@@ -512,13 +462,64 @@ class EventBusHooks {
 	 * @param int $baseRevId
 	 */
 	public static function onPageContentSaveComplete(
-		Wikipage $wikiPage, $user, $content, $summary, $isMinor,
-		$isWatch, $section, $flags, $revision, $status, $baseRevId
+		Wikipage $wikiPage,
+		User $user,
+		Content $content,
+		$summary,
+		$isMinor,
+		$isWatch,
+		$section,
+		$flags,
+		$revision,
+		Status $status,
+		$baseRevId
 	) {
 		// In case of a null edit the status revision value will be null
 		if ( is_null( $status->getValue()['revision'] ) ) {
 			self::sendResourceChangedEvent( $wikiPage->getTitle(), [ 'null_edit' ] );
+			return;
 		}
+
+		$events = [];
+		$topic = 'mediawiki.revision-create';
+
+		if ( is_null( $revision ) ) {
+			wfDebug(
+				__METHOD__ . ' new revision during PageContentSaveComplete ' .
+				' is null.  Cannot create ' . $topic . ' event.'
+			);
+			return;
+		}
+
+		$revisionRecord = $revision->getRevisionRecord();
+		$attrs = EventBus::createRevisionRecordAttrs( $revisionRecord );
+
+		// The parent_revision_id attribute is not required, but when supplied
+		// must have a minimum value of 1, so omit it entirely when there is no
+		// parent revision (i.e. page creation).
+		$parentId = $revisionRecord->getParentId();
+		// Assume that the content have changed by default
+		$attrs['rev_content_changed'] = true;
+		if ( !is_null( $parentId ) && $parentId !== 0 ) {
+			$attrs['rev_parent_id'] = $parentId;
+			$parentRev = self::getRevisionLookup()->getRevisionById( $parentId );
+			if ( !is_null( $parentRev ) ) {
+				$attrs['rev_content_changed'] =
+					$parentRev->getSha1() !== $revisionRecord->getSha1();
+			}
+		}
+
+		$events[] = EventBus::createEvent(
+			EventBus::getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
+			$topic,
+			$attrs
+		);
+
+		DeferredUpdates::addCallableUpdate(
+			function () use ( $events ) {
+				EventBus::getInstance()->send( $events );
+			}
+		);
 	}
 
 	/**
