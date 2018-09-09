@@ -74,8 +74,6 @@ class EventBus {
 	/**
 	 * @param string $url EventBus service endpoint URL. E.g. http://localhost:8085/v1/events
 	 * @param int|null $timeout HTTP request timeout in seconds, defaults to 5.
-	 *
-	 * @constructor
 	 */
 	public function __construct( $url, $timeout = null ) {
 		global $wgEnableEventBus;
