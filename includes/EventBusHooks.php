@@ -747,7 +747,9 @@ class EventBusHooks {
 			$attrs['performer'] = EventBus::createPerformerAttrs( $user );
 		}
 
-		$newTags = array_unique( array_diff( array_merge( $prevTags, $addedTags ), $removedTags ) );
+		$newTags = array_values(
+			array_unique( array_diff( array_merge( $prevTags, $addedTags ), $removedTags ) )
+		);
 		$attrs['tags'] = $newTags;
 		$attrs['prior_state'] = [
 			'tags' => $prevTags
