@@ -24,7 +24,6 @@
 
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Storage\RevisionLookup;
-use MediaWiki\Storage\RevisionRecord;
 
 class EventBusHooks {
 
@@ -51,32 +50,6 @@ class EventBusHooks {
 		DeferredUpdates::addCallableUpdate( function () use ( $event ) {
 			EventBus::getInstance()->send( [ $event ] );
 		} );
-	}
-
-	/**
-	 * Checks if Revision::DELETED_* field is set in the $hiddenBits
-	 *
-	 * @param int $hiddenBits revision visibility bitfield
-	 * @param int $field Revision::DELETED_* field to check
-	 * @return bool
-	 */
-	private static function isHidden( $hiddenBits, $field ) {
-		return ( $hiddenBits & $field ) == $field;
-	}
-
-	/**
-	 * Converts a revision visibility hidden bitfield to an array with keys
-	 * of each of the possible visibility settings name mapped to a boolean.
-	 *
-	 * @param int $bits revision visibility bitfield
-	 * @return array
-	 */
-	private static function bitsToVisibilityObject( $bits ) {
-		return [
-			'text'    => !self::isHidden( $bits, RevisionRecord::DELETED_TEXT ),
-			'user'    => !self::isHidden( $bits, RevisionRecord::DELETED_USER ),
-			'comment' => !self::isHidden( $bits, RevisionRecord::DELETED_COMMENT ),
-		];
 	}
 
 	/**
@@ -298,58 +271,17 @@ class EventBusHooks {
 		$reason,
 		Revision $newRevision
 	) {
-		global $wgDBname;
-		$events = [];
-
-		// Create a mediawiki page delete event.
-		$attrs = [
-			// Common Mediawiki entity fields
-			'database'           => $wgDBname,
-			'performer'          => EventBus::createPerformerAttrs( $user ),
-
-			// page entity fields
-			'page_id'            => $pageid,
-			'page_title'         => $newTitle->getPrefixedDBkey(),
-			'page_namespace'     => $newTitle->getNamespace(),
-			'page_is_redirect'   => $newTitle->isRedirect(),
-			'rev_id'             => $newRevision->getId(),
-
-			// page move specific fields:
-			'prior_state'        => [
-				'page_title'     => $oldTitle->getPrefixedDBkey(),
-				'page_namespace' => $oldTitle->getNamespace(),
-				'rev_id'         => $newRevision->getParentId(),
-			],
-		];
-
-		// If a new redirect page was created during this move, then include
-		// some information about it.
-		if ( $redirid ) {
-			$attrs['new_redirect_page'] = [
-				'page_id'        => $redirid,
-				// Redirect pages created as part of a page move
-				// will have the same title and namespace that
-				// the target page had before the move.
-				'page_title'     => $attrs['prior_state']['page_title'],
-				'page_namespace' => $attrs['prior_state']['page_namespace'],
-				'rev_id'         => $oldTitle->getLatestRevID(),
-			];
-		}
-
-		if ( !is_null( $reason ) && strlen( $reason ) ) {
-			$attrs['comment'] = $reason;
-			$attrs['parsedcomment'] = Linker::formatComment( $reason, $newTitle );
-		}
-
-		$events[] = EventBus::createEvent(
-			EventBus::getArticleURL( $newTitle ),
-			'mediawiki.page-move',
-			$attrs
-		);
-
+		$eventBus = EventBus::getInstance();
+		$events = [ $eventBus->getFactory()->createPageMoveEvent(
+			$oldTitle,
+			$newTitle,
+			$newRevision->getRevisionRecord(),
+			$user,
+			$reason
+		) ];
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $events ) {
-				EventBus::getInstance()->send( $events );
+			function () use ( $eventBus, $events ) {
+				$eventBus->send( $events );
 			}
 		);
 	}
@@ -367,11 +299,8 @@ class EventBusHooks {
 	 *              [id => ['oldBits' => $oldBits, 'newBits' => $newBits], ... ]
 	 */
 	public static function onArticleRevisionVisibilitySet( $title, $revIds, $visibilityChangeMap ) {
+		$eventBus = EventBus::getInstance();
 		$events = [];
-
-		$performer = RequestContext::getMain()->getUser();
-		$performer->loadFromId();
-
 		// Create a  event
 		// for each revId that was changed.
 		foreach ( $revIds as $revId ) {
@@ -397,24 +326,9 @@ class EventBusHooks {
 				);
 				continue;
 			} else {
-				$attrs = EventBus::createRevisionRecordAttrs( $revision );
-				$attrs['visibility'] = self::bitsToVisibilityObject( $visibilityChangeMap[$revId]['newBits'] );
-				$attrs['prior_state'] = [
-					'visibility' => self::bitsToVisibilityObject( $visibilityChangeMap[$revId]['oldBits'] )
-				];
-
-				// The parent_revision_id attribute is not required, but when supplied
-				// must have a minimum value of 1, so omit it entirely when there is no
-				// parent revision (i.e. page creation).
-				$parentId = $revision->getParentId();
-				if ( !is_null( $parentId ) ) {
-					$attrs['rev_parent_id'] = $parentId;
-				}
-
-				$events[] = EventBus::createEvent(
-					EventBus::getArticleURL( $revision->getPageAsLinkTarget() ),
-					'mediawiki.revision-visibility-change',
-					$attrs
+				$events[] = $eventBus->getFactory()->createRevisionVisibilityChangeEvent(
+					$revision,
+					$visibilityChangeMap[$revId]
 				);
 			}
 		}
@@ -427,8 +341,8 @@ class EventBusHooks {
 		}
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $events ) {
-				EventBus::getInstance()->send( $events );
+			function () use ( $eventBus, $events ) {
+				$eventBus->send( $events );
 			}
 		);
 	}
@@ -740,32 +654,18 @@ class EventBusHooks {
 			return;
 		}
 
-		$attrs = EventBus::createRevisionRecordAttrs( $revisionRecord );
-
-		// If the user changing the tags is provided, override the performer in the event
-		if ( !is_null( $user ) ) {
-			$attrs['performer'] = EventBus::createPerformerAttrs( $user );
-		}
-
-		$newTags = array_values(
-			array_unique( array_diff( array_merge( $prevTags, $addedTags ), $removedTags ) )
-		);
-		$attrs['tags'] = $newTags;
-		$attrs['prior_state'] = [
-			'tags' => $prevTags
-		];
-
-		$events[] = EventBus::createEvent(
-			EventBus::getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
-			'mediawiki.revision-tags-change',
-			$attrs
-		);
-
+		$eventBus = EventBus::getInstance();
+		$events = [ $eventBus->getFactory()->createRevisionTagsChangeEvent(
+			$revisionRecord,
+			$prevTags,
+			$addedTags,
+			$removedTags,
+			$user
+		) ];
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $events ) {
-				EventBus::getInstance()->send( $events );
+			function () use ( $eventBus, $events ) {
+				$eventBus->send( $events );
 			}
 		);
 	}
-
 }

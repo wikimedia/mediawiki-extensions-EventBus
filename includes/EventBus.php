@@ -71,6 +71,9 @@ class EventBus {
 	/** @var int which event types are allowed to be sent (TYPE_NONE|TYPE_EVENT|TYPE_JOB|TYPE_ALL) */
 	private $allowedEventTypes;
 
+	/** @var EventFactory event creator */
+	private $eventFactory;
+
 	/**
 	 * @param string $url EventBus service endpoint URL. E.g. http://localhost:8085/v1/events
 	 * @param int|null $timeout HTTP request timeout in seconds, defaults to 5.
@@ -81,6 +84,7 @@ class EventBus {
 		$this->http = new MultiHttpClient( [] );
 		$this->url = $url;
 		$this->timeout = $timeout ?: self::DEFAULT_REQUEST_TIMEOUT;
+		$this->eventFactory = new EventFactory();
 
 		switch ( $wgEnableEventBus ) {
 			case 'TYPE_NONE':
@@ -461,6 +465,14 @@ class EventBus {
 			self::$logger = LoggerFactory::getInstance( 'EventBus' );
 		}
 		return self::$logger;
+	}
+
+	/**
+	 * Returns the EventFactory associated with this instance of EventBus
+	 * @return EventFactory
+	 */
+	public function getFactory() {
+		return $this->eventFactory;
 	}
 
 	/**

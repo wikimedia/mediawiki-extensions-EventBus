@@ -18,6 +18,7 @@
 	"AutoloadClasses": {
 		"EventBus": "includes/EventBus.php",
 		"EventBusHooks": "includes/EventBusHooks.php",
+	  	"EventFactory": "includes/EventFactory.php",
 		"EventRelayerBus": "includes/EventRelayerBus.php",
 		"PurgeEventRelayerBus": "includes/PurgeEventRelayerBus.php",
 		"EventBusRCFeedEngine": "includes/EventBusRCFeedEngine.php",
