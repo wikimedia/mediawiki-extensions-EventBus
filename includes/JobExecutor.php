@@ -35,25 +35,22 @@ class JobExecutor {
 	 */
 	public function execute( $jobEvent ) {
 		$startTime = microtime( true );
+		$isReadonly = false;
 		$jobCreateResult = $this->getJobFromParams( $jobEvent );
 
 		if ( !$jobCreateResult['status'] ) {
-			$this->logger()->error( 'Failed creating job from description',
-				[
+			$this->logger()->error( 'Failed creating job from description', [
 					'job_type' => $jobEvent['type'],
-					'message'  => $jobCreateResult['message']
-				]
-			);
+					'message' => $jobCreateResult['message']
+				] );
 			return $jobCreateResult;
 		}
 
 		$job = $jobCreateResult['job'];
-		$this->logger()->debug( 'Beginning job execution',
-			[
+		$this->logger()->debug( 'Beginning job execution', [
 				'job' => $job->toString(),
 				'job_type' => $job->getType()
-			]
-		);
+			] );
 
 		$lbFactory = MediaWikiServices::getInstance()->getDBLoadBalancerFactory();
 
@@ -69,20 +66,17 @@ class JobExecutor {
 
 			if ( $status === false ) {
 				$message = $job->getLastError();
-				$this->logger()->error( 'Failed executing job: ' . $job->toString(),
-					[
+				$this->logger()->error( 'Failed executing job: ' . $job->toString(), [
 						'job_type' => $job->getType(),
-						'error'    => $message
-					]
-				);
+						'error' => $message
+					] );
 			} elseif ( !is_bool( $status ) ) {
 				$message = 'Success, but no status returned';
 				$this->logger()->warning( 'Non-boolean result returned by job: ' . $job->toString(),
 					[
-						'job_type'   => $job->getType(),
+						'job_type' => $job->getType(),
 						'job_result' => isset( $status ) ? $status : 'unset'
-					]
-				);
+					] );
 				// For backwards compatibility with old job executor we should set the status
 				// to true here, as before anything other then boolean false was considered a success.
 				// TODO: After all the jobs are fixed to return proper result this should be removed.
@@ -95,6 +89,10 @@ class JobExecutor {
 			DeferredUpdates::addCallableUpdate( [ JobQueueGroup::class, 'pushLazyJobs' ] );
 			// Run any deferred update tasks; doUpdates() manages transactions itself
 			DeferredUpdates::doUpdates();
+		} catch ( \Wikimedia\Rdbms\DBReadOnlyError $e ) {
+			$status = false;
+			$isReadonly = true;
+			$message = 'Database is in read-only mode';
 		} catch ( Exception $e ) {
 			MWExceptionHandler::rollbackMasterChangesAndLog( $e );
 			$status = false;
@@ -150,8 +148,9 @@ class JobExecutor {
 		}
 
 		return [
-			'status'  => $status,
-			'message' => $message
+			'status'   => $status,
+			'readonly' => $isReadonly,
+			'message'  => $message
 		];
 	}
 
