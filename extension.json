@@ -35,9 +35,6 @@
 		"EventBusAliasNoTranslate": "EventBus.notranslate-alias.php"
 	},
 	"Hooks": {
-		"RevisionRecordInserted": [
-			"EventBusHooks::onRevisionRecordInserted"
-		],
 		"ArticleDeleteComplete": [
 			"EventBusHooks::onArticleDeleteComplete"
 		],
