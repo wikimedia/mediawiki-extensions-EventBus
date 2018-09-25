@@ -51,9 +51,8 @@ class EventBusTest extends MediaWikiTestCase {
 	}
 
 	public function provideNewMutableRevisionFromArray() {
-		$store = MediaWikiServices::getInstance()->getRevisionStore();
 		yield 'Basic mutable revision' => [
-			$store->newMutableRevisionFromArray( [
+			[
 				'id' => 42,
 				'page' => 23,
 				'timestamp' => '20171017114835',
@@ -66,18 +65,22 @@ class EventBusTest extends MediaWikiTestCase {
 				'sha1' => 'rdqbbzs3pkhihgbs8qf2q9jsvheag5z',
 				'comment' => 'testing',
 				'content' => new WikitextContent( 'Some Content' ),
-			], 0, Title::makeTitle( 0, 'Test' ) )
+			]
 		];
 	}
 
 	/**
 	 * @dataProvider provideNewMutableRevisionFromArray
 	 */
-	public function testCreateRevisionAttrs( $revisionRecord ) {
+	public function testCreateRevisionAttrs( $revisionRecordRow ) {
 		global $wgDBname;
+		$revisionRecord = MediaWikiServices::getInstance()->
+			getRevisionStore()->
+			newMutableRevisionFromArray( $revisionRecordRow,
+			0,
+			Title::newFromText( 'Test' )
+		);
 		$revisionAttrs = EventBus::createRevisionRecordAttrs( $revisionRecord );
-
-		wfDebugLog( 'BLA', json_encode( $revisionAttrs ) );
 		$this->assertNotNull( $revisionAttrs );
 		$this->assertEquals( $revisionAttrs['database'], $wgDBname );
 		$this->assertNotNull( $revisionAttrs['performer'] );
