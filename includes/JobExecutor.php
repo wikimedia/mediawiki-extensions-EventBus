@@ -43,6 +43,7 @@ class JobExecutor {
 					'job_type' => $jobEvent['type'],
 					'message' => $jobCreateResult['message']
 				] );
+			$jobCreateResult['readonly'] = false;
 			return $jobCreateResult;
 		}
 
