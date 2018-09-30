@@ -292,12 +292,12 @@ class JobExecutor {
 		}
 
 		// Wait for an exclusive lock to commit
-		if ( !$dbwSerial->lock( 'jobexecutor-serial-commit', __METHOD__, 30 ) ) {
+		if ( !$dbwSerial->lock( 'jobexecutor-serial-commit', $fnameTrxOwner, 30 ) ) {
 			// This will trigger a rollback in the main loop
 			throw new DBError( $dbwSerial, "Timed out waiting on commit queue." );
 		}
-		$unlocker = new ScopedCallback( function () use ( $dbwSerial ) {
-			$dbwSerial->unlock( 'jobexecutor-serial-commit', __METHOD__ );
+		$unlocker = new ScopedCallback( function () use ( $dbwSerial, $fnameTrxOwner ) {
+			$dbwSerial->unlock( 'jobexecutor-serial-commit', $fnameTrxOwner );
 		} );
 
 		// Wait for the replica DBs to catch up
