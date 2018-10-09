@@ -174,8 +174,10 @@ class EventFactoryTest extends MediaWikiTestCase {
 	) {
 		$eventFactory = new EventFactory();
 		$revisionRecord = $this->createMutableRevisionFromArray();
+		$performer = User::newFromName( 'Real_Performer' );
 		$event = $eventFactory->createRevisionVisibilityChangeEvent(
 			$revisionRecord,
+			$performer,
 			$visibilityChanges
 		);
 
@@ -187,6 +189,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertArrayEquals( $expectedPriorVisibility,
 			$event['prior_state']['visibility'],
 			'Prior visibility' );
+		$this->assertEquals( $performer->getName(), $event['performer']['user_text'] );
 	}
 
 	public function testPageMove() {
@@ -195,7 +198,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 			new TitleValue( 0, 'Old_Title' ),
 			new TitleValue( 0, self::MOCK_PAGE_TITLE ),
 			$this->createMutableRevisionFromArray(),
-			User::createNew( 'Test_User' ),
+			User::newFromName( 'Test_User' ),
 			'Comment'
 		);
 		$this->assertPageProperties( $event );

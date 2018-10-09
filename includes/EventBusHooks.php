@@ -251,6 +251,9 @@ class EventBusHooks {
 	public static function onArticleRevisionVisibilitySet( $title, $revIds, $visibilityChangeMap ) {
 		$eventBus = EventBus::getInstance();
 		$events = [];
+		$performer = RequestContext::getMain()->getUser();
+		$performer->loadFromId();
+
 		// Create a  event
 		// for each revId that was changed.
 		foreach ( $revIds as $revId ) {
@@ -278,6 +281,7 @@ class EventBusHooks {
 			} else {
 				$events[] = $eventBus->getFactory()->createRevisionVisibilityChangeEvent(
 					$revision,
+					$performer,
 					$visibilityChangeMap[$revId]
 				);
 			}

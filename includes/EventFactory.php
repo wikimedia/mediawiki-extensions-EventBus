@@ -145,9 +145,10 @@ class EventFactory {
 
 	public function createRevisionVisibilityChangeEvent(
 		RevisionRecord $revisionRecord,
+		User $performer,
 		$visibilityChanges
 	) {
-		$attrs = EventBus::createRevisionRecordAttrs( $revisionRecord );
+		$attrs = EventBus::createRevisionRecordAttrs( $revisionRecord, $performer );
 		$attrs['visibility'] = self::bitsToVisibilityObject( $visibilityChanges['newBits'] );
 		$attrs['prior_state'] = [
 			'visibility' => self::bitsToVisibilityObject( $visibilityChanges['oldBits'] )
