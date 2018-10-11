@@ -24,8 +24,8 @@
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
-use MediaWiki\Storage\RevisionRecord;
-use MediaWiki\Storage\SuppressedDataException;
+use MediaWiki\Revision\RevisionRecord;
+use MediaWiki\Revision\SuppressedDataException;
 use Psr\Log\LoggerInterface;
 
 class EventBus {

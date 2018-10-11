@@ -23,7 +23,7 @@
  */
 
 use MediaWiki\MediaWikiServices;
-use MediaWiki\Storage\RevisionLookup;
+use MediaWiki\Revision\RevisionLookup;
 
 class EventBusHooks {
 
