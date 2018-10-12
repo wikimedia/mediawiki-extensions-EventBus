@@ -2,8 +2,8 @@
 
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\MediaWikiServices;
-use MediaWiki\Storage\RevisionRecord;
-use MediaWiki\Storage\SuppressedDataException;
+use MediaWiki\Revision\RevisionRecord;
+use MediaWiki\Revision\SuppressedDataException;
 
 /**
  * Used to create events of particular types.
