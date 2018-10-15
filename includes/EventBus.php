@@ -260,9 +260,10 @@ class EventBus {
 	 * use in mediawiki/revision entity schemas.
 	 *
 	 * @param RevisionRecord $revision
+	 * @param User|null $performer
 	 * @return array
 	 */
-	public static function createRevisionRecordAttrs( $revision ) {
+	public static function createRevisionRecordAttrs( $revision, $performer = null ) {
 		global $wgDBname;
 
 		$linkTarget = $revision->getPageAsLinkTarget();
@@ -297,7 +298,9 @@ class EventBus {
 			$attrs['rev_content_format'] = $contentFormat;
 		}
 
-		if ( !is_null( $revision->getUser() ) ) {
+		if ( !is_null( $performer ) ) {
+			$attrs['performer'] = self::createPerformerAttrs( $performer );
+		} elseif ( !is_null( $revision->getUser() ) ) {
 			$performer = User::newFromId( $revision->getUser()->getId() );
 			$performer->loadFromId();
 			$attrs['performer'] = self::createPerformerAttrs( $performer );
