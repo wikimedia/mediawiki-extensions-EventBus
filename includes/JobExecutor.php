@@ -86,8 +86,6 @@ class JobExecutor {
 				$message = 'success';
 			}
 
-			// Important: this must be the last deferred update added (T100085, T154425)
-			DeferredUpdates::addCallableUpdate( [ JobQueueGroup::class, 'pushLazyJobs' ] );
 			// Run any deferred update tasks; doUpdates() manages transactions itself
 			DeferredUpdates::doUpdates();
 		} catch ( \Wikimedia\Rdbms\DBReadOnlyError $e ) {
