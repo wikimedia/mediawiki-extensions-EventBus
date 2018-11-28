@@ -27,10 +27,6 @@ class EventBusTest extends MediaWikiTestCase {
 		$this->assertNotNull( $event['meta']['request_id'] );
 		$this->assertNotNull( $event['meta']['id'] );
 		$this->assertNotNull( $event['meta']['dt'] );
-		$this->assertRegExp(
-			'/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})\\.(\d{6})\\+00:00$/',
-			$event['meta']['dt']
-		);
 		$this->assertNotNull( $event['meta']['domain'] );
 
 		// Event properties checks

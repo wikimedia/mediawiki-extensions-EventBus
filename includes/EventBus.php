@@ -381,17 +381,13 @@ class EventBus {
 			$domain = $wgServerName;
 		}
 
-		$now = \DateTime::createFromFormat( 'U.u', microtime( true ) );
 		$event = [
 			'meta' => [
 				'uri'        => $uri,
 				'topic'      => $topic,
 				'request_id' => self::getRequestId(),
 				'id'         => self::newId(),
-				// HHVM doesn't support `v` in the date formatting strings
-				// and we actually want milliseconds, not microseconds.
-				// TODO: once support for HHVM is dropped - change it to milliseconds.
-				'dt'         => $now->format( 'Y-m-d\TH:i:s.uP' ),
+				'dt'         => gmdate( 'c' ),
 				'domain'     => $domain ?: $wgServerName,
 			],
 		];
