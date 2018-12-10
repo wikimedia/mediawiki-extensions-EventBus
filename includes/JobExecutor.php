@@ -179,7 +179,7 @@ class JobExecutor {
 		if ( is_null( $title ) ) {
 			return [
 				'status'  => false,
-				'message' => 'Page ' . $jobEvent['page_title'] . ' does not exist'
+				'message' => 'Title ' . $jobEvent['page_title'] . ' is invalid'
 			];
 		}
 
