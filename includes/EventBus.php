@@ -162,9 +162,9 @@ class EventBus {
 				'events'           => $events,
 				'service_response' => $res
 			];
-			// Limit the maximum size of the logged context to 8 kilobytes as that's where logstash
-			// truncates the JSON anyway
-			if ( strlen( $body ) > 8192 ) {
+			// Limit the maximum size of the logged context to 1 kilobyte as that's where
+			// syslog, leaving some space for message and service response
+			if ( strlen( $body ) > 768 ) {
 				$context['events'] = array_column( $events, 'meta' );
 			}
 			self::logger()->error( "Unable to deliver all events: ${message}", $context );
