@@ -6,20 +6,31 @@
  * set in EventBusRCFeedFormatter::TOPIC.
  *
  * @example
- * $wgRCFeeds['eventbus'] = array(
- *      'formatter' => 'EventBusRCFeedFormatter',
- *      'uri'       => 'eventbus://eventbus.svc.eqiad.wmnet:8085/v1/events'
+ *
+ * // Event Service config (for EventBus instances):
+ * $wgEventServices = array(
+ *      'eventbus-main' => array(
+ *          'url'     => 'http://eventbus.svc.eqiad.wmnet:8085/v1/events',
+ *          'timeout' => 60
+ *      )
  * );
- * $wgRCEngines = array(
- *      'eventbus' => 'EventBusRCFeedEngine'
+ *
+ * // RCFeed configuration to use a defined Event Service instance.
+ * $wgRCFeeds['eventbus-main'] = array(
+ *      'class'            => 'EventBusRCFeedEngine',
+ *      // eventServiceName must match an entry in wgEventServices.
+ *      'eventServiceName' => 'eventbus-main'
+ *      'formatter'        => 'EventBusRCFeedFormatter',
  * );
  *
  */
 class EventBusRCFeedEngine extends RCFeedEngine {
 
 	/**
-	 * @param array $feed will be used for EventBus $config.  Singleton instances
-	 *                     are identified by $feed['uri'];
+	 * @param array $feed is expected to contain 'eventServiceName', which will
+	 * 					  be looked up by EventBus in wgEventServices.
+	 *                    If not given, the value of wgEventServiceUrl will be used
+	 * 					  to configure the Event Service endpoint.
 	 * @param string|array $line to send
 	 * @return bool Success
 	 *
@@ -28,13 +39,10 @@ class EventBusRCFeedEngine extends RCFeedEngine {
 	public function send( array $feed, $line ) {
 		DeferredUpdates::addCallableUpdate(
 			function () use ( $feed, $line ) {
-				// construct EventBus config from RCFeed $feed uri.
+				// construct EventBus config from RCFeed config eventServiceName config,
+				// or wgEventServiceUrl if eventServiceName is not specified.
 				$config = $feed;
-				// RCFeedEngines are selected via URI protocol schemes.  This engine
-				// is chosen using eventbus://, but EventBus URIs are just HTTP REST
-				// endpoints.  Replace eventbus:// with http://
-				$config['EventServiceUrl'] = str_replace( 'eventbus://', 'http://', $feed['uri'] );
-				return EventBus::getInstance( $config )->send( $line );
+				return EventBus::getInstance( $config['eventServiceName'] )->send( $line );
 			}
 		);
 		return true;
