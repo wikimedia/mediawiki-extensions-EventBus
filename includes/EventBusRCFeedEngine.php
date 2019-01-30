@@ -21,6 +21,7 @@ class EventBusRCFeedEngine extends RCFeedEngine {
 	 * @param array $feed will be used for EventBus $config.  Singleton instances
 	 *                     are identified by $feed['uri'];
 	 * @param string|array $line to send
+	 * @return bool Success
 	 *
 	 * @see RCFeedEngine::send
 	 */
@@ -36,5 +37,6 @@ class EventBusRCFeedEngine extends RCFeedEngine {
 				return EventBus::getInstance( $config )->send( $line );
 			}
 		);
+		return true;
 	}
 }

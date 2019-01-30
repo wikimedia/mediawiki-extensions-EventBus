@@ -63,5 +63,6 @@ class EventRelayerBus extends EventRelayer {
 			$this->processEvent( $outEvents, $event, $channel );
 		}
 		$this->bus->send( $outEvents );
+		return true;
 	}
 }

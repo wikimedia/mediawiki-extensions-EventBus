@@ -178,7 +178,7 @@ class EventBus {
 	 * returns false, this will log a detailed error message and return null.
 	 *
 	 * @param array $events
-	 * @return string JSON
+	 * @return string|null JSON or null on failure
 	 */
 	public static function serializeEvents( $events ) {
 		try {
@@ -193,7 +193,7 @@ class EventBus {
 					'FormatJson::encode($events) failed: ' . $context['json_last_error'] .
 					'. Aborting send.', $context
 				);
-				return;
+				return null;
 			}
 			return $serializedEvents;
 		} catch ( Exception $exception ) {
@@ -208,7 +208,7 @@ class EventBus {
 				'FormatJson::encode($events) thrown exception: ' . $context['json_last_error'] .
 				'. Aborting send.', $context
 			);
-			return;
+			return null;
 		}
 	}
 
@@ -487,6 +487,7 @@ class EventBus {
 	 *                      Note that instances are URL keyed singletons, so the first
 	 *                      instance created with a given URL will be the only one.
 	 *
+	 * @throws ConfigException in case the EventServiceUrl configuration is missing
 	 * @return EventBus
 	 */
 	public static function getInstance( $config = null ) {
@@ -504,7 +505,7 @@ class EventBus {
 			self::logger()->error(
 				'Failed configuration of EventBus instance. \'EventServiceUrl\' must be set in $config.'
 			);
-			return;
+			throw new ConfigException( 'EventServiceUrl configuration cannot be empty' );
 		}
 
 		if ( !array_key_exists( $url, self::$instances ) ) {
