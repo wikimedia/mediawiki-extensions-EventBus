@@ -54,7 +54,7 @@ class EventRelayerBus extends EventRelayer {
 	 * @param string $channel
 	 */
 	protected function processEvent( &$events, $event, $channel ) {
-		$events[] = EventBusHooks::createEvent( $this->getUri( $event ), $channel, $event );
+		$events[] = EventBus::createEvent( $this->getUri( $event ), $channel, $event );
 	}
 
 	protected function doNotify( $channel, array $events ) {
