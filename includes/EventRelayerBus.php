@@ -17,7 +17,7 @@ class EventRelayerBus extends EventRelayer {
 	/**
 	 * Channel map for event bus.
 	 * Maps MediaWiki notification channel names into EventBus channel names.
-	 * @var string[string]
+	 * @var string[]
 	 */
 	private $channels = [];
 
