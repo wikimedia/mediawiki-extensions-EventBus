@@ -333,23 +333,19 @@ class EventBusHooks {
 				$isWatch, $section, $flags, $revision
 	) {
 		$events = [];
-		$topic = 'mediawiki.page-create';
 
 		if ( is_null( $revision ) ) {
 			wfDebug(
 				__METHOD__ . ' new revision during PageContentInsertComplete for page_id: ' .
 				$article->getId() . ' page_title: ' . $article->getTitle() .
-				' is null.  Cannot create ' . $topic . ' event.'
+				' is null.  Cannot create mediawiki/revision/create event.'
 			);
 			return;
 		}
 
-		$attrs = EventBus::createRevisionRecordAttrs( $revision->getRevisionRecord() );
-
-		$events[] = EventBus::createEvent(
-			EventBus::getArticleURL( $revision->getTitle() ),
-			$topic,
-			$attrs
+		$events[] = EventBus::getInstance()->getFactory()->createPageCreationEvent(
+			$revision->getRevisionRecord(),
+			$revision->getTitle()
 		);
 
 		DeferredUpdates::addCallableUpdate(
@@ -399,38 +395,35 @@ class EventBusHooks {
 		}
 
 		$events = [];
-		$topic = 'mediawiki.revision-create';
 
 		if ( is_null( $revision ) ) {
 			wfDebug(
 				__METHOD__ . ' new revision during PageContentSaveComplete ' .
-				' is null.  Cannot create ' . $topic . ' event.'
+				' is null.  Cannot create mediawiki/revision/create event.'
 			);
 			return;
 		}
-
 		$revisionRecord = $revision->getRevisionRecord();
-		$attrs = EventBus::createRevisionRecordAttrs( $revisionRecord );
 
+		// Assume that the content have changed by default
+		$revContentChanged = true;
 		// The parent_revision_id attribute is not required, but when supplied
 		// must have a minimum value of 1, so omit it entirely when there is no
 		// parent revision (i.e. page creation).
 		$parentId = $revisionRecord->getParentId();
-		// Assume that the content have changed by default
-		$attrs['rev_content_changed'] = true;
 		if ( !is_null( $parentId ) && $parentId !== 0 ) {
-			$attrs['rev_parent_id'] = $parentId;
 			$parentRev = self::getRevisionLookup()->getRevisionById( $parentId );
 			if ( !is_null( $parentRev ) ) {
-				$attrs['rev_content_changed'] =
-					$parentRev->getSha1() !== $revisionRecord->getSha1();
+				$revContentChanged = $parentRev->getSha1() !== $revisionRecord->getSha1();
 			}
+		} else {
+			$parentId = null;
 		}
 
-		$events[] = EventBus::createEvent(
-			EventBus::getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
-			$topic,
-			$attrs
+		$events[] = EventBus::getInstance()->getFactory()->createRevisionCreateEvent(
+			$revisionRecord,
+			$parentId,
+			$revContentChanged
 		);
 
 		DeferredUpdates::addCallableUpdate(
@@ -519,7 +512,6 @@ class EventBusHooks {
 	 * @param LinksUpdate $linksUpdate the update object
 	 */
 	public static function onLinksUpdateComplete( $linksUpdate ) {
-		global $wgDBname;
 		$events = [];
 
 		$removedProps = $linksUpdate->getRemovedProperties();
@@ -540,105 +532,50 @@ class EventBusHooks {
 		$title = $linksUpdate->getTitle();
 		$user = $linksUpdate->getTriggeringUser();
 
-		// Create a mediawiki page delete event.
-		$attrs = [
-			// Common Mediawiki entity fields
-			'database'           => $wgDBname,
-
-			// page entity fields
-			'page_id'            => $linksUpdate->mId,
-			'page_title'         => $title->getPrefixedDBkey(),
-			'page_namespace'     => $title->getNamespace(),
-			'page_is_redirect'   => $title->isRedirect(),
-		];
-
 		// Use triggering revision's rev_id if it is set.
 		// If the LinksUpdate didn't have a triggering revision
 		// (probably because it was triggered by sysadmin maintenance).
 		// Use the page's latest revision.
 		$revision = $linksUpdate->getRevision();
 		if ( $revision ) {
-			$attrs['rev_id'] = $revision->getId();
+			$revId = $revision->getId();
 		} else {
-			$attrs['rev_id'] = $title->getLatestRevID();
+			$revId = $title->getLatestRevID();
 		}
-
-		if ( !is_null( $user ) ) {
-			$attrs['performer'] = EventBus::createPerformerAttrs( $user );
-		}
+		$pageId = $linksUpdate->mId;
 
 		$articleUrl = EventBus::getArticleURL( $linksUpdate->getTitle() );
 
-		if ( !$arePropsEmpty ) {
-			$propsAttrs = $attrs;
-			if ( !empty( $addedProps ) ) {
-				$propsAttrs['added_properties'] = array_map(
-					'EventBus::replaceBinaryValues', $addedProps );
+		$events[] = EventBus::getInstance()->getFactory()->createPagePropertiesChangeEvent(
+			$linksUpdate->getTitle(),
+			$addedProps,
+			$removedProps,
+			$user,
+			$revId,
+			$pageId
+		);
+
+		DeferredUpdates::addCallableUpdate(
+			function () use ( $events ) {
+				EventBus::getInstance()->send( $events );
 			}
+		);
 
-			if ( !empty( $removedProps ) ) {
-				$propsAttrs['removed_properties'] = array_map(
-					'EventBus::replaceBinaryValues', $removedProps );
+		$events[] = EventBus::getInstance()->getFactory()->createPageLinksChangeEvent(
+			$linksUpdate->getTitle(),
+			$addedLinks,
+			$addedExternalLinks,
+			$removedLinks,
+			$removedExternalLinks,
+			$user,
+			$revId
+		);
+
+		DeferredUpdates::addCallableUpdate(
+			function () use ( $events ) {
+				EventBus::getInstance()->send( $events );
 			}
-
-			$events[] = EventBus::createEvent(
-				$articleUrl,
-				'mediawiki.page-properties-change',
-				$propsAttrs
-			);
-
-			DeferredUpdates::addCallableUpdate(
-				function () use ( $events ) {
-					EventBus::getInstance()->send( $events );
-				}
-			);
-		}
-
-		if ( !$areLinksEmpty ) {
-			$linksAttrs = $attrs;
-
-			/**
-			 * Extract URL encoded link and whether it's external
-			 * @param Title|String $t External links are strings, internal
-			 *   links are Titles
-			 * @return array
-			 */
-			$getLinkData = function ( $t ) {
-				$isExternal = is_string( $t );
-				$link = $isExternal ? $t : $t->getLinkURL();
-				return [
-					'link' => wfUrlencode( $link ),
-					'external' => $isExternal
-				];
-			};
-
-			$addedLinks = array_map(
-				$getLinkData,
-				array_merge( $addedLinks, $addedExternalLinks ) );
-			$removedLinks = array_map(
-				$getLinkData,
-				array_merge( $removedLinks, $removedExternalLinks ) );
-
-			if ( !empty( $addedLinks ) ) {
-				$linksAttrs['added_links'] = $addedLinks;
-			}
-
-			if ( !empty( $removedLinks ) ) {
-				$linksAttrs['removed_links'] = $removedLinks;
-			}
-
-			$events[] = EventBus::createEvent(
-				$articleUrl,
-				'mediawiki.page-links-change',
-				$linksAttrs
-			);
-
-			DeferredUpdates::addCallableUpdate(
-				function () use ( $events ) {
-					EventBus::getInstance()->send( $events );
-				}
-			);
-		}
+		);
 	}
 
 	/**
