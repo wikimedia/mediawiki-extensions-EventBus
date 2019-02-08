@@ -37,11 +37,14 @@ class EventBusHooks {
 	/**
 	 * Creates and sends a single resource_change event to EventBus
 	 *
-	 * @param Title $title article title object
+	 * @param LinkTarget $title article title object
 	 * @param array $tags  the array of tags to use in the event
 	 */
-	private static function sendResourceChangedEvent( $title, $tags ) {
-		$event = EventBus::createEvent(
+	private static function sendResourceChangedEvent(
+		LinkTarget $title,
+		array $tags
+	) {
+		$event = EventFactory::createEvent(
 			EventBus::getArticleURL( $title ),
 			'resource_change',
 			[ 'tags' => $tags ]
@@ -59,7 +62,7 @@ class EventBusHooks {
 	 * @param Block $block
 	 * @return array
 	 */
-	private static function getUserBlocksChangeAttributes( $block ) {
+	private static function getUserBlocksChangeAttributes( Block $block ) {
 		$blockAttrs = [
 			# mHideName is sometimes a string/int like '0'.
 			# Cast to int then to bool to make sure it is a proper bool.
@@ -88,12 +91,12 @@ class EventBusHooks {
 	 * @param int $archivedRevisionCount the number of revisions archived during the page delete
 	 */
 	public static function onArticleDeleteComplete(
-		$wikiPage,
-		$user,
+		WikiPage $wikiPage,
+		User $user,
 		$reason,
 		$id,
-		$content,
-		$logEntry,
+		Content $content = null,
+		ManualLogEntry $logEntry,
 		$archivedRevisionCount
 	) {
 		global $wgDBname;
@@ -103,7 +106,7 @@ class EventBusHooks {
 		$attrs = [
 			// Common Mediawiki entity fields
 			'database'           => $wgDBname,
-			'performer'          => EventBus::createPerformerAttrs( $user ),
+			'performer'          => EventFactory::createPerformerAttrs( $user ),
 
 			// page entity fields
 			'page_id'            => $id,
@@ -126,7 +129,7 @@ class EventBusHooks {
 			$attrs['parsedcomment'] = Linker::formatComment( $reason, $wikiPage->getTitle() );
 		}
 
-		$events[] = EventBus::createEvent(
+		$events[] = EventFactory::createEvent(
 			EventBus::getArticleURL( $wikiPage->getTitle() ),
 			'mediawiki.page-delete',
 			$attrs
@@ -149,7 +152,12 @@ class EventBusHooks {
 	 * @param string $comment comment explaining the undeletion
 	 * @param int $oldPageId ID of page previously deleted (from archive table)
 	 */
-	public static function onArticleUndelete( Title $title, $create, $comment, $oldPageId ) {
+	public static function onArticleUndelete(
+		Title $title,
+		$create,
+		$comment,
+		$oldPageId
+	) {
 		global $wgDBname;
 		$events = [];
 
@@ -159,7 +167,7 @@ class EventBusHooks {
 		$attrs = [
 			// Common Mediawiki entity fields
 			'database'           => $wgDBname,
-			'performer'          => EventBus::createPerformerAttrs( $performer ),
+			'performer'          => EventFactory::createPerformerAttrs( $performer ),
 
 			// page entity fields
 			'page_id'            => $title->getArticleID(),
@@ -188,7 +196,7 @@ class EventBusHooks {
 			$attrs['parsedcomment'] = Linker::formatComment( $comment, $title );
 		}
 
-		$events[] = EventBus::createEvent(
+		$events[] = EventFactory::createEvent(
 			EventBus::getArticleURL( $title ),
 			'mediawiki.page-undelete',
 			$attrs
@@ -248,7 +256,11 @@ class EventBusHooks {
 	 *              bits have changed for each revision.  This array is of the form
 	 *              [id => ['oldBits' => $oldBits, 'newBits' => $newBits], ... ]
 	 */
-	public static function onArticleRevisionVisibilitySet( $title, $revIds, $visibilityChangeMap ) {
+	public static function onArticleRevisionVisibilitySet(
+		Title $title,
+		array $revIds,
+		array $visibilityChangeMap
+	) {
 		$eventBus = EventBus::getInstance();
 		$events = [];
 		$performer = RequestContext::getMain()->getUser();
@@ -324,32 +336,36 @@ class EventBusHooks {
 	 * @param Content $content
 	 * @param string $summary
 	 * @param bool $isMinor
-	 * @param bool $isWatch
-	 * @param string $section Deprecated
+	 * @param bool|null $isWatch
+	 * @param string|null $section Deprecated
 	 * @param int $flags
 	 * @param Revision|null $revision
 	 */
-	public static function onPageContentInsertComplete( $article, $user, $content, $summary, $isMinor,
-				$isWatch, $section, $flags, $revision
+	public static function onPageContentInsertComplete(
+		WikiPage $article,
+		User $user,
+		Content $content,
+		$summary,
+		$isMinor,
+		$isWatch,
+		$section,
+		$flags,
+		Revision $revision = null
 	) {
 		$events = [];
-		$topic = 'mediawiki.page-create';
 
 		if ( is_null( $revision ) ) {
 			wfDebug(
 				__METHOD__ . ' new revision during PageContentInsertComplete for page_id: ' .
 				$article->getId() . ' page_title: ' . $article->getTitle() .
-				' is null.  Cannot create ' . $topic . ' event.'
+				' is null.  Cannot create mediawiki/revision/create event.'
 			);
 			return;
 		}
 
-		$attrs = EventBus::createRevisionRecordAttrs( $revision->getRevisionRecord() );
-
-		$events[] = EventBus::createEvent(
-			EventBus::getArticleURL( $revision->getTitle() ),
-			$topic,
-			$attrs
+		$events[] = EventBus::getInstance()->getFactory()->createPageCreateEvent(
+			$revision->getRevisionRecord(),
+			$revision->getTitle()
 		);
 
 		DeferredUpdates::addCallableUpdate(
@@ -372,8 +388,8 @@ class EventBusHooks {
 	 * @param Content $content
 	 * @param string $summary
 	 * @param bool $isMinor
-	 * @param bool $isWatch
-	 * @param string $section Deprecated
+	 * @param bool|null $isWatch
+	 * @param string|null $section Deprecated
 	 * @param int $flags
 	 * @param Revision|null $revision
 	 * @param Status $status
@@ -388,7 +404,7 @@ class EventBusHooks {
 		$isWatch,
 		$section,
 		$flags,
-		$revision,
+		Revision $revision = null,
 		Status $status,
 		$baseRevId
 	) {
@@ -399,38 +415,35 @@ class EventBusHooks {
 		}
 
 		$events = [];
-		$topic = 'mediawiki.revision-create';
 
 		if ( is_null( $revision ) ) {
 			wfDebug(
 				__METHOD__ . ' new revision during PageContentSaveComplete ' .
-				' is null.  Cannot create ' . $topic . ' event.'
+				' is null.  Cannot create mediawiki/revision/create event.'
 			);
 			return;
 		}
-
 		$revisionRecord = $revision->getRevisionRecord();
-		$attrs = EventBus::createRevisionRecordAttrs( $revisionRecord );
 
+		// Assume that the content have changed by default
+		$revContentChanged = true;
 		// The parent_revision_id attribute is not required, but when supplied
 		// must have a minimum value of 1, so omit it entirely when there is no
 		// parent revision (i.e. page creation).
 		$parentId = $revisionRecord->getParentId();
-		// Assume that the content have changed by default
-		$attrs['rev_content_changed'] = true;
 		if ( !is_null( $parentId ) && $parentId !== 0 ) {
-			$attrs['rev_parent_id'] = $parentId;
 			$parentRev = self::getRevisionLookup()->getRevisionById( $parentId );
 			if ( !is_null( $parentRev ) ) {
-				$attrs['rev_content_changed'] =
-					$parentRev->getSha1() !== $revisionRecord->getSha1();
+				$revContentChanged = $parentRev->getSha1() !== $revisionRecord->getSha1();
 			}
+		} else {
+			$parentId = null;
 		}
 
-		$events[] = EventBus::createEvent(
-			EventBus::getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
-			$topic,
-			$attrs
+		$events[] = EventBus::getInstance()->getFactory()->createRevisionCreateEvent(
+			$revisionRecord,
+			$parentId,
+			$revContentChanged
 		);
 
 		DeferredUpdates::addCallableUpdate(
@@ -450,7 +463,11 @@ class EventBusHooks {
 	 * @param Block|null $previousBlock the previous block state for the block target.
 	 *        null if this is a new block target.
 	 */
-	public static function onBlockIpComplete( $block, $user, $previousBlock = null ) {
+	public static function onBlockIpComplete(
+		Block $block,
+		User $user,
+		Block $previousBlock = null
+	) {
 		global $wgDBname;
 		$events = [];
 
@@ -460,7 +477,7 @@ class EventBusHooks {
 		$attrs = [
 			// Common Mediawiki entity fields:
 			'database'           => $wgDBname,
-			'performer'          => EventBus::createPerformerAttrs( $user ),
+			'performer'          => EventFactory::createPerformerAttrs( $user ),
 		];
 
 		if ( !is_null( $block->mReason ) ) {
@@ -495,7 +512,7 @@ class EventBusHooks {
 			];
 		}
 
-		$events[] = EventBus::createEvent(
+		$events[] = EventFactory::createEvent(
 			EventBus::getUserPageURL( $block->getTarget() ),
 			'mediawiki.user-blocks-change',
 			$attrs
@@ -518,18 +535,20 @@ class EventBusHooks {
 	 *
 	 * @param LinksUpdate $linksUpdate the update object
 	 */
-	public static function onLinksUpdateComplete( $linksUpdate ) {
-		global $wgDBname;
-		$events = [];
+	public static function onLinksUpdateComplete(
+		LinksUpdate $linksUpdate
+	) {
+		$propEvents = [];
+		$linkEvents = [];
 
-		$removedProps = $linksUpdate->getRemovedProperties();
 		$addedProps = $linksUpdate->getAddedProperties();
+		$removedProps = $linksUpdate->getRemovedProperties();
 		$arePropsEmpty = empty( $removedProps ) && empty( $addedProps );
 
-		$removedLinks = $linksUpdate->getRemovedLinks();
 		$addedLinks = $linksUpdate->getAddedLinks();
-		$removedExternalLinks = $linksUpdate->getRemovedExternalLinks();
 		$addedExternalLinks = $linksUpdate->getAddedExternalLinks();
+		$removedLinks = $linksUpdate->getRemovedLinks();
+		$removedExternalLinks = $linksUpdate->getRemovedExternalLinks();
 		$areLinksEmpty = empty( $removedLinks ) && empty( $addedLinks )
 			&& empty( $removedExternalLinks ) && empty( $addedExternalLinks );
 
@@ -540,102 +559,50 @@ class EventBusHooks {
 		$title = $linksUpdate->getTitle();
 		$user = $linksUpdate->getTriggeringUser();
 
-		// Create a mediawiki page delete event.
-		$attrs = [
-			// Common Mediawiki entity fields
-			'database'           => $wgDBname,
-
-			// page entity fields
-			'page_id'            => $linksUpdate->mId,
-			'page_title'         => $title->getPrefixedDBkey(),
-			'page_namespace'     => $title->getNamespace(),
-			'page_is_redirect'   => $title->isRedirect(),
-		];
-
 		// Use triggering revision's rev_id if it is set.
 		// If the LinksUpdate didn't have a triggering revision
 		// (probably because it was triggered by sysadmin maintenance).
 		// Use the page's latest revision.
 		$revision = $linksUpdate->getRevision();
 		if ( $revision ) {
-			$attrs['rev_id'] = $revision->getId();
+			$revId = $revision->getId();
 		} else {
-			$attrs['rev_id'] = $title->getLatestRevID();
+			$revId = $title->getLatestRevID();
 		}
-
-		if ( !is_null( $user ) ) {
-			$attrs['performer'] = EventBus::createPerformerAttrs( $user );
-		}
-
-		$articleUrl = EventBus::getArticleURL( $linksUpdate->getTitle() );
+		$pageId = $linksUpdate->mId;
 
 		if ( !$arePropsEmpty ) {
-			$propsAttrs = $attrs;
-			if ( !empty( $addedProps ) ) {
-				$propsAttrs['added_properties'] = array_map(
-					'EventBus::replaceBinaryValues', $addedProps );
-			}
-
-			if ( !empty( $removedProps ) ) {
-				$propsAttrs['removed_properties'] = array_map(
-					'EventBus::replaceBinaryValues', $removedProps );
-			}
-
-			$events[] = EventBus::createEvent(
-				$articleUrl,
-				'mediawiki.page-properties-change',
-				$propsAttrs
+			$propEvents[] = EventBus::getInstance()->getFactory()->createPagePropertiesChangeEvent(
+				$title,
+				$addedProps,
+				$removedProps,
+				$user,
+				$revId,
+				$pageId
 			);
 
 			DeferredUpdates::addCallableUpdate(
-				function () use ( $events ) {
-					EventBus::getInstance()->send( $events );
+				function () use ( $propEvents ) {
+					EventBus::getInstance()->send( $propEvents );
 				}
 			);
 		}
 
 		if ( !$areLinksEmpty ) {
-			$linksAttrs = $attrs;
-
-			/**
-			 * Extract URL encoded link and whether it's external
-			 * @param Title|String $t External links are strings, internal
-			 *   links are Titles
-			 * @return array
-			 */
-			$getLinkData = function ( $t ) {
-				$isExternal = is_string( $t );
-				$link = $isExternal ? $t : $t->getLinkURL();
-				return [
-					'link' => wfUrlencode( $link ),
-					'external' => $isExternal
-				];
-			};
-
-			$addedLinks = array_map(
-				$getLinkData,
-				array_merge( $addedLinks, $addedExternalLinks ) );
-			$removedLinks = array_map(
-				$getLinkData,
-				array_merge( $removedLinks, $removedExternalLinks ) );
-
-			if ( !empty( $addedLinks ) ) {
-				$linksAttrs['added_links'] = $addedLinks;
-			}
-
-			if ( !empty( $removedLinks ) ) {
-				$linksAttrs['removed_links'] = $removedLinks;
-			}
-
-			$events[] = EventBus::createEvent(
-				$articleUrl,
-				'mediawiki.page-links-change',
-				$linksAttrs
+			$linkEvents[] = EventBus::getInstance()->getFactory()->createPageLinksChangeEvent(
+				$title,
+				$addedLinks,
+				$addedExternalLinks,
+				$removedLinks,
+				$removedExternalLinks,
+				$user,
+				$revId,
+				$pageId
 			);
 
 			DeferredUpdates::addCallableUpdate(
-				function () use ( $events ) {
-					EventBus::getInstance()->send( $events );
+				function () use ( $linkEvents ) {
+					EventBus::getInstance()->send( $linkEvents );
 				}
 			);
 		}
@@ -649,7 +616,12 @@ class EventBusHooks {
 	 * @param array $protect set of new restrictions details
 	 * @param string $reason the reason for page protection
 	 */
-	public static function onArticleProtectComplete( Wikipage $wikiPage, $user, $protect, $reason ) {
+	public static function onArticleProtectComplete(
+		Wikipage $wikiPage,
+		User $user,
+		array $protect,
+		$reason
+	) {
 		global $wgDBname;
 		$events = [];
 
@@ -657,7 +629,7 @@ class EventBusHooks {
 		$attrs = [
 			// Common Mediawiki entity fields
 			'database'           => $wgDBname,
-			'performer'          => EventBus::createPerformerAttrs( $user ),
+			'performer'          => EventFactory::createPerformerAttrs( $user ),
 
 			// page entity fields
 			'page_id'            => $wikiPage->getId(),
@@ -674,7 +646,7 @@ class EventBusHooks {
 			$attrs['rev_id'] = $wikiPage->getRevision()->getId();
 		}
 
-		$events[] = EventBus::createEvent(
+		$events[] = EventFactory::createEvent(
 			EventBus::getArticleURL( $wikiPage->getTitle() ),
 			'mediawiki.page-restrictions-change',
 			$attrs
@@ -704,15 +676,15 @@ class EventBusHooks {
 	 * to the action, or null
 	 */
 	public static function onChangeTagsAfterUpdateTags(
-		$addedTags,
-		$removedTags,
-		$prevTags,
+		array $addedTags,
+		array $removedTags,
+		array $prevTags,
 		$rc_id,
 		$rev_id,
 		$log_id,
 		$params,
-		$rc,
-		$user
+		RecentChange $rc = null,
+		User $user = null
 	) {
 		if ( is_null( $rev_id ) ) {
 			// We're only interested for revision (edits) tags for now.

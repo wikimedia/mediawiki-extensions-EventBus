@@ -25,8 +25,6 @@
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
-use MediaWiki\Revision\RevisionRecord;
-use MediaWiki\Revision\SuppressedDataException;
 use Psr\Log\LoggerInterface;
 
 class EventBus {
@@ -229,109 +227,6 @@ class EventBus {
 	}
 
 	/**
-	 * Given a User $user, returns an array suitable for
-	 * use as the performer JSON object in various Mediawiki
-	 * entity schemas.
-	 * @param User $user
-	 * @return array
-	 */
-	public static function createPerformerAttrs( $user ) {
-		$performerAttrs = [
-			'user_text'   => $user->getName(),
-			'user_groups' => $user->getEffectiveGroups(),
-			'user_is_bot' => $user->getId() ? $user->isBot() : false,
-		];
-		if ( $user->getId() ) {
-			$performerAttrs['user_id'] = $user->getId();
-		}
-		if ( $user->getRegistration() ) {
-			$performerAttrs['user_registration_dt'] = wfTimestamp(
-				TS_ISO_8601, $user->getRegistration()
-			);
-		}
-		if ( $user->getEditCount() !== null ) {
-			$performerAttrs['user_edit_count'] = $user->getEditCount();
-		}
-
-		return $performerAttrs;
-	}
-
-	/**
-	 * Given a RevisionRecord $revision, returns an array suitable for
-	 * use in mediawiki/revision entity schemas.
-	 *
-	 * @param RevisionRecord $revision
-	 * @param User|null $performer
-	 * @return array
-	 */
-	public static function createRevisionRecordAttrs( $revision, $performer = null ) {
-		global $wgDBname;
-
-		$linkTarget = $revision->getPageAsLinkTarget();
-		$titleFormatter = MediaWikiServices::getInstance()->getTitleFormatter();
-		$attrs = [
-			// Common Mediawiki entity fields
-			'database'           => $wgDBname,
-
-			// revision entity fields
-			'page_id'            => $revision->getPageId(),
-			'page_title'         => $titleFormatter->getPrefixedDBkey( $linkTarget ),
-			'page_namespace'     => $linkTarget->getNamespace(),
-			'rev_id'             => $revision->getId(),
-			'rev_timestamp'      => wfTimestamp( TS_ISO_8601, $revision->getTimestamp() ),
-			'rev_sha1'           => $revision->getSha1(),
-			'rev_minor_edit'     => $revision->isMinor(),
-			'rev_len'            => $revision->getSize(),
-		];
-
-		$attrs['rev_content_model'] = $contentModel = $revision->getSlot( 'main' )->getModel();
-
-		$contentFormat = $revision->getSlot( 'main' )->getFormat();
-		if ( is_null( $contentFormat ) ) {
-			try {
-				$contentFormat = ContentHandler::getForModelID( $contentModel )->getDefaultFormat();
-			}
-			catch ( MWException $e ) {
-				// Ignore, the `rev_content_format` is not required.
-			}
-		}
-		if ( !is_null( $contentFormat ) ) {
-			$attrs['rev_content_format'] = $contentFormat;
-		}
-
-		if ( !is_null( $performer ) ) {
-			$attrs['performer'] = self::createPerformerAttrs( $performer );
-		} elseif ( !is_null( $revision->getUser() ) ) {
-			$performer = User::newFromId( $revision->getUser()->getId() );
-			$performer->loadFromId();
-			$attrs['performer'] = self::createPerformerAttrs( $performer );
-		}
-
-		// It is possible that the $revision object does not have any content
-		// at the time of RevisionInsertComplete.  This might happen during
-		// a page restore, if the revision 'created' during the restore
-		// has its content hidden.
-		// TODO: In MCR Content::isRedirect should not be used to derive a redirect directly.
-		try {
-			$content = $revision->getContent( 'main' );
-			if ( !is_null( $content ) ) {
-				$attrs['page_is_redirect'] = $content->isRedirect();
-			} else {
-				$attrs['page_is_redirect'] = false;
-			}
-		} catch ( SuppressedDataException $e ) {
-			$attrs['page_is_redirect'] = false;
-		}
-
-		if ( !is_null( $revision->getComment() ) && strlen( $revision->getComment()->text ) ) {
-			$attrs['comment'] = $revision->getComment()->text;
-			$attrs['parsedcomment'] = Linker::formatComment( $revision->getComment()->text );
-		}
-
-		return $attrs;
-	}
-
-	/**
 	 * Creates a full user page path
 	 *
 	 * @param string $userName userName
@@ -356,56 +251,6 @@ class EventBus {
 			return 'data:application/octet-stream;base64,' . base64_encode( $value );
 		}
 		return $value;
-	}
-
-	/**
-	 * Adds a meta subobject to $attrs based on uri and topic and returns it.
-	 *
-	 * @param string $uri
-	 * @param string $topic
-	 * @param array $attrs
-	 * @param string|bool $wiki
-	 *
-	 * @return array $attrs + meta subobject
-	 */
-	public static function createEvent( $uri, $topic, $attrs, $wiki = false ) {
-		global $wgServerName;
-
-		if ( $wiki ) {
-			$wikiRef = WikiMap::getWiki( $wiki );
-			if ( is_null( $wikiRef ) ) {
-				$domain = $wgServerName;
-			} else {
-				$domain = $wikiRef->getDisplayName();
-			}
-		} else {
-			$domain = $wgServerName;
-		}
-
-		$event = [
-			'meta' => [
-				'uri'        => $uri,
-				'topic'      => $topic,
-				'request_id' => self::getRequestId(),
-				'id'         => self::newId(),
-				'dt'         => gmdate( 'c' ),
-				'domain'     => $domain ?: $wgServerName,
-			],
-		];
-
-		return $event + $attrs;
-	}
-
-	/**
-	 * Returns the X-Request-ID header, if set, otherwise a newly generated
-	 * type 4 UUID string.
-	 *
-	 * @return string
-	 */
-	private static function getRequestId() {
-		$context = RequestContext::getMain();
-		$xreqid = $context->getRequest()->getHeader( 'x-request-id' );
-		return $xreqid ?: UIDGenerator::newUUIDv4();
 	}
 
 	/**
@@ -442,15 +287,6 @@ class EventBus {
 		foreach ( $events as $event ) {
 			self::checkEventPart( $event, $event );
 		}
-	}
-
-	/**
-	 * Creates a new type 1 UUID string.
-	 *
-	 * @return string
-	 */
-	private static function newId() {
-		return UIDGenerator::newUUIDv1();
 	}
 
 	private function shouldSendEvent( $eventType ) {

@@ -35,7 +35,7 @@ class JobQueueEventBus extends JobQueue {
 
 		$attrs['params'] = $params;
 
-		$event = EventBus::createEvent(
+		$event = EventFactory::createEvent(
 			EventBus::getArticleURL( $job->getTitle() ),
 			'mediawiki.job.' . $job->getType(),
 			$attrs,
