@@ -509,7 +509,12 @@ class EventBusHooks {
 	}
 
 	/**
-	 * Sends a page-properties-change event
+	 * Sends page-properties-change and page-links-change events
+	 *
+	 * Emits two events separately: one when the page properties change, and
+	 * the other when links are added to or removed from the page.
+	 *
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/LinksUpdateComplete
 	 *
 	 * @param LinksUpdate $linksUpdate the update object
 	 */
@@ -519,8 +524,16 @@ class EventBusHooks {
 
 		$removedProps = $linksUpdate->getRemovedProperties();
 		$addedProps = $linksUpdate->getAddedProperties();
+		$arePropsEmpty = empty( $removedProps ) && empty( $addedProps );
 
-		if ( empty( $removedProps ) && empty( $addedProps ) ) {
+		$removedLinks = $linksUpdate->getRemovedLinks();
+		$addedLinks = $linksUpdate->getAddedLinks();
+		$removedExternalLinks = $linksUpdate->getRemovedExternalLinks();
+		$addedExternalLinks = $linksUpdate->getAddedExternalLinks();
+		$areLinksEmpty = empty( $removedLinks ) && empty( $addedLinks )
+			&& empty( $removedExternalLinks ) && empty( $addedExternalLinks );
+
+		if ( $arePropsEmpty && $areLinksEmpty ) {
 			return;
 		}
 
@@ -554,25 +567,78 @@ class EventBusHooks {
 			$attrs['performer'] = EventBus::createPerformerAttrs( $user );
 		}
 
-		if ( !empty( $addedProps ) ) {
-			$attrs['added_properties'] = array_map( 'EventBus::replaceBinaryValues', $addedProps );
-		}
+		$articleUrl = EventBus::getArticleURL( $linksUpdate->getTitle() );
 
-		if ( !empty( $removedProps ) ) {
-			$attrs['removed_properties'] = array_map( 'EventBus::replaceBinaryValues', $removedProps );
-		}
-
-		$events[] = EventBus::createEvent(
-			EventBus::getArticleURL( $linksUpdate->getTitle() ),
-			'mediawiki.page-properties-change',
-			$attrs
-		);
-
-		DeferredUpdates::addCallableUpdate(
-			function () use ( $events ) {
-				EventBus::getInstance()->send( $events );
+		if ( !$arePropsEmpty ) {
+			$propsAttrs = $attrs;
+			if ( !empty( $addedProps ) ) {
+				$propsAttrs['added_properties'] = array_map(
+					'EventBus::replaceBinaryValues', $addedProps );
 			}
-		);
+
+			if ( !empty( $removedProps ) ) {
+				$propsAttrs['removed_properties'] = array_map(
+					'EventBus::replaceBinaryValues', $removedProps );
+			}
+
+			$events[] = EventBus::createEvent(
+				$articleUrl,
+				'mediawiki.page-properties-change',
+				$propsAttrs
+			);
+
+			DeferredUpdates::addCallableUpdate(
+				function () use ( $events ) {
+					EventBus::getInstance()->send( $events );
+				}
+			);
+		}
+
+		if ( !$areLinksEmpty ) {
+			$linksAttrs = $attrs;
+
+			/**
+			 * Extract URL encoded link and whether it's external
+			 * @param Title|String $t External links are strings, internal
+			 *   links are Titles
+			 * @return array
+			 */
+			$getLinkData = function ( $t ) {
+				$isExternal = is_string( $t );
+				$link = $isExternal ? $t : $t->getLinkURL();
+				return [
+					'link' => wfUrlencode( $link ),
+					'external' => $isExternal
+				];
+			};
+
+			$addedLinks = array_map(
+				$getLinkData,
+				array_merge( $addedLinks, $addedExternalLinks ) );
+			$removedLinks = array_map(
+				$getLinkData,
+				array_merge( $removedLinks, $removedExternalLinks ) );
+
+			if ( !empty( $addedLinks ) ) {
+				$linksAttrs['added_links'] = $addedLinks;
+			}
+
+			if ( !empty( $removedLinks ) ) {
+				$linksAttrs['removed_links'] = $removedLinks;
+			}
+
+			$events[] = EventBus::createEvent(
+				$articleUrl,
+				'mediawiki.page-links-change',
+				$linksAttrs
+			);
+
+			DeferredUpdates::addCallableUpdate(
+				function () use ( $events ) {
+					EventBus::getInstance()->send( $events );
+				}
+			);
+		}
 	}
 
 	/**
