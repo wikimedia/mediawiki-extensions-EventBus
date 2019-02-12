@@ -8,7 +8,6 @@ use MediaWiki\Revision\RevisionRecord;
  * @group EventBus
  */
 class EventFactoryTest extends MediaWikiTestCase {
-	protected static $eventFactory;
 
 	const MOCK_PAGE_TITLE = 'Test';
 
@@ -49,16 +48,6 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertEquals( $row['minor_edit'], $event['rev_minor_edit'], 'rev_minor_edit' );
 		$this->assertEquals( $row['content']->getModel(), $event['rev_content_model'],
 			'rev_content_model' );
-	}
-
-	// fixture setup
-	public static function setUpBeforeClass() {
-		self::$eventFactory = new EventFactory();
-	}
-
-	// fixture tear-down
-	public static function tearDownAfterClass() {
-		self::$eventFactory = null;
 	}
 
 	/**
@@ -109,8 +98,9 @@ class EventFactoryTest extends MediaWikiTestCase {
 	 * @dataProvider provideRevisionTagsChange
 	 */
 	public function testRevisionTagsChange( $prevTags, $addedTags, $removedTags, $expectedTags ) {
+		$eventFactory = new EventFactory();
 		$revisionRecord = $this->createMutableRevisionFromArray();
-		$event = self::$eventFactory->createRevisionTagsChangeEvent(
+		$event = $eventFactory->createRevisionTagsChangeEvent(
 			$revisionRecord,
 			$prevTags,
 			$addedTags,
@@ -121,16 +111,6 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertNotNull( $event['prior_state'] );
 		$this->assertArrayEquals( $prevTags, $event['prior_state']['tags'] );
 		$this->assertArrayEquals( $expectedTags, $event['tags'] );
-
-		$event = self::$eventFactory->createRevisionTagsChangeEvent(
-			$revisionRecord,
-			$prevTags,
-			$addedTags,
-			$removedTags,
-			User::newFromName( 'Test_User' )
-		);
-
-		$this->assertArrayHasKey( 'performer', $event );
 	}
 
 	public function provideRevisionVisibilityChange() {
@@ -192,9 +172,10 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$expectedVisibilityObject,
 		$expectedPriorVisibility
 	) {
+		$eventFactory = new EventFactory();
 		$revisionRecord = $this->createMutableRevisionFromArray();
 		$performer = User::newFromName( 'Real_Performer' );
-		$event = self::$eventFactory->createRevisionVisibilityChangeEvent(
+		$event = $eventFactory->createRevisionVisibilityChangeEvent(
 			$revisionRecord,
 			$performer,
 			$visibilityChanges
@@ -211,8 +192,9 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertEquals( $performer->getName(), $event['performer']['user_text'] );
 	}
 
-	public function testPageMoveEvent() {
-		$event = self::$eventFactory->createPageMoveEvent(
+	public function testPageMove() {
+		$eventFactory = new EventFactory();
+		$event = $eventFactory->createPageMoveEvent(
 			new TitleValue( 0, 'Old_Title' ),
 			new TitleValue( 0, self::MOCK_PAGE_TITLE ),
 			$this->createMutableRevisionFromArray(),
@@ -221,167 +203,5 @@ class EventFactoryTest extends MediaWikiTestCase {
 		);
 		$this->assertPageProperties( $event );
 		// TODO: more assertions
-	}
-
-	public function testPageMoveEventWithRedirectPageId() {
-		$event = self::$eventFactory->createPageMoveEvent(
-			new TitleValue( 0, 'Old_Title' ),
-			new TitleValue( 0, self::MOCK_PAGE_TITLE ),
-			$this->createMutableRevisionFromArray(),
-			User::newFromName( 'Test_User' ),
-			'Comment',
-			1
-		);
-		$this->assertArrayHasKey( 'new_redirect_page', $event );
-	}
-
-	public function testPageCreationEvent() {
-		$event = self::$eventFactory->createPageCreationEvent(
-			$this->createMutableRevisionFromArray(),
-			new TitleValue( 0, self::MOCK_PAGE_TITLE )
-		);
-
-		$this->assertPageProperties( $event );
-	}
-
-	public function testPagePropertiesChangeEvent() {
-		$event = self::$eventFactory->createPagePropertiesChangeEvent(
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
-			null,
-			null,
-			User::newFromName( 'Test_User' ),
-			1,
-			23
-		);
-
-		$this->assertPageProperties( $event );
-		$this->assertEquals( $event['rev_id'], 1, 'rev_id should be 1' );
-	}
-
-	public function testPagePropertiesChangeEventAddedAndRemovedProperties() {
-		$event = self::$eventFactory->createPagePropertiesChangeEvent(
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
-			[ 'addedAttr' ],
-			[ 'removedAttr' ],
-			User::newFromName( 'Test_User' ),
-			1,
-			23
-		);
-
-		$this->assertArrayHasKey( 'added_properties', $event, 'Missing added_properties' );
-		$this->assertArrayHasKey( 'removed_properties', $event, 'Missing removed_properties' );
-	}
-
-	public function testPagePropertiesChangeEventNoPerformer() {
-		$event = self::$eventFactory->createPagePropertiesChangeEvent(
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
-			null,
-			null,
-			null,
-			1,
-			23
-		);
-
-		$this->assertFalse(
-			array_key_exists( 'performer', $event ),
-			'Performer should not be present'
-		);
-	}
-
-	public function testPageLinksChangeEvent() {
-		$event = self::$eventFactory->createPageLinksChangeEvent(
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
-			null,
-			null,
-			null,
-			null,
-			User::newFromName( 'Test_User' ),
-			1,
-			23
-		);
-
-		$this->assertPageProperties( $event );
-		$this->assertEquals( $event['rev_id'], 1, 'rev_id should be 1' );
-	}
-
-	public function testPageLinksChangeEventAddedAndRemovedProperties() {
-		$event = self::$eventFactory->createPageLinksChangeEvent(
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
-			[ 'addedLinks' ],
-			[ 'addedExtLinks' ],
-			[ 'removedLinks' ],
-			[ 'removedExtLinks' ],
-			User::newFromName( 'Test_User' ),
-			1,
-			23
-		);
-
-		$this->assertArrayHasKey( 'added_links', $event, 'Missing added_links' );
-		$this->assertArrayHasKey( 'removed_links', $event, 'Missing removed_links' );
-	}
-
-	public function testPageLinksChangeEventNoPerformer() {
-		$event = self::$eventFactory->createPageLinksChangeEvent(
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
-			null,
-			null,
-			null,
-			null,
-			null,
-			1,
-			23
-		);
-
-		$this->assertFalse(
-			array_key_exists( 'performer', $event ),
-			'Performer should not be present'
-		);
-	}
-
-	public function testRevisionCreationEvent() {
-		$event = self::$eventFactory->createRevisionCreateEvent(
-			$this->createMutableRevisionFromArray(),
-			null,
-			true
-		);
-
-		$this->assertPageProperties( $event );
-	}
-
-	public function testRevisionCreationEventDoesNotContainRevParentId() {
-		$event = self::$eventFactory->createRevisionCreateEvent(
-			$this->createMutableRevisionFromArray(),
-			null,
-			true
-		);
-
-		$this->assertFalse(
-			array_key_exists( 'rev_parent_id', $event ),
-			'rev_parent_id should not be present'
-		);
-	}
-
-	public function testRevisionCreationEventContainsRevParentId() {
-		$event = self::$eventFactory->createRevisionCreateEvent(
-			$this->createMutableRevisionFromArray(),
-			1,
-			true
-		);
-
-		$this->assertArrayHasKey( 'rev_parent_id', $event, 'rev_parent_id should be present' );
-	}
-
-	public function testRevisionCreationEventContentChangeExists() {
-		$event = self::$eventFactory->createRevisionCreateEvent(
-			$this->createMutableRevisionFromArray(),
-			null,
-			false
-		);
-
-		$this->assertTrue(
-			array_key_exists( 'rev_content_changed', $event ),
-			'rev_content_changed should be present'
-		);
-		$this->assertFalse( $event['rev_content_changed'], 'rev_content_changed should be false' );
 	}
 }
