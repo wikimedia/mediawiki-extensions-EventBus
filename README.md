@@ -8,13 +8,25 @@ we're aiming for.  Therefore, this extension should be considered an interim sol
 
 ## Configuration
 
-To configure the URL of the EventBus service:
+EventBus supports configuration of multiple event service endpoints via the `EventServices`
+main config array.  It expects entries keyed by event service name pointing at arrays of
+event service config.  E.g.
 
-    $wgEventServiceUrl = 'http://localhost:8085/v1/topics';
+    $wgEventServices = {
+        'eventbus-main' => {
+            'url' => 'http://locahost:8085/v1/topics',
+            'timeout' => 5,
+        },
+        'eventgate-main' => {
+            'url' => 'http://localhost:8192/v1/topics',
+        }
+    }
 
-To configure the EventBus service request timeout:
-
-    $wgEventServiceTimeout = 5;    // 5 second timeout
+EventBus instances should be created via the static `getInstance` method.  This method
+takes one of the configued event service names from the `EventServices` main config.
+If `getInstance` is not given an event service name, it falls back to using the old configs
+of `EventServiceUrl` and `EventServiceTimeout`.  (These configs were present before EventBus
+supported multiple event service endpoints.)
 
 
 ## EventBus RCFeed
@@ -25,22 +37,17 @@ That will allow RCFeed configuration to post to the EventBus service in the
 add the following to your `LocalSettings.php`:
 
 ```php
-$wgRCFeeds['eventbus'] = array(
-    'formatter' => 'EventBusRCFeedFormatter',
-    'uri'       => 'eventbus://localhost:8085/v1/events',
-);
-$wgRCEngines = array(
-    'eventbus' => 'EventBusRCFeedEngine',
+$wgRCFeeds['eventgate-main'] = array(
+    'class'            => 'EventBusRCFeedEngine',
+    'formatter'        => 'EventBusRCFeedFormatter',
+    // This should be the name of an event service entry
+    // defined in $wgEventServices.
+    // If eventServiceName is undefined, this will fallback
+    // to using wgEventServiceUrl.
+    'eventServiceName' => 'eventgate-main',
 );
 ```
 
-Substitute `uri` with the `$wgEventServiceUrl`, but with  `eventbus://` instead of `http://`.
-
-Note that the protocol schema part of the `uri` configured in`$wgRCFeeds` starts with
-`eventbus://`.  `$wgRCEngines` config are mapped from protocol schemes.  However,
-`EventServiceUrl` which is used to configure EventBus configuration expects this to be
-a usual `http://` REST endpoint.  `EventBusRCFeedEngine` is aware of this discrepency, and
-replaces the `eventbus://` in the `uri` with `http://` when configuring its EventBus instance.
 
 ## References
 
