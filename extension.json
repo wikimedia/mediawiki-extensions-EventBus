@@ -1,6 +1,6 @@
 {
 	"name": "EventBus",
-	"version": "0.3.1",
+	"version": "0.3.2",
 	"author": [
 		"Eric Evans",
 		"Petr Pchelko",
@@ -21,6 +21,7 @@
 		"EventBus": "includes/EventBus.php",
 		"EventBusHooks": "includes/EventBusHooks.php",
 		"EventFactory": "includes/EventFactory.php",
+	  	"EventBusMonologHandler": "includes/adapters/monolog/EventBusMonologHandler.php",
 		"EventBusRCFeedEngine": "includes/EventBusRCFeedEngine.php",
 		"EventBusRCFeedFormatter": "includes/EventBusRCFeedFormatter.php",
 		"JobQueueEventBus": "includes/JobQueueEventBus.php",
