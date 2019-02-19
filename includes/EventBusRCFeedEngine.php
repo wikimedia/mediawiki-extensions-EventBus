@@ -42,7 +42,10 @@ class EventBusRCFeedEngine extends RCFeedEngine {
 				// construct EventBus config from RCFeed config eventServiceName config,
 				// or wgEventServiceUrl if eventServiceName is not specified.
 				$config = $feed;
-				return EventBus::getInstance( $config['eventServiceName'] )->send( $line );
+				$eventServiceName = array_key_exists( 'eventServiceName', $config ) ?
+					$config['eventServiceName'] : null;
+
+				return EventBus::getInstance( $eventServiceName )->send( $line );
 			}
 		);
 		return true;
