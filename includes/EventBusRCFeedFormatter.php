@@ -15,6 +15,22 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 	const TOPIC = 'mediawiki.recentchange';
 
 	/**
+	 * Removes properties which values are 'null' from the event.
+	 * Will modify the original event passed in
+	 *
+	 * @param array $event the event to modify.
+	 */
+	private static function removeNulls( &$event ) {
+		foreach ( $event as $key => $value ) {
+			if ( is_null( $value ) ) {
+				unset( $event[$key] );
+			} elseif ( is_array( $value ) ) {
+				self::removeNulls( $value );
+			}
+		}
+	}
+
+	/**
 	 * Calls MachineReadableRCFeedFormatter's getLine(), augments
 	 * the returned object so that it is suitable for POSTing to
 	 * the EventBus service, and then returns those events
@@ -41,6 +57,7 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 		if ( array_key_exists( 'timestamp', $event ) ) {
 			$event['meta']['dt'] = gmdate( 'c', $event['timestamp'] );
 		}
+		self::removeNulls( $event );
 		$events = [ $event ];
 
 		return EventBus::serializeEvents( $events );

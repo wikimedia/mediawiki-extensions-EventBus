@@ -24,7 +24,7 @@
  * );
  *
  */
-class EventBusRCFeedEngine extends RCFeedEngine {
+class EventBusRCFeedEngine extends FormattedRCFeed {
 
 	/**
 	 * @param array $feed is expected to contain 'eventServiceName', which will
@@ -45,7 +45,7 @@ class EventBusRCFeedEngine extends RCFeedEngine {
 				$eventServiceName = array_key_exists( 'eventServiceName', $config ) ?
 					$config['eventServiceName'] : null;
 
-				return EventBus::getInstance( $eventServiceName )->send( $line );
+				EventBus::getInstance( $eventServiceName )->send( $line );
 			}
 		);
 		return true;
