@@ -320,65 +320,40 @@ class EventBus {
 	 * 		The name of a key in the EventServices config looked up via
 	 * 		MediawikiServices::getInstance()->getMainConfig()->get('EventServices').
 	 * 		The EventService config is keyed by service name, and should at least contain
-	 * 		a 'url' entry pointing at the event service endpoint events should be POSTed to.
-	 * 		They can also optionally contain a 'timeout' entry specifying the HTTP
-	 * 		POST request timeout. Instances are singletons identified by $eventServiceName.
-	 * 		The default $eventServiceName is 'eventbus', so you must at least have an
-	 * 		entry in the EventServices config by this name.
-	 * 		If $eventServiceName is null, this will fall back to the previously used
-	 * 		main configs 'EventServiceUrl' and 'EventServiceTimeout'.  These
-	 * 		must be set if you are not calling getInstance with an event service name.
+	 * 		a 'url' entry pointing at the event service endpoint events should be
+	 * 		POSTed to. They can also optionally contain a 'timeout' entry specifying
+	 * 		the HTTP POST request timeout. Instances are singletons identified by
+	 * 		$eventServiceName.
 	 *
 	 * 		NOTE: Previously, this function took a $config object instead of an
 	 * 		event service name.  This is a backwards compatible change, but because
 	 * 		there are no other users of this extension, we can do this safely.
 	 *
-	 * @throws ConfigException in case the EventServiceUrl configuration is missing
+	 * @throws ConfigException if EventServices or $eventServiceName is misconfigured.
 	 * @return EventBus
 	 */
-	public static function getInstance( $eventServiceName = null ) {
-		$config = MediaWikiServices::getInstance()->getMainConfig();
-
+	public static function getInstance( $eventServiceName ) {
 		if ( !$eventServiceName ) {
-			// If not given an $eventServiceName, then use the backwards
-			// compatible global EventServiceUrl and EventServiceTimeout.
-			// (These configs were used before this EventBus extension supported
-			// multiple event service endpoints.)
-			$url = $config->get( 'EventServiceUrl' );
-
-			if ( !$url ) {
-				self::logger()->error(
-					'Failed configuration of EventBus instance. Either an event service name ' .
-					'must be given, or \'EventServiceUrl\' must be set in main config'
-				);
-				return;
-			}
-
-			$timeout = $config->get( 'EventServiceTimeout' ) ?
-				$config->get( 'EventServiceTimeout' ) : null;
-
-			// Previously, EventBus singletons were identified by their url instead
-			// of their name, so continue to do so for backwards compatibility in this case.
-			$eventServiceName = $url;
-		} else {
-			// Else lookup the $eventServiceName config in EventServices
-			$eventServices = $config->get( 'EventServices' );
-
-			if ( empty( $eventServices ) ||
-				!array_key_exists( $eventServiceName, $eventServices ) ||
-				!array_key_exists( 'url', $eventServices[$eventServiceName] )
-			) {
-				self::logger()->error(
-					"Failed configuration of EventBus instance. The $eventServiceName " .
-					'\'url\' was not configured in the \'EventServices\' config.'
-				);
-				return;
-			}
-
-			$url = $eventServices[$eventServiceName]['url'];
-			$timeout = array_key_exists( 'timeout', $eventServices[$eventServiceName] ) ?
-				$eventServices[$eventServiceName]['timeout'] : null;
+			$error = 'EventBus::getInstance requires a configured $eventServiceName';
+			self::logger()->error( $error );
+			throw new ConfigException( $error );
 		}
+
+		$eventServices =
+			MediaWikiServices::getInstance()->getMainConfig()->get( 'EventServices' );
+
+		if ( !array_key_exists( $eventServiceName, $eventServices ) ||
+			!array_key_exists( 'url', $eventServices[$eventServiceName] )
+		) {
+			$error = "Could not get configuration of EventBus instance for '$eventServiceName'" .
+				'$eventServiceName must exist in EventServices with a url in main config.';
+			self::logger()->error( $error );
+			throw new ConfigException( $error );
+		}
+
+		$url = $eventServices[$eventServiceName]['url'];
+		$timeout = array_key_exists( 'timeout', $eventServices[$eventServiceName] ) ?
+			$eventServices[$eventServiceName]['timeout'] : null;
 
 		if ( !array_key_exists( $eventServiceName, self::$instances ) ) {
 			self::$instances[$eventServiceName] = new self( $url, $timeout );

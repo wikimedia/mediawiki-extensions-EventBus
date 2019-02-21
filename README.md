@@ -24,10 +24,6 @@ event service config.  E.g.
 
 EventBus instances should be created via the static `getInstance` method.  This method
 takes one of the configued event service names from the `EventServices` main config.
-If `getInstance` is not given an event service name, it falls back to using the old configs
-of `EventServiceUrl` and `EventServiceTimeout`.  (These configs were present before EventBus
-supported multiple event service endpoints.)
-
 
 ## EventBus RCFeed
 
@@ -42,8 +38,6 @@ $wgRCFeeds['eventgate-main'] = array(
     'formatter'        => 'EventBusRCFeedFormatter',
     // This should be the name of an event service entry
     // defined in $wgEventServices.
-    // If eventServiceName is undefined, this will fallback
-    // to using wgEventServiceUrl.
     'eventServiceName' => 'eventgate-main',
 );
 ```
