@@ -50,7 +50,11 @@ class JobQueueEventBus extends JobQueue {
 		}
 
 		// Sign the event with mediawiki secret key
-		$event['mediawiki_signature'] = self::getEventSignature( $event );
+		$serialized_event = EventBus::serializeEvents( $event );
+		if ( is_null( $serialized_event ) ) {
+			return null;
+		}
+		$event['mediawiki_signature'] = self::getEventSignature( $serialized_event );
 
 		return $event;
 	}
@@ -58,12 +62,12 @@ class JobQueueEventBus extends JobQueue {
 	/**
 	 * Creates a cryptographic signature for the event
 	 *
-	 * @param array $event the event to sign
+	 * @param string $event the serialized event to sign
 	 * @return string
 	 */
 	private static function getEventSignature( $event ) {
 		$secret = MediaWikiServices::getInstance()->getMainConfig()->get( 'SecretKey' );
-		return hash( 'sha256', JWT::encode( $event, $secret ) );
+		return hash( 'sha256', JWT::sign( $event, $secret ) );
 	}
 
 	/**
@@ -131,6 +135,9 @@ class JobQueueEventBus extends JobQueue {
 		$events = [];
 		foreach ( $jobs as $job ) {
 			$item = $this->createJobEvent( $job );
+			if ( is_null( $item ) ) {
+				continue;
+			}
 			// hash identifier => de-duplicate
 			if ( isset( $item['sha1'] ) ) {
 				$events[$item['sha1']] = $item;
