@@ -46,7 +46,7 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 			$attrs['parsedcomment'] = Linker::formatComment( $attrs['comment'], $rc->getTitle() );
 		}
 
-		$event = EventBus::createEvent(
+		$event = EventFactory::createEvent(
 			EventBus::getArticleURL( $rc->getTitle() ),
 			self::TOPIC,
 			$attrs
