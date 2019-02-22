@@ -64,12 +64,12 @@ class EventBusHooks {
 	 */
 	private static function getUserBlocksChangeAttributes( Block $block ) {
 		$blockAttrs = [
-			# mHideName is sometimes a string/int like '0'.
+			# Block properties are sometimes a string/int like '0'.
 			# Cast to int then to bool to make sure it is a proper bool.
 			'name'           => (bool)(int)$block->mHideName,
-			'email'          => (bool)$block->prevents( 'sendemail' ),
-			'user_talk'      => (bool)$block->prevents( 'editownusertalk' ),
-			'account_create' => (bool)$block->prevents( 'createaccount' ),
+			'email'          => (bool)(int)$block->isEmailBlocked(),
+			'user_talk'      => !(bool)(int)$block->isUsertalkEditAllowed(),
+			'account_create' => (bool)(int)$block->isCreateAccountBlocked(),
 		];
 		if ( $block->getExpiry() != 'infinity' ) {
 			$blockAttrs['expiry_dt'] = $block->getExpiry();
