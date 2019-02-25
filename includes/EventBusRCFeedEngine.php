@@ -29,23 +29,26 @@ class EventBusRCFeedEngine extends FormattedRCFeed {
 	/**
 	 * @param array $feed is expected to contain 'eventServiceName', which will
 	 * 					  be looked up by EventBus in wgEventServices.
-	 *                    If not given, the value of wgEventServiceUrl will be used
-	 * 					  to configure the Event Service endpoint.
 	 * @param string|array $line to send
 	 * @return bool Success
 	 *
 	 * @see RCFeedEngine::send
 	 */
 	public function send( array $feed, $line ) {
-		DeferredUpdates::addCallableUpdate(
-			function () use ( $feed, $line ) {
-				// construct EventBus config from RCFeed config eventServiceName config,
-				// or wgEventServiceUrl if eventServiceName is not specified.
-				$config = $feed;
-				$eventServiceName = array_key_exists( 'eventServiceName', $config ) ?
-					$config['eventServiceName'] : null;
+		// $feed will contain the RCFeed config and eventServiceName
+		// should match an entry in the wgEventServices config.
+		if ( !array_key_exists( 'eventServiceName', $feed ) ) {
+			EventBus::logger()->error(
+				'Must set \'eventServiceName\' in RCFeeds configuration to ' .
+				'use EventBusRCFeedEngine.'
+			);
+			return false;
+		}
 
-				EventBus::getInstance( $eventServiceName )->send( $line );
+		$eventServiceName = $feed['eventServiceName'];
+		DeferredUpdates::addCallableUpdate(
+			function () use ( $eventServiceName, $line ) {
+				return EventBus::getInstance( $eventServiceName )->send( $line );
 			}
 		);
 		return true;

@@ -51,7 +51,7 @@ class EventBusHooks {
 		);
 
 		DeferredUpdates::addCallableUpdate( function () use ( $event ) {
-			EventBus::getInstance()->send( [ $event ] );
+			EventBus::getInstance( 'eventbus' )->send( [ $event ] );
 		} );
 	}
 
@@ -137,7 +137,7 @@ class EventBusHooks {
 
 		DeferredUpdates::addCallableUpdate(
 			function () use ( $events ) {
-				EventBus::getInstance()->send( $events );
+				EventBus::getInstance( 'eventbus' )->send( $events );
 			}
 		);
 	}
@@ -203,7 +203,7 @@ class EventBusHooks {
 		);
 
 		DeferredUpdates::addCallableUpdate( function () use ( $events ) {
-			EventBus::getInstance()->send( $events );
+			EventBus::getInstance( 'eventbus' )->send( $events );
 		} );
 	}
 
@@ -229,7 +229,7 @@ class EventBusHooks {
 		$reason,
 		Revision $newRevision
 	) {
-		$eventBus = EventBus::getInstance();
+		$eventBus = EventBus::getInstance( 'eventbus' );
 		$events = [ $eventBus->getFactory()->createPageMoveEvent(
 			$oldTitle,
 			$newTitle,
@@ -261,7 +261,7 @@ class EventBusHooks {
 		array $revIds,
 		array $visibilityChangeMap
 	) {
-		$eventBus = EventBus::getInstance();
+		$eventBus = EventBus::getInstance( 'eventbus' );
 		$events = [];
 		$performer = RequestContext::getMain()->getUser();
 		$performer->loadFromId();
@@ -363,14 +363,14 @@ class EventBusHooks {
 			return;
 		}
 
-		$events[] = EventBus::getInstance()->getFactory()->createPageCreateEvent(
+		$events[] = EventBus::getInstance( 'eventbus' )->getFactory()->createPageCreateEvent(
 			$revision->getRevisionRecord(),
 			$revision->getTitle()
 		);
 
 		DeferredUpdates::addCallableUpdate(
 			function () use ( $events ) {
-				EventBus::getInstance()->send( $events );
+				EventBus::getInstance( 'eventbus' )->send( $events );
 			}
 		);
 	}
@@ -440,7 +440,7 @@ class EventBusHooks {
 			$parentId = null;
 		}
 
-		$events[] = EventBus::getInstance()->getFactory()->createRevisionCreateEvent(
+		$events[] = EventBus::getInstance( 'eventbus' )->getFactory()->createRevisionCreateEvent(
 			$revisionRecord,
 			$parentId,
 			$revContentChanged
@@ -448,7 +448,7 @@ class EventBusHooks {
 
 		DeferredUpdates::addCallableUpdate(
 			function () use ( $events ) {
-				EventBus::getInstance()->send( $events );
+				EventBus::getInstance( 'eventbus' )->send( $events );
 			}
 		);
 	}
@@ -520,7 +520,7 @@ class EventBusHooks {
 
 		DeferredUpdates::addCallableUpdate(
 			function () use ( $events ) {
-				EventBus::getInstance()->send( $events );
+				EventBus::getInstance( 'eventbus' )->send( $events );
 			}
 		);
 	}
@@ -571,8 +571,10 @@ class EventBusHooks {
 		}
 		$pageId = $linksUpdate->mId;
 
+		$eventFactory = EventBus::getInstance( 'eventbus' )->getFactory();
+
 		if ( !$arePropsEmpty ) {
-			$propEvents[] = EventBus::getInstance()->getFactory()->createPagePropertiesChangeEvent(
+			$propEvents[] = $eventFactory->createPagePropertiesChangeEvent(
 				$title,
 				$addedProps,
 				$removedProps,
@@ -583,13 +585,13 @@ class EventBusHooks {
 
 			DeferredUpdates::addCallableUpdate(
 				function () use ( $propEvents ) {
-					EventBus::getInstance()->send( $propEvents );
+					EventBus::getInstance( 'eventbus' )->send( $propEvents );
 				}
 			);
 		}
 
 		if ( !$areLinksEmpty ) {
-			$linkEvents[] = EventBus::getInstance()->getFactory()->createPageLinksChangeEvent(
+			$linkEvents[] = $eventFactory->createPageLinksChangeEvent(
 				$title,
 				$addedLinks,
 				$addedExternalLinks,
@@ -601,8 +603,9 @@ class EventBusHooks {
 			);
 
 			DeferredUpdates::addCallableUpdate(
+
 				function () use ( $linkEvents ) {
-					EventBus::getInstance()->send( $linkEvents );
+					EventBus::getInstance( 'eventbus' )->send( $linkEvents );
 				}
 			);
 		}
@@ -654,7 +657,7 @@ class EventBusHooks {
 
 		DeferredUpdates::addCallableUpdate(
 			function () use ( $events ) {
-				EventBus::getInstance()->send( $events );
+				EventBus::getInstance( 'eventbus' )->send( $events );
 			}
 		);
 	}
@@ -697,7 +700,7 @@ class EventBusHooks {
 			return;
 		}
 
-		$eventBus = EventBus::getInstance();
+		$eventBus = EventBus::getInstance( 'eventbus' );
 		$events = [ $eventBus->getFactory()->createRevisionTagsChangeEvent(
 			$revisionRecord,
 			$prevTags,
