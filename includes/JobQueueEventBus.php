@@ -153,7 +153,8 @@ class JobQueueEventBus extends JobQueue {
 
 		DeferredUpdates::addCallableUpdate(
 			function () use ( $events ) {
-				EventBus::getInstance()->send( array_values( $events ), EventBus::TYPE_JOB );
+				EventBus::getInstance( 'eventbus' )
+					->send( array_values( $events ), EventBus::TYPE_JOB );
 			}
 		);
 	}
