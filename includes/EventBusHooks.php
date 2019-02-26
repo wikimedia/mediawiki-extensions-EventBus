@@ -22,6 +22,7 @@
  * @author Eric Evans, Andrew Otto
  */
 
+use MediaWiki\Linker\LinkTarget;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Revision\RevisionLookup;
 
