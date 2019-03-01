@@ -29,7 +29,7 @@
 		"EventBus": "includes/EventBus.php",
 		"EventBusHooks": "includes/EventBusHooks.php",
 		"EventFactory": "includes/EventFactory.php",
-	  	"EventBusMonologHandler": "includes/adapters/monolog/EventBusMonologHandler.php",
+		"EventBusMonologHandler": "includes/adapters/monolog/EventBusMonologHandler.php",
 		"EventBusRCFeedEngine": "includes/EventBusRCFeedEngine.php",
 		"EventBusRCFeedFormatter": "includes/EventBusRCFeedFormatter.php",
 		"JobQueueEventBus": "includes/JobQueueEventBus.php",
