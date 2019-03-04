@@ -36,17 +36,25 @@ class EventBusMonologHandler extends AbstractProcessingHandler {
 	}
 
 	/**
-	 * Writes the record down to the log of the implementing handler
+	 * Assumes that $record['context'] contains the event to send via EventBus.
 	 *
 	 * @param array $record
 	 * @return void
 	 */
 	protected function write( array $record ) {
-		$events[] = $record;
+		// Use the log record context as formatted as the event data.
+		$event = $record['context'];
+
+		// wfDebugLog() adds a field called 'private' to the context
+		// that does not belong in the event. Delete the 'private' field here and
+		// then let EventBus serialize the log context to JSON string and send it.
+		// NOTE: we could create a custom formatter for EventBus, but all
+		// it would do is exactly this.
+		unset( $event['private'] );
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $events ) {
-				$this->eventBus->send( $events );
+			function () use ( $event ) {
+				$this->eventBus->send( [ $event ] );
 			}
 		);
 	}
