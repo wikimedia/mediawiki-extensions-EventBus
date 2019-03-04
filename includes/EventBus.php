@@ -300,7 +300,7 @@ class EventBus {
 	 * before attempting to log a message.
 	 * @return LoggerInterface
 	 */
-	private static function logger() {
+	public static function logger() {
 		if ( !self::$logger ) {
 			self::$logger = LoggerFactory::getInstance( 'EventBus' );
 		}
