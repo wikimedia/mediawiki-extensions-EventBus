@@ -76,7 +76,7 @@ class JobExecutor {
 				$this->logger()->warning( 'Non-boolean result returned by job: ' . $job->toString(),
 					[
 						'job_type' => $job->getType(),
-						'job_result' => isset( $status ) ? $status : 'unset'
+						'job_result' => $status ?? 'unset'
 					] );
 				// For backwards compatibility with old job executor we should set the status
 				// to true here, as before anything other then boolean false was considered a success.
