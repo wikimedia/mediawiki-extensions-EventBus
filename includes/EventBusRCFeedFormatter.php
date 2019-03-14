@@ -19,15 +19,20 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 	 * Will modify the original event passed in
 	 *
 	 * @param array $event the event to modify.
+	 * @return array
 	 */
-	private static function removeNulls( &$event ) {
+	private static function removeNulls( $event ) {
+		if ( !is_array( $event ) ) {
+			return $event;
+		}
 		foreach ( $event as $key => $value ) {
 			if ( is_null( $value ) ) {
 				unset( $event[$key] );
 			} elseif ( is_array( $value ) ) {
-				self::removeNulls( $value );
+				$event[$key] = self::removeNulls( $value );
 			}
 		}
+		return $event;
 	}
 
 	/**
@@ -57,8 +62,7 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 		if ( array_key_exists( 'timestamp', $event ) ) {
 			$event['meta']['dt'] = gmdate( 'c', $event['timestamp'] );
 		}
-		self::removeNulls( $event );
-		$events = [ $event ];
+		$events = [ self::removeNulls( $event ) ];
 
 		return EventBus::serializeEvents( $events );
 	}
