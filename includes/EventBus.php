@@ -99,7 +99,7 @@ class EventBus {
 				$this->allowedEventTypes = self::TYPE_ALL;
 				break;
 			default:
-				self::$logger->log( 'warn',
+				self::logger()->log( 'warn',
 					'Unknown $wgEnableEventBus config parameter value ' . $wgEnableEventBus );
 				$this->allowedEventTypes = self::TYPE_ALL;
 		}
@@ -155,17 +155,12 @@ class EventBus {
 		// 400: no events are accepted
 		if ( $res['code'] != 201 ) {
 			$message = empty( $res['error'] ) ? $res['code'] . ': ' . $res['reason'] : $res['error'];
-			// In case the event posted was too big we don't want to log all the request body
-			// as it contains all
-			$context = [
-				'events'           => $events,
-				'service_response' => $res
-			];
 			// Limit the maximum size of the logged context to 8 kilobytes as that's where logstash
 			// truncates the JSON anyway
-			if ( strlen( $body ) > 8192 ) {
-				$context['events'] = array_column( $events, 'meta' );
-			}
+			$context = [
+				'raw_events'       => self::prepareEventsForLogging( $body ),
+				'service_response' => $res
+			];
 			self::logger()->error( "Unable to deliver all events: ${message}", $context );
 		}
 	}
@@ -185,7 +180,6 @@ class EventBus {
 			if ( empty( $serializedEvents ) ) {
 				$context = [
 					'exception' => new Exception(),
-					'events' => $events,
 					'json_last_error' => json_last_error_msg()
 				];
 				self::logger()->error(
@@ -198,9 +192,6 @@ class EventBus {
 		} catch ( Exception $exception ) {
 			$context = [
 				'exception' => $exception,
-				// The exception during serializing mostly happen when events are too big,
-				// so we will not be able to log a complete thing, so truncate to only log meta
-				'events' => array_column( $events, 'meta' ),
 				'json_last_error' => json_last_error_msg()
 			];
 			self::logger()->error(
@@ -209,6 +200,25 @@ class EventBus {
 			);
 			return null;
 		}
+	}
+
+	/**
+	 * Prepares events for logging - serializes if needed, limits the size
+	 * of the serialized event to 8kb.
+	 *
+	 * @param string|array $events
+	 * @return string|null
+	 */
+	private static function prepareEventsForLogging( $events ) {
+		if ( is_array( $events ) ) {
+			$events = self::serializeEvents( $events );
+		}
+
+		if ( is_null( $events ) ) {
+			return null;
+		}
+
+		return strlen( $events ) > 8192 ? substr( $events, 0, 8192 ) : $events;
 	}
 
 	/**
@@ -267,7 +277,7 @@ class EventBus {
 				// Only log the first appearance of non-scalar property per event as jobs
 				// might contain hundreds of properties and we do not want to log everything.
 				self::logger()->error( 'Non-scalar value found in the event', [
-					'events' => self::serializeEvents( [ $originalEvent ] ),
+					'raw_events' => self::prepareEventsForLogging( [ $originalEvent ] ),
 					'prop_name' => $p,
 					'prop_val_type' => get_class( $v )
 				] );
