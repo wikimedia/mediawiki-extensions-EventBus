@@ -61,6 +61,13 @@ class EventFactoryTest extends MediaWikiTestCase {
 		self::$eventFactory = null;
 	}
 
+	protected function setUp() {
+		parent::setUp();
+		$this->setMwGlobals( [
+			'wgArticlePath' => '/wiki/$1'
+		] );
+	}
+
 	/**
 	 * Creates a new instance of RevisionRecord with mock values.
 	 * @param array $rowOverrides
@@ -84,8 +91,8 @@ class EventFactoryTest extends MediaWikiTestCase {
 			[],
 			[],
 			[
-				[ 'link' => '/index.php/Added_link_1', 'external' => false ],
-				[ 'link' => '/index.php/Added_link_2', 'external' => false ],
+				[ 'link' => '/wiki/Added_link_1', 'external' => false ],
+				[ 'link' => '/wiki/Added_link_2', 'external' => false ],
 			],
 			[]
 		];
@@ -95,8 +102,8 @@ class EventFactoryTest extends MediaWikiTestCase {
 			[],
 			[],
 			[
-				[ 'link' => '/index.php/Added_link_1', 'external' => false ],
-				[ 'link' => '/index.php/Added_link_2', 'external' => false ],
+				[ 'link' => '/wiki/Added_link_1', 'external' => false ],
+				[ 'link' => '/wiki/Added_link_2', 'external' => false ],
 				[ 'link' => 'added_ext_link_1', 'external' => true ],
 				[ 'link' => 'added_ext_link_2', 'external' => true ]
 			],
@@ -122,8 +129,8 @@ class EventFactoryTest extends MediaWikiTestCase {
 			[],
 			[],
 			[
-				[ 'link' => '/index.php/Removed_link_1', 'external' => false ],
-				[ 'link' => '/index.php/Removed_link_2', 'external' => false ],
+				[ 'link' => '/wiki/Removed_link_1', 'external' => false ],
+				[ 'link' => '/wiki/Removed_link_2', 'external' => false ],
 			]
 		];
 		yield 'Removed external links only' => [
@@ -144,8 +151,8 @@ class EventFactoryTest extends MediaWikiTestCase {
 			[ 'remove_ext_link_1', 'remove_ext_link_2' ],
 			[],
 			[
-				[ 'link' => '/index.php/Removed_link_1', 'external' => false ],
-				[ 'link' => '/index.php/Removed_link_2', 'external' => false ],
+				[ 'link' => '/wiki/Removed_link_1', 'external' => false ],
+				[ 'link' => '/wiki/Removed_link_2', 'external' => false ],
 				[ 'link' => 'remove_ext_link_1', 'external' => true ],
 				[ 'link' => 'remove_ext_link_2', 'external' => true ]
 			]
@@ -159,14 +166,14 @@ class EventFactoryTest extends MediaWikiTestCase {
 			[ Title::newFromText( 'removed_link_1? =' ), Title::newFromText( 'removed_link_2' ) ],
 			[ 'remove_ext_link_1', 'remove_ext_link_2' ],
 			[
-				[ 'link' => '/index.php/Added_link_1%253F_%253D', 'external' => false ],
-				[ 'link' => '/index.php/Added_link_2', 'external' => false ],
+				[ 'link' => '/wiki/Added_link_1%253F_%253D', 'external' => false ],
+				[ 'link' => '/wiki/Added_link_2', 'external' => false ],
 				[ 'link' => 'added_ext_link_1', 'external' => true ],
 				[ 'link' => 'added_ext_link_2', 'external' => true ]
 			],
 			[
-				[ 'link' => '/index.php/Removed_link_1%253F_%253D', 'external' => false ],
-				[ 'link' => '/index.php/Removed_link_2', 'external' => false ],
+				[ 'link' => '/wiki/Removed_link_1%253F_%253D', 'external' => false ],
+				[ 'link' => '/wiki/Removed_link_2', 'external' => false ],
 				[ 'link' => 'remove_ext_link_1', 'external' => true ],
 				[ 'link' => 'remove_ext_link_2', 'external' => true ]
 			]
