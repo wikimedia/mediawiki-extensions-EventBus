@@ -97,7 +97,7 @@ class SpecialRunSingleJob extends UnlistedSpecialPage {
 			if ( !is_string( $value ) ) {
 				continue;
 			}
-			if ( preg_match( '/^data:application/octet-stream;base64,([\s\S]+)$/', $value, $match ) ) {
+			if ( preg_match( '/^data:application\/octet-stream;base64,([\s\S]+)$/', $value, $match ) ) {
 				$value = base64_decode( $match[1], true );
 				if ( $value === false ) {
 					wfHttpError(
