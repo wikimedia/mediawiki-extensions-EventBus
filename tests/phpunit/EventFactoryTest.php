@@ -27,8 +27,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 			'comment' => 'testing',
 			'content' => new WikitextContent( 'Some Content' ),
 		];
-		array_merge( $row, $rowOverrides );
-		return $row;
+		return array_merge( $row, $rowOverrides );
 	}
 
 	private function assertPageProperties( $event, $rowOverrides = [] ) {
@@ -544,9 +543,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	public function testRevisionCreationEvent() {
 		$event = self::$eventFactory->createRevisionCreateEvent(
-			$this->createMutableRevisionFromArray(),
-			null,
-			true
+			$this->createMutableRevisionFromArray()
 		);
 
 		$this->assertPageProperties( $event );
@@ -554,9 +551,9 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	public function testRevisionCreationEventDoesNotContainRevParentId() {
 		$event = self::$eventFactory->createRevisionCreateEvent(
-			$this->createMutableRevisionFromArray(),
-			null,
-			true
+			$this->createMutableRevisionFromArray( [
+				'parent_id' => null
+			] )
 		);
 
 		$this->assertFalse(
@@ -567,9 +564,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	public function testRevisionCreationEventContainsRevParentId() {
 		$event = self::$eventFactory->createRevisionCreateEvent(
-			$this->createMutableRevisionFromArray(),
-			1,
-			true
+			$this->createMutableRevisionFromArray()
 		);
 
 		$this->assertArrayHasKey( 'rev_parent_id', $event, 'rev_parent_id should be present' );
@@ -577,16 +572,14 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	public function testRevisionCreationEventContentChangeExists() {
 		$event = self::$eventFactory->createRevisionCreateEvent(
-			$this->createMutableRevisionFromArray(),
-			null,
-			false
+			$this->createMutableRevisionFromArray()
 		);
 
 		$this->assertTrue(
 			array_key_exists( 'rev_content_changed', $event ),
 			'rev_content_changed should be present'
 		);
-		$this->assertFalse( $event['rev_content_changed'], 'rev_content_changed should be false' );
+		$this->assertTrue( $event['rev_content_changed'], 'rev_content_changed should be true' );
 	}
 
 	public function testCreateEvent() {
@@ -656,6 +649,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 			0,
 			Title::newFromText( 'Test' )
 		);
+		$revisionAttrs = EventFactory::createRevisionRecordAttrs( $revisionRecord );
 		$revisionAttrs = EventFactory::createRevisionRecordAttrs( $revisionRecord );
 		$this->assertNotNull( $revisionAttrs );
 		$this->assertEquals( $revisionAttrs['database'], $wgDBname );

@@ -174,6 +174,13 @@ class EventFactory {
 			$attrs['parsedcomment'] = Linker::formatComment( $revision->getComment()->text );
 		}
 
+		// The rev_parent_id attribute is not required, but when supplied
+		// must have a minimum value of 1, so omit it entirely when there is no
+		// parent revision (i.e. page creation).
+		if ( !is_null( $revision->getParentId() ) && $revision->getParentId() > 0 ) {
+			$attrs['rev_parent_id'] = $revision->getParentId();
+		}
+
 		return $attrs;
 	}
 
@@ -338,14 +345,6 @@ class EventFactory {
 			'visibility' => self::bitsToVisibilityObject( $visibilityChanges['oldBits'] )
 		];
 
-		// The parent_revision_id attribute is not required, but when supplied
-		// must have a minimum value of 1, so omit it entirely when there is no
-		// parent revision (i.e. page creation).
-		$parentId = $revisionRecord->getParentId();
-		if ( !is_null( $parentId ) && $parentId > 0 ) {
-			$attrs['rev_parent_id'] = $parentId;
-		}
-
 		return self::createEvent(
 			EventBus::getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
 			'mediawiki.revision-visibility-change',
@@ -371,20 +370,25 @@ class EventFactory {
 
 	/**
 	 * @param RevisionRecord $revisionRecord the revision record affected by the change.
-	 * @param int|null $parentId Id of prarent revision
-	 * @param bool $revContentChanged indicates whether the content changed between revisions.
 	 * @return array
 	 */
 	public function createRevisionCreateEvent(
-		RevisionRecord $revisionRecord,
-		$parentId = null,
-		$revContentChanged
+		RevisionRecord $revisionRecord
 	) {
 		$attrs = self::createRevisionRecordAttrs( $revisionRecord );
 
-		$attrs['rev_content_changed'] = $revContentChanged;
-		if ( !is_null( $parentId ) ) {
-			$attrs['rev_parent_id'] = $parentId;
+		// The parent_revision_id attribute is not required, but when supplied
+		// must have a minimum value of 1, so omit it entirely when there is no
+		// parent revision (i.e. page creation).
+		$parentId = $revisionRecord->getParentId();
+		if ( !is_null( $parentId ) && $parentId !== 0 ) {
+			$parentRev = MediaWikiServices::getInstance()
+				->getRevisionLookup()
+				->getRevisionById( $parentId );
+			if ( !is_null( $parentRev ) ) {
+				$attrs['rev_content_changed'] =
+					$parentRev->getSha1() !== $revisionRecord->getSha1();
+			}
 		}
 
 		return self::createEvent(

@@ -424,27 +424,9 @@ class EventBusHooks {
 			);
 			return;
 		}
-		$revisionRecord = $revision->getRevisionRecord();
-
-		// Assume that the content have changed by default
-		$revContentChanged = true;
-		// The parent_revision_id attribute is not required, but when supplied
-		// must have a minimum value of 1, so omit it entirely when there is no
-		// parent revision (i.e. page creation).
-		$parentId = $revisionRecord->getParentId();
-		if ( !is_null( $parentId ) && $parentId !== 0 ) {
-			$parentRev = self::getRevisionLookup()->getRevisionById( $parentId );
-			if ( !is_null( $parentRev ) ) {
-				$revContentChanged = $parentRev->getSha1() !== $revisionRecord->getSha1();
-			}
-		} else {
-			$parentId = null;
-		}
 
 		$events[] = EventBus::getInstance( 'eventbus' )->getFactory()->createRevisionCreateEvent(
-			$revisionRecord,
-			$parentId,
-			$revContentChanged
+			$revision->getRevisionRecord()
 		);
 
 		DeferredUpdates::addCallableUpdate(
