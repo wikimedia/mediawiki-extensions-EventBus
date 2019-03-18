@@ -59,18 +59,6 @@ class EventFactory {
 	}
 
 	/**
-	 * Returns the X-Request-ID header, if set, otherwise a newly generated
-	 * type 4 UUID string.
-	 *
-	 * @return string
-	 */
-	private static function getRequestId() {
-		$context = RequestContext::getMain();
-		$xreqid = $context->getRequest()->getHeader( 'x-request-id' );
-		return $xreqid ?: UIDGenerator::newUUIDv4();
-	}
-
-	/**
 	 * Creates a new type 1 UUID string.
 	 *
 	 * @return string
@@ -126,7 +114,7 @@ class EventFactory {
 			'meta' => [
 				'uri'        => $uri,
 				'topic'      => $topic,
-				'request_id' => self::getRequestId(),
+				'request_id' => WebRequest::getRequestId(),
 				'id'         => self::newId(),
 				'dt'         => gmdate( 'c' ),
 				'domain'     => $domain,
