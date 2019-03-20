@@ -151,12 +151,12 @@ class JobQueueEventBus extends JobQueue {
 			return;
 		}
 
-		DeferredUpdates::addCallableUpdate(
-			function () use ( $events ) {
-				EventBus::getInstance( 'eventbus' )
-					->send( array_values( $events ), EventBus::TYPE_JOB );
-			}
-		);
+		$bus = EventBus::getInstance( 'eventbus' );
+		$result = $bus->send( array_values( $events ), EventBus::TYPE_JOB );
+
+		if ( is_string( $result ) ) {
+			throw new JobQueueError( "Could not enqueue jobs: $result" );
+		}
 	}
 
 	/**

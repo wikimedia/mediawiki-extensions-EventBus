@@ -110,16 +110,17 @@ class EventBus {
 	 *
 	 * @param array|string $events the events to send.
 	 * @param int $type the type of the event being sent.
+	 * @return bool|string True on success or an error string on failure
 	 */
 	public function send( $events, $type = self::TYPE_EVENT ) {
 		if ( !$this->shouldSendEvent( $type ) ) {
-			return;
+			return "Events of type '$type' are not enqueueable";
 		}
 		if ( empty( $events ) ) {
 			// Logstash doesn't like the args, because they could be of various types
 			$context = [ 'exception' => new Exception() ];
 			self::logger()->error( 'Must call send with at least 1 event. Aborting send.', $context );
-			return;
+			return "Provided event list is empty";
 		}
 
 		// If we already have a JSON string of events, just use it as the body.
@@ -132,7 +133,7 @@ class EventBus {
 			// If not $body, then something when wrong.
 			// serializeEvents has already logged, so we can just return.
 			if ( !$body ) {
-				return;
+				return "Unable to serialize events";
 			}
 		}
 
@@ -162,7 +163,11 @@ class EventBus {
 				'service_response' => $res
 			];
 			self::logger()->error( "Unable to deliver all events: ${message}", $context );
+
+			return "Unable to deliver all events: $message";
 		}
+
+		return true;
 	}
 
 	// == static helper functions below ==
