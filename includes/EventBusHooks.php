@@ -475,7 +475,7 @@ class EventBusHooks {
 		$attrs['user_text'] = (string)$blockTarget;
 
 		// if the blockTarget is a user, then set user_id.
-		if ( get_class( $blockTarget ) == 'User' ) {
+		if ( $blockTarget instanceof User ) {
 			// set user_id if the target User has a user_id
 			if ( $blockTarget->getId() ) {
 				$attrs['user_id'] = $blockTarget->getId();
