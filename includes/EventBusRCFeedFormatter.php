@@ -7,13 +7,6 @@
  * @extends MachineReadableRCFeedFormatter
  */
 class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
-
-	/**
-	 * @const string topic that will be set as meta.topic for a recentchange
-	 *               event that is POSTed to the EventBus service.
-	 */
-	const TOPIC = 'mediawiki.recentchange';
-
 	/**
 	 * Removes properties which values are 'null' from the event.
 	 * Will modify the original event passed in
@@ -47,24 +40,10 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 	public function getLine( array $feed, RecentChange $rc, $actionComment ) {
 		$attrs = parent::getLine( $feed, $rc, $actionComment );
 
-		if ( isset( $attrs['comment'] ) ) {
-			$attrs['parsedcomment'] = Linker::formatComment( $attrs['comment'], $rc->getTitle() );
-		}
+		$eventFactory = EventBus::getInstance( 'eventbus' )->getFactory();
+		$event = $eventFactory->createRecentChangeEvent( $rc->getTitle(), $attrs );
 
-		$event = EventFactory::createEvent(
-			EventBus::getArticleURL( $rc->getTitle() ),
-			self::TOPIC,
-			$attrs
-		);
-
-		// If timestamp exists on the recentchange event (it should),
-		// then use it as the meta.dt event datetime.
-		if ( array_key_exists( 'timestamp', $event ) ) {
-			$event['meta']['dt'] = gmdate( 'c', $event['timestamp'] );
-		}
-		$events = [ self::removeNulls( $event ) ];
-
-		return EventBus::serializeEvents( $events );
+		return EventBus::serializeEvents( [ self::removeNulls( $event ) ] );
 	}
 
 	/**

@@ -1,5 +1,6 @@
 <?php
 
+use Firebase\JWT\JWT;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Revision\RevisionRecord;
@@ -9,6 +10,44 @@ use MediaWiki\Revision\SuppressedDataException;
  * Used to create events of particular types.
  */
 class EventFactory {
+	/**
+	 * Return a title formatter instance
+	 * @return object
+	 */
+	private static function getTitleFormatter() {
+		return MediaWikiServices::getInstance()->getTitleFormatter();
+	}
+
+	/**
+	 * Creates a full user page path
+	 *
+	 * @param string $userName userName
+	 * @return string
+	 */
+	private static function getUserPageURL( $userName ) {
+		global $wgCanonicalServer, $wgArticlePath, $wgContLang;
+		$prefixedUserURL = $wgContLang->getNsText( NS_USER ) . ':' . $userName;
+		$encodedUserURL = wfUrlencode( strtr( $prefixedUserURL, ' ', '_' ) );
+		// The $wgArticlePath contains '$1' string where the article title should appear.
+		return $wgCanonicalServer . str_replace( '$1', $encodedUserURL, $wgArticlePath );
+	}
+
+	/**
+	 * Get domain name
+	 *
+	 * @param bool $use_wiki_name	use Wiki display name if it exists
+	 * @return string
+	 */
+	private static function getDomain( $use_wiki_name ) {
+		global $wgServerName;
+
+		$wikiRef = null;
+		if ( $use_wiki_name ) {
+			$wikiRef = WikiMap::getWiki( false );
+		}
+		return ( is_null( $wikiRef ) ? $wgServerName : $wikiRef->getDisplayName() );
+	}
+
 	/**
 	 * Converts a revision visibility hidden bitfield to an array with keys
 	 * of each of the possible visibility settings name mapped to a boolean.
@@ -48,12 +87,42 @@ class EventFactory {
 	}
 
 	/**
+	 * Get the revision Id from either RevisionRecord or Revision
+	 * @param Revision|RevisionRecord $rev
+	 * @return int|null
+	 */
+	private static function getRevisionId( $rev ) {
+		if ( $rev instanceof RevisionRecord ) {
+			return $rev->getId();
+		} elseif ( $rev instanceof Revision ) {
+			$record = $rev->getRevisionRecord();
+			return $record ?: $record->getId();
+		}
+
+		return null;
+	}
+
+	/**
 	 * Creates a new type 1 UUID string.
 	 *
 	 * @return string
 	 */
 	private static function newId() {
 		return UIDGenerator::newUUIDv1();
+	}
+
+	/**
+	 * Creates a full article path
+	 *
+	 * @param LinkTarget $target article title object
+	 * @return string
+	 */
+	private static function getArticleURL( $target ) {
+		global $wgCanonicalServer, $wgArticlePath;
+
+		$titleURL = wfUrlencode( self::getTitleFormatter()->getPrefixedDBkey( $target ) );
+		// The $wgArticlePath contains '$1' string where the article title should appear.
+		return $wgCanonicalServer . str_replace( '$1', $titleURL, $wgArticlePath );
 	}
 
 	/**
@@ -66,24 +135,13 @@ class EventFactory {
 	 *
 	 * @return array $attrs + meta subobject
 	 */
-	public static function createEvent(
+	private static function createEvent(
 		$uri,
 		$topic,
 		array $attrs,
 		$wiki = false
 	) {
-		global $wgServerName;
-
-		if ( $wiki ) {
-			$wikiRef = WikiMap::getWiki( $wiki );
-			if ( is_null( $wikiRef ) ) {
-				$domain = $wgServerName;
-			} else {
-				$domain = $wikiRef->getDisplayName();
-			}
-		} else {
-			$domain = $wgServerName;
-		}
+		$domain = self::getDomain( $wiki );
 
 		$event = [
 			'meta' => [
@@ -107,21 +165,20 @@ class EventFactory {
 	 * @param User|null $performer
 	 * @return array
 	 */
-	public static function createRevisionRecordAttrs(
+	private static function createRevisionRecordAttrs(
 		RevisionRecord $revision,
 		User $performer = null
 	) {
 		global $wgDBname;
 
 		$linkTarget = $revision->getPageAsLinkTarget();
-		$titleFormatter = MediaWikiServices::getInstance()->getTitleFormatter();
 		$attrs = [
 			// Common Mediawiki entity fields
 			'database'           => $wgDBname,
 
 			// revision entity fields
 			'page_id'            => $revision->getPageId(),
-			'page_title'         => $titleFormatter->getPrefixedDBkey( $linkTarget ),
+			'page_title'         => self::getTitleFormatter()->getPrefixedDBkey( $linkTarget ),
 			'page_namespace'     => $linkTarget->getNamespace(),
 			'rev_id'             => $revision->getId(),
 			'rev_timestamp'      => self::createDTAttr( $revision->getTimestamp() ),
@@ -191,7 +248,7 @@ class EventFactory {
 	 * @param User $user
 	 * @return array
 	 */
-	public static function createPerformerAttrs( User $user ) {
+	private static function createPerformerAttrs( User $user ) {
 		$performerAttrs = [
 			'user_text'   => $user->getName(),
 			'user_groups' => $user->getEffectiveGroups(),
@@ -269,6 +326,160 @@ class EventFactory {
 	}
 
 	/**
+	 * Given a Block $block, returns an array suitable for use
+	 * as a 'blocks' object in the user/blocks-change event schema.
+	 *
+	 * @param Block $block
+	 * @return array
+	 */
+	private static function getUserBlocksChangeAttributes( Block $block ) {
+		$blockAttrs = [
+			# Block properties are sometimes a string/int like '0'.
+			# Cast to int then to bool to make sure it is a proper bool.
+			'name'           => (bool)(int)$block->mHideName,
+			'email'          => (bool)(int)$block->isEmailBlocked(),
+			'user_talk'      => !(bool)(int)$block->isUsertalkEditAllowed(),
+			'account_create' => (bool)(int)$block->isCreateAccountBlocked(),
+		];
+		if ( $block->getExpiry() != 'infinity' ) {
+			$blockAttrs['expiry_dt'] = $block->getExpiry();
+		}
+		return $blockAttrs;
+	}
+
+	/**
+	 * Creates a cryptographic signature for the event
+	 *
+	 * @param string $event the serialized event to sign
+	 * @return string
+	 */
+	private static function signEvent( &$event ) {
+		// Sign the event with mediawiki secret key
+		$serialized_event = EventBus::serializeEvents( $event );
+		if ( is_null( $serialized_event ) ) {
+			$event['mediawiki_signature'] = null;
+			return;
+		}
+
+		$signingSecret = MediaWikiServices::getInstance()->getMainConfig()->get( 'SecretKey' );
+		$signature = hash( 'sha256', JWT::sign( $serialized_event, $signingSecret ) );
+		$event['mediawiki_signature'] = $signature;
+	}
+
+	/**
+	 * Create a page delete event message
+	 * @param User $user
+	 * @param int $id
+	 * @param Title $title
+	 * @param bool $is_redirect
+	 * @param int $archivedRevisionCount
+	 * @param RevisionRecord|Revision $headRevision
+	 * @param string $reason
+	 * @return array
+	 */
+	public function createPageDeleteEvent(
+		User $user,
+		$id,
+		Title $title,
+		$is_redirect,
+		$archivedRevisionCount,
+		$headRevision,
+		$reason
+	) {
+		global $wgDBname;
+
+		// Create a mediawiki page delete event.
+		$attrs = [
+			// Common Mediawiki entity fields
+			'database'           => $wgDBname,
+			'performer'          => self::createPerformerAttrs( $user ),
+
+			// page entity fields
+			'page_id'            => $id,
+			'page_title'         => $title->getPrefixedDBkey(),
+			'page_namespace'     => $title->getNamespace(),
+			'page_is_redirect'   => $is_redirect,
+		];
+
+		$headRevisionId = self::getRevisionId( $headRevision );
+		if ( !is_null( $headRevisionId ) ) {
+			$attrs['rev_id'] = $headRevisionId;
+		}
+
+		// page delete specific fields:
+		if ( !is_null( $archivedRevisionCount ) ) {
+			$attrs['rev_count'] = $archivedRevisionCount;
+		}
+
+		if ( !is_null( $reason ) && strlen( $reason ) ) {
+			$attrs['comment'] = $reason;
+			$attrs['parsedcomment'] = Linker::formatComment( $reason, $title );
+		}
+
+		return self::createEvent(
+			self::getArticleURL( $title ),
+			'mediawiki.page-delete',
+			$attrs
+		);
+	}
+
+	/**
+	 * Create a page undelete message
+	 * @param User $performer
+	 * @param Title $title
+	 * @param string $comment
+	 * @param int $oldPageId
+	 * @return array
+	 */
+	public function createPageUndeleteEvent(
+		User $performer,
+		Title $title,
+		$comment,
+		$oldPageId
+	) {
+		global $wgDBname;
+
+		// Create a mediawiki page undelete event.
+		$attrs = [
+			// Common Mediawiki entity fields
+			'database'           => $wgDBname,
+			'performer'          => self::createPerformerAttrs( $performer ),
+
+			// page entity fields
+			'page_id'            => $title->getArticleID(),
+			'page_title'         => $title->getPrefixedDBkey(),
+			'page_namespace'     => $title->getNamespace(),
+			'page_is_redirect'   => $title->isRedirect(),
+			'rev_id'             => $title->getLatestRevID(),
+		];
+
+		// If this page had a different id in the archive table,
+		// then save it as the prior_state page_id.  This will
+		// be the page_id that the page had before it was deleted,
+		// which is the same as the page_id that it had while it was
+		// in the archive table.
+		// Usually page_id will be the same, but there are some historical
+		// edge cases where a new page_id is created as part of an undelete.
+		if ( $oldPageId && $oldPageId != $attrs['page_id'] ) {
+			// page undelete specific fields:
+			$attrs['prior_state'] = [
+				'page_id' => $oldPageId,
+			];
+		}
+
+		if ( !is_null( $comment ) && strlen( $comment ) ) {
+			$attrs['comment'] = $comment;
+			$attrs['parsedcomment'] = Linker::formatComment( $comment, $title );
+		}
+
+		return self::createEvent(
+			self::getArticleURL( $title ),
+			'mediawiki.page-undelete',
+			$attrs
+		);
+	}
+
+	/**
 	 * @param LinkTarget $oldTitle
 	 * @param LinkTarget $newTitle
 	 * @param RevisionRecord $newRevision
@@ -341,9 +552,26 @@ class EventFactory {
 		}
 
 		return self::createEvent(
-			EventBus::getArticleURL( $newTitle ),
+			self::getArticleURL( $newTitle ),
 			'mediawiki.page-move',
 			$attrs
+		);
+	}
+
+	/**
+	 * Create an resource change message
+	 * @param LinkTarget $title
+	 * @param array $tags
+	 * @return array
+	 */
+	public function createResourceChangeEvent(
+		LinkTarget $title,
+		array $tags
+	) {
+		return self::createEvent(
+			self::getArticleURL( $title ),
+			'resource_change',
+			[ 'tags' => $tags ]
 		);
 	}
 
@@ -373,12 +601,10 @@ class EventFactory {
 			array_unique( array_diff( array_merge( $prevTags, $addedTags ), $removedTags ) )
 		);
 		$attrs['tags'] = $newTags;
-		$attrs['prior_state'] = [
-			'tags' => $prevTags
-		];
+		$attrs['prior_state'] = [ 'tags' => $prevTags ];
 
 		return self::createEvent(
-			EventBus::getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
+			self::getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
 			'mediawiki.revision-tags-change',
 			$attrs
 		);
@@ -395,14 +621,17 @@ class EventFactory {
 		User $performer = null,
 		array $visibilityChanges
 	) {
-		$attrs = self::createRevisionRecordAttrs( $revisionRecord, $performer );
+		$attrs = self::createRevisionRecordAttrs(
+			$revisionRecord,
+			$performer
+		);
 		$attrs['visibility'] = self::bitsToVisibilityObject( $visibilityChanges['newBits'] );
 		$attrs['prior_state'] = [
 			'visibility' => self::bitsToVisibilityObject( $visibilityChanges['oldBits'] )
 		];
 
 		return self::createEvent(
-			EventBus::getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
+			self::getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
 			'mediawiki.revision-visibility-change',
 			$attrs
 		);
@@ -418,7 +647,7 @@ class EventFactory {
 		LinkTarget $title
 	) {
 		return self::createEvent(
-			EventBus::getArticleURL( $title ),
+			self::getArticleURL( $title ),
 			'mediawiki.page-create',
 			self::createRevisionRecordAttrs( $revisionRecord )
 		);
@@ -448,7 +677,7 @@ class EventFactory {
 		}
 
 		return self::createEvent(
-			EventBus::getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
+			self::getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
 			'mediawiki.revision-create',
 			$attrs
 		);
@@ -502,7 +731,7 @@ class EventFactory {
 		}
 
 		return self::createEvent(
-			EventBus::getArticleURL( $title ),
+			self::getArticleURL( $title ),
 			'mediawiki.page-properties-change',
 			$attrs
 		);
@@ -585,10 +814,199 @@ class EventFactory {
 		}
 
 		return self::createEvent(
-			EventBus::getArticleURL( $title ),
+			self::getArticleURL( $title ),
 			'mediawiki.page-links-change',
 			$attrs
 		);
+	}
+
+	/**
+	 * Create a user or IP block change event message
+	 *
+	 * @param User $user
+	 * @param Block $block
+	 * @param Block $previousBlock
+	 * @return array
+	 */
+	public function createUserBlockChangeEvent(
+		User $user,
+		Block $block,
+		Block $previousBlock
+	) {
+		global $wgDBname;
+
+		// This could be a User, a user_id, or a string (IP, etc.)
+		$blockTarget = $block->getTarget();
+
+		$attrs = [
+			// Common Mediawiki entity fields:
+			'database'           => $wgDBname,
+			'performer'          => self::createPerformerAttrs( $user ),
+		];
+
+		if ( !is_null( $block->mReason ) ) {
+			$attrs['comment'] = $block->mReason;
+		}
+
+		// user entity fields:
+
+		// Note that, except for null, it is always safe to treat the target
+		// as a string; for User objects this will return User::__toString()
+		// which in turn gives User::getName().
+		$attrs['user_text'] = (string)$blockTarget;
+
+		// if the blockTarget is a user, then set user_id.
+		if ( $blockTarget instanceof User ) {
+			// set user_id if the target User has a user_id
+			if ( $blockTarget->getId() ) {
+				$attrs['user_id'] = $blockTarget->getId();
+			}
+
+			// set user_groups, all Users will have this.
+			$attrs['user_groups'] = $blockTarget->getEffectiveGroups();
+		}
+
+		// blocks-change specific fields:
+		$attrs['blocks'] = self::getUserBlocksChangeAttributes( $block );
+
+		// If we had a prior block settings, emit them as prior_state.blocks.
+		if ( $previousBlock ) {
+			$attrs['prior_state'] = [
+				'blocks' => self::getUserBlocksChangeAttributes( $previousBlock )
+			];
+		}
+
+		return self::createEvent(
+			self::getUserPageURL( $block->getTarget() ),
+			'mediawiki.user-blocks-change',
+			$attrs
+		);
+	}
+
+	/**
+	 * Create a page restrictions change event message
+	 *
+	 * @param User $user
+	 * @param Title $title
+	 * @param int $pageId
+	 * @param Revision|RevisionRecord $rev
+	 * @param bool $is_redirect
+	 * @param string $reason
+	 * @param string $protect
+	 * @return array
+	 */
+	public function createPageRestrictionsChangeEvent(
+		User $user,
+		Title $title,
+		$pageId,
+		$rev,
+		$is_redirect,
+		$reason,
+		$protect
+	) {
+		global $wgDBname;
+
+		// Create a mediawiki page restrictions change event.
+		$attrs = [
+			// Common Mediawiki entity fields
+			'database'           => $wgDBname,
+			'performer'          => self::createPerformerAttrs( $user ),
+
+			// page entity fields
+			'page_id'            => $pageId,
+			'page_title'         => $title->getPrefixedDBkey(),
+			'page_namespace'     => $title->getNamespace(),
+			'page_is_redirect'   => $is_redirect,
+
+			// page restrictions change specific fields:
+			'reason'             => $reason,
+			'page_restrictions'  => $protect
+		];
+
+		if ( !is_null( $rev ) ) {
+			$attrs['rev_id'] = self::getRevisionId( $rev );
+		}
+
+		return self::createEvent(
+			self::getArticleURL( $title ),
+			'mediawiki.page-restrictions-change',
+			$attrs
+		);
+	}
+
+	/**
+	 * Create a recent change event message
+	 *
+	 * @param Title $title
+	 * @param array $attrs
+	 * @return array
+	 */
+	public function createRecentChangeEvent( Title $title, $attrs ) {
+		if ( isset( $attrs['comment'] ) ) {
+			$attrs['parsedcomment'] = Linker::formatComment( $attrs['comment'], $title );
+		}
+
+		$event = self::createEvent(
+			self::getArticleURL( $title ),
+			'mediawiki.recentchange',
+			$attrs
+		);
+
+		// If timestamp exists on the recentchange event (it should),
+		// then use it as the meta.dt event datetime.
+		if ( array_key_exists( 'timestamp', $event ) ) {
+			$event['meta']['dt'] = gmdate( 'c', $event['timestamp'] );
+		}
+
+		return $event;
+	}
+
+	public function createJobEvent( $wiki, IJobSpecification $job ) {
+		global $wgDBname;
+
+		$attrs = [
+			'database' => $wiki ?: $wgDBname,
+			'type' => $job->getType(),
+			'page_namespace' => $job->getTitle()->getNamespace(),
+			'page_title' => $job->getTitle()->getPrefixedDBkey()
+		];
+
+		if ( !is_null( $job->getReleaseTimestamp() ) ) {
+			$attrs['delay_until'] = $job->getReleaseTimestamp();
+		}
+
+		if ( $job->ignoreDuplicates() ) {
+			$attrs['sha1'] = sha1( serialize( $job->getDeduplicationInfo() ) );
+		}
+
+		$params = $job->getParams();
+
+		if ( isset( $params['rootJobTimestamp'] ) && isset( $params['rootJobSignature'] ) ) {
+			$attrs['root_event'] = [
+				'signature' => $params['rootJobSignature'],
+				'dt'        => wfTimestamp( TS_ISO_8601, $params['rootJobTimestamp'] )
+			];
+		}
+
+		$attrs['params'] = $params;
+
+		$event = self::createEvent(
+			self::getArticleURL( $job->getTitle() ),
+			'mediawiki.job.' . $job->getType(),
+			$attrs,
+			$wiki
+		);
+
+		// If the job provides a requestId - use it, otherwise try to get one ourselves
+		if ( isset( $event['params']['requestId'] ) ) {
+			$event['meta']['request_id'] = $event['params']['requestId'];
+		} else {
+			$event['meta']['request_id'] = WebRequest::getRequestId();
+		}
+
+		self::signEvent( $event );
+
+		return $event;
 	}
 
 	public function createCentralNoticeCampaignCreateEvent(
