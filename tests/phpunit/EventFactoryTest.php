@@ -41,13 +41,38 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertPageProperties( $event, $rowOverrides );
 		$row = self::revisionProperties( $rowOverrides );
 		$this->assertEquals( $row['id'], $event['rev_id'], 'rev_id' );
-		$this->assertEquals( wfTimestamp( TS_ISO_8601, $row['timestamp'] ), $event['rev_timestamp'],
-			'rev_timestamp' );
+		$this->assertEquals( EventFactory::createDTAttr( $row['timestamp'] ),
+			$event['rev_timestamp'], 'rev_timestamp' );
 		$this->assertEquals( $row['sha1'], $event['rev_sha1'], 'rev_sha1' );
 		$this->assertEquals( $row['len'], $event['rev_len'], 'rev_len' );
 		$this->assertEquals( $row['minor_edit'], $event['rev_minor_edit'], 'rev_minor_edit' );
 		$this->assertEquals( $row['content']->getModel(), $event['rev_content_model'],
 			'rev_content_model' );
+	}
+
+	private function assertCommonCentralNoticeCampaignEventProperties(
+		$event,
+		$campaignName,
+		User $user,
+		$summary,
+		$campaignUrl
+	) {
+		$this->assertSame( $campaignName, $event[ 'campaign_name' ] );
+		$this->assertSame( $user->getName(), $event[ 'performer' ][ 'user_text' ] );
+		$this->assertSame( $summary, $event[ 'summary'] );
+		$this->assertSame( $campaignUrl, $event[ 'meta' ][ 'uri' ] );
+	}
+
+	private function assertCentralNoticeSettings( $settingsFromEvent, $settings ) {
+		$this->assertSame( EventFactory::createDTAttr( $settings[ 'start' ] ),
+			$settingsFromEvent[ 'start_dt' ] );
+
+		$this->assertSame( EventFactory::createDTAttr( $settings[ 'end' ] ),
+			$settingsFromEvent[ 'end_dt' ] );
+
+		$this->assertSame( $settings[ 'enabled' ], $settingsFromEvent[ 'enabled' ] );
+		$this->assertSame( $settings[ 'archived' ], $settingsFromEvent[ 'archived' ] );
+		$this->assertArrayEquals( $settings[ 'banners' ], $settingsFromEvent[ 'banners' ] );
 	}
 
 	// fixture setup
@@ -580,6 +605,114 @@ class EventFactoryTest extends MediaWikiTestCase {
 			'rev_content_changed should be present'
 		);
 		$this->assertTrue( $event['rev_content_changed'], 'rev_content_changed should be true' );
+	}
+
+	public function provideCentralNoticeCampaignEvents() {
+		yield 'CentralNotice campaign event' => [
+			'Test_Campaign',
+			User::newFromName( 'Test_User' ),
+			[
+				'start' => '1546300800',
+				'end' => '1548979200',
+				'enabled' => true,
+				'archived' => false,
+				'banners' => [ 'TestBanner' ]
+			],
+			'Test summary',
+			'//localhost/wiki/Special:CentralNotice?subaction=notice&detail=Test_Campaign'
+		];
+	}
+
+	/**
+	 * @dataProvider provideCentralNoticeCampaignEvents
+	 */
+	public function testCentralNoticeCampaignCreateEvent(
+		$campaignName,
+		User $user,
+		$settings,
+		$summary,
+		$campaignUrl
+	) {
+		$event = self::$eventFactory->createCentralNoticeCampaignCreateEvent(
+			$campaignName,
+			$user,
+			$settings,
+			$summary,
+			$campaignUrl
+		);
+
+		$this->assertCommonCentralNoticeCampaignEventProperties(
+			$event,
+			$campaignName,
+			$user,
+			$summary,
+			$campaignUrl
+		);
+
+		$this->assertCentralNoticeSettings( $event, $settings );
+	}
+
+	/**
+	 * @dataProvider provideCentralNoticeCampaignEvents
+	 */
+	public function testCentralNoticeCampaignChangeEvent(
+		$campaignName,
+		User $user,
+		$settings,
+		$summary,
+		$campaignUrl
+	) {
+		$priorState = $settings;
+		$priorState[ 'enabled'] = false;
+
+		$event = self::$eventFactory->createCentralNoticeCampaignChangeEvent(
+			$campaignName,
+			$user,
+			$settings,
+			$priorState,
+			$summary,
+			$campaignUrl
+		);
+
+		$this->assertCommonCentralNoticeCampaignEventProperties(
+			$event,
+			$campaignName,
+			$user,
+			$summary,
+			$campaignUrl
+		);
+
+		$this->assertCentralNoticeSettings( $event, $settings );
+		$this->assertCentralNoticeSettings( $event[ 'prior_state'], $priorState );
+	}
+
+	/**
+	 * @dataProvider provideCentralNoticeCampaignEvents
+	 */
+	public function testCentralNoticeCampaignDeleteEvent(
+		$campaignName,
+		User $user,
+		$settings,
+		$summary,
+		$campaignUrl
+	) {
+		$event = self::$eventFactory->createCentralNoticeCampaignDeleteEvent(
+			$campaignName,
+			$user,
+			$settings,
+			$summary,
+			$campaignUrl
+		);
+
+		$this->assertCommonCentralNoticeCampaignEventProperties(
+			$event,
+			$campaignName,
+			$user,
+			$summary,
+			$campaignUrl
+		);
+
+		$this->assertCentralNoticeSettings( $event[ 'prior_state' ], $settings );
 	}
 
 	public function testCreateEvent() {

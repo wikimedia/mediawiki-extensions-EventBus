@@ -29,7 +29,7 @@ class JobQueueEventBus extends JobQueue {
 		if ( isset( $params['rootJobTimestamp'] ) && isset( $params['rootJobSignature'] ) ) {
 			$attrs['root_event'] = [
 				'signature' => $params['rootJobSignature'],
-				'dt'        => wfTimestamp( TS_ISO_8601, $params['rootJobTimestamp'] )
+				'dt'        => EventFactory::createDTAttr( $params['rootJobTimestamp'] )
 			];
 		}
 

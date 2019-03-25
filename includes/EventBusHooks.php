@@ -697,4 +697,87 @@ class EventBusHooks {
 			}
 		);
 	}
+
+	/**
+	 * Handle CentralNoticeCampaignChange hook. Send an event corresponding to the type
+	 * of campaign change made (create, change or delete).
+	 *
+	 * This method is only expected to be called if CentralNotice is installed.
+	 *
+	 * @see https://www.mediawiki.org/wiki/Extension:CentralNotice/CentralNoticeCampaignChange
+	 *
+	 * @param string $changeType Type of change performed. Can be 'created', 'modified',
+	 *   or 'removed'.
+	 * @param string $time The time of the change. This is the same time that will be
+	 *   recorded for the change in the cn_notice_log table.
+	 * @param string $campaignName Name of the campaign created, modified or removed.
+	 * @param User $user The user who performed the change.
+	 * @param array|null $beginSettings Campaign settings before the change, if applicable.
+	 *   These will include start, end, enabled, archived and banners. If not applicable,
+	 *   this parameter will be null.
+	 * @param array|null $endSettings Campaign settings after the change, if applicable.
+	 *   These will include start, end, enabled, archived and banners. If not applicable,
+	 *   this parameter will be null.
+	 * @param string $summary Change summary provided by the user, or empty string if none
+	 *   was provided.
+	 */
+	public static function onCentralNoticeCampaignChange(
+		$changeType,
+		$time,
+		$campaignName,
+		User $user,
+		$beginSettings,
+		$endSettings,
+		$summary
+	) {
+		$eventBus = EventBus::getInstance( 'eventbus' );
+		$eventFactory = $eventBus->getFactory();
+
+		// Since we're running this hook, we'll assume that CentralNotice is installed.
+		$campaignUrl = Campaign::getCanonicalURL( $campaignName );
+
+		switch ( $changeType ) {
+			case 'created':
+				$event = $eventFactory->createCentralNoticeCampaignCreateEvent(
+					$campaignName,
+					$user,
+					$endSettings,
+					$summary,
+					$campaignUrl
+				);
+				break;
+
+			case 'modified':
+				$event = $eventFactory->createCentralNoticeCampaignChangeEvent(
+					$campaignName,
+					$user,
+					$endSettings,
+					$beginSettings,
+					$summary,
+					$campaignUrl
+				);
+				break;
+
+			case 'removed':
+				$event = $eventFactory->createCentralNoticeCampaignDeleteEvent(
+					$campaignName,
+					$user,
+					$beginSettings,
+					$summary,
+					$campaignUrl
+				);
+				break;
+
+			default:
+				throw new UnexpectedValueException(
+					'Bad CentralNotice change type: ' . $changeType );
+		}
+
+		DeferredUpdates::addCallableUpdate(
+			function () use ( $eventBus, $event ) {
+				$eventBus->send( [ $event ] );
+			}
+		);
+	}
+
 }

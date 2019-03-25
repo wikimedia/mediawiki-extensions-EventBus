@@ -124,7 +124,7 @@ class EventFactory {
 			'page_title'         => $titleFormatter->getPrefixedDBkey( $linkTarget ),
 			'page_namespace'     => $linkTarget->getNamespace(),
 			'rev_id'             => $revision->getId(),
-			'rev_timestamp'      => wfTimestamp( TS_ISO_8601, $revision->getTimestamp() ),
+			'rev_timestamp'      => self::createDTAttr( $revision->getTimestamp() ),
 			'rev_sha1'           => $revision->getSha1(),
 			'rev_minor_edit'     => $revision->isMinor(),
 			'rev_len'            => $revision->getSize(),
@@ -201,15 +201,71 @@ class EventFactory {
 			$performerAttrs['user_id'] = $user->getId();
 		}
 		if ( $user->getRegistration() ) {
-			$performerAttrs['user_registration_dt'] = wfTimestamp(
-				TS_ISO_8601, $user->getRegistration()
-			);
+			$performerAttrs['user_registration_dt'] =
+				self::createDTAttr( $user->getRegistration() );
 		}
 		if ( $user->getEditCount() !== null ) {
 			$performerAttrs['user_edit_count'] = $user->getEditCount();
 		}
 
 		return $performerAttrs;
+	}
+
+	/**
+	 * Format a timestamp for a date-time attribute in an event.
+	 *
+	 * @param string $timestamp Timestamp, in a format supported by wfTimestamp()
+	 * @return string|bool
+	 */
+	public static function createDTAttr( $timestamp ) {
+		return wfTimestamp( TS_ISO_8601, $timestamp );
+	}
+
+	/**
+	 * Provides the event attributes common to all CentralNotice events.
+	 *
+	 * @param string $campaignName The name of the campaign affected.
+	 * @param User $user The user who performed the action on the campaign.
+	 * @param string $summary Change summary provided by the user, or empty string if none
+	 *   was provided.
+	 * @return array
+	 */
+	private static function createCommonCentralNoticeAttrs(
+		$campaignName,
+		User $user,
+		$summary
+	) {
+		global $wgDBname;
+
+		$attrs = [
+			'database'           => $wgDBname,
+			'performer'          => self::createPerformerAttrs( $user ),
+			'campaign_name'      => $campaignName
+		];
+
+		if ( $summary ) {
+			$attrs[ 'summary' ] = $summary;
+		}
+
+		return $attrs;
+	}
+
+	/**
+	 * Takes an array of CentralNotice campaign settings, as provided by the
+	 * CentralNoticeCampaignChange hook, and outputs an array of settings for use in
+	 * centralnotice/campaign events.
+	 *
+	 * @param array $settings
+	 * @return array
+	 */
+	private static function createCentralNoticeCampignSettingsAttrs( $settings ) {
+		return [
+			'start_dt'       => self::createDTAttr( $settings[ 'start' ] ),
+			'end_dt'         => self::createDTAttr( $settings[ 'end' ] ),
+			'enabled'        => $settings[ 'enabled' ],
+			'archived'       => $settings[ 'archived' ],
+			'banners'        => $settings[ 'banners' ]
+		];
 	}
 
 	/**
@@ -531,6 +587,62 @@ class EventFactory {
 		return self::createEvent(
 			EventBus::getArticleURL( $title ),
 			'mediawiki.page-links-change',
+			$attrs
+		);
+	}
+
+	public function createCentralNoticeCampaignCreateEvent(
+		$campaignName,
+		User $user,
+		array $settings,
+		$summary,
+		$campaignUrl
+	) {
+		$attrs = self::createCommonCentralNoticeAttrs( $campaignName, $user, $summary );
+		$attrs += self::createCentralNoticeCampignSettingsAttrs( $settings );
+
+		return self::createEvent(
+			$campaignUrl,
+			'mediawiki.centralnotice.campaign-create',
+			$attrs
+		);
+	}
+
+	public function createCentralNoticeCampaignChangeEvent(
+		$campaignName,
+		User $user,
+		array $settings,
+		array $priorState,
+		$summary,
+		$campaignUrl
+	) {
+		$attrs = self::createCommonCentralNoticeAttrs( $campaignName, $user, $summary );
+
+		$attrs += self::createCentralNoticeCampignSettingsAttrs( $settings );
+		$attrs[ 'prior_state' ] =
+					self::createCentralNoticeCampignSettingsAttrs( $priorState );
+
+		return self::createEvent(
+			$campaignUrl,
+			'mediawiki.centralnotice.campaign-change',
+			$attrs
+		);
+	}
+
+	public function createCentralNoticeCampaignDeleteEvent(
+		$campaignName,
+		User $user,
+		array $priorState,
+		$summary,
+		$campaignUrl
+	) {
+		$attrs = self::createCommonCentralNoticeAttrs( $campaignName, $user, $summary );
+		$attrs[ 'prior_state' ] =
+					self::createCentralNoticeCampignSettingsAttrs( $priorState );
+
+		return self::createEvent(
+			$campaignUrl,
+			'mediawiki.centralnotice.campaign-delete',
 			$attrs
 		);
 	}
