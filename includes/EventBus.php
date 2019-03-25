@@ -151,10 +151,12 @@ class EventBus {
 			]
 		);
 
-		// 201: all events are accepted
-		// 207: some but not all events are accepted
-		// 400: no events are accepted
-		if ( $res['code'] != 201 ) {
+		// 201: all events accepted.
+		// 202: all events accepted but not necessarily persisted. HTTP response is returned 'hastily'.
+		// 207: some but not all events accepted: either due to validation failure or error.
+		// 400: no events accepted: all failed schema validation.
+		// 500: no events accepted: at least one caused an error, but some might have been invalid.
+		if ( $res['code'] == 207 || $res['code'] >= 300 ) {
 			$message = empty( $res['error'] ) ? $res['code'] . ': ' . $res['reason'] : $res['error'];
 			// Limit the maximum size of the logged context to 8 kilobytes as that's where logstash
 			// truncates the JSON anyway
