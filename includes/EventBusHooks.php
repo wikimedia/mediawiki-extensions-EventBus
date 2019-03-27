@@ -38,44 +38,19 @@ class EventBusHooks {
 	/**
 	 * Creates and sends a single resource_change event to EventBus
 	 *
-	 * @param LinkTarget $title article title object
-	 * @param array $tags  the array of tags to use in the event
+	 * @param LinkTarget $title  article title object
+	 * @param array $tags the array of tags to use in the event
 	 */
 	private static function sendResourceChangedEvent(
 		LinkTarget $title,
 		array $tags
 	) {
-		$event = EventFactory::createEvent(
-			EventBus::getArticleURL( $title ),
-			'resource_change',
-			[ 'tags' => $tags ]
-		);
+		$eventbus = EventBus::getInstance( 'eventbus' );
+		$events[] = $eventbus->getFactory()->createResourceChangeEvent( $title, $tags );
 
-		DeferredUpdates::addCallableUpdate( function () use ( $event ) {
-			EventBus::getInstance( 'eventbus' )->send( [ $event ] );
+		DeferredUpdates::addCallableUpdate( function () use ( $eventbus, $events ) {
+			$eventbus->send( $events );
 		} );
-	}
-
-	/**
-	 * Given a Block $block, returns an array suitable for use
-	 * as a 'blocks' object in the user/blocks-change event schema.
-	 *
-	 * @param Block $block
-	 * @return array
-	 */
-	private static function getUserBlocksChangeAttributes( Block $block ) {
-		$blockAttrs = [
-			# Block properties are sometimes a string/int like '0'.
-			# Cast to int then to bool to make sure it is a proper bool.
-			'name'           => (bool)(int)$block->mHideName,
-			'email'          => (bool)(int)$block->isEmailBlocked(),
-			'user_talk'      => !(bool)(int)$block->isUsertalkEditAllowed(),
-			'account_create' => (bool)(int)$block->isCreateAccountBlocked(),
-		];
-		if ( $block->getExpiry() != 'infinity' ) {
-			$blockAttrs['expiry_dt'] = $block->getExpiry();
-		}
-		return $blockAttrs;
 	}
 
 	/**
@@ -100,45 +75,21 @@ class EventBusHooks {
 		ManualLogEntry $logEntry,
 		$archivedRevisionCount
 	) {
-		global $wgDBname;
-		$events = [];
+		$eventbus = EventBus::getInstance( 'eventbus' );
 
-		// Create a mediawiki page delete event.
-		$attrs = [
-			// Common Mediawiki entity fields
-			'database'           => $wgDBname,
-			'performer'          => EventFactory::createPerformerAttrs( $user ),
-
-			// page entity fields
-			'page_id'            => $id,
-			'page_title'         => $wikiPage->getTitle()->getPrefixedDBkey(),
-			'page_namespace'     => $wikiPage->getTitle()->getNamespace(),
-			'page_is_redirect'   => $wikiPage->isRedirect(),
-		];
-		$headRevision = $wikiPage->getRevision();
-		if ( !is_null( $headRevision ) ) {
-			$attrs['rev_id'] = $headRevision->getId();
-		}
-
-		// page delete specific fields:
-		if ( !is_null( $archivedRevisionCount ) ) {
-			$attrs['rev_count'] = $archivedRevisionCount;
-		}
-
-		if ( !is_null( $reason ) && strlen( $reason ) ) {
-			$attrs['comment'] = $reason;
-			$attrs['parsedcomment'] = Linker::formatComment( $reason, $wikiPage->getTitle() );
-		}
-
-		$events[] = EventFactory::createEvent(
-			EventBus::getArticleURL( $wikiPage->getTitle() ),
-			'mediawiki.page-delete',
-			$attrs
+		$events[] = $eventbus->getFactory()->createPageDeleteEvent(
+			$user,
+			$id,
+			$wikiPage->getTitle(),
+			$wikiPage->isRedirect(),
+			$wikiPage->getRevision(),
+			$archivedRevisionCount,
+			$reason
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $events ) {
-				EventBus::getInstance( 'eventbus' )->send( $events );
+			function () use ( $eventbus, $events ) {
+				$eventbus->send( $events );
 			}
 		);
 	}
@@ -159,51 +110,17 @@ class EventBusHooks {
 		$comment,
 		$oldPageId
 	) {
-		global $wgDBname;
-		$events = [];
-
 		$performer = RequestContext::getMain()->getUser();
 
-		// Create a mediawiki page undelete event.
-		$attrs = [
-			// Common Mediawiki entity fields
-			'database'           => $wgDBname,
-			'performer'          => EventFactory::createPerformerAttrs( $performer ),
-
-			// page entity fields
-			'page_id'            => $title->getArticleID(),
-			'page_title'         => $title->getPrefixedDBkey(),
-			'page_namespace'     => $title->getNamespace(),
-			'page_is_redirect'   => $title->isRedirect(),
-			'rev_id'             => $title->getLatestRevID(),
-		];
-
-		// If this page had a different id in the archive table,
-		// then save it as the prior_state page_id.  This will
-		// be the page_id that the page had before it was deleted,
-		// which is the same as the page_id that it had while it was
-		// in the archive table.
-		// Usually page_id will be the same, but there are some historical
-		// edge cases where a new page_id is created as part of an undelete.
-		if ( $oldPageId && $oldPageId != $attrs['page_id'] ) {
-			// page undelete specific fields:
-			$attrs['prior_state'] = [
-				'page_id' => $oldPageId,
-			];
-		}
-
-		if ( !is_null( $comment ) && strlen( $comment ) ) {
-			$attrs['comment'] = $comment;
-			$attrs['parsedcomment'] = Linker::formatComment( $comment, $title );
-		}
-
-		$events[] = EventFactory::createEvent(
-			EventBus::getArticleURL( $title ),
-			'mediawiki.page-undelete',
-			$attrs
+		$eventBus = EventBus::getInstance( 'eventbus' );
+		$events[] = $eventBus->getFactory()->createPageUndeleteEvent(
+			$performer,
+			$title,
+			$oldPageId,
+			$comment
 		);
 
-		DeferredUpdates::addCallableUpdate( function () use ( $events ) {
+		DeferredUpdates::addCallableUpdate( function () use ( $eventBus, $events ) {
 			EventBus::getInstance( 'eventbus' )->send( $events );
 		} );
 	}
@@ -231,13 +148,14 @@ class EventBusHooks {
 		Revision $newRevision
 	) {
 		$eventBus = EventBus::getInstance( 'eventbus' );
-		$events = [ $eventBus->getFactory()->createPageMoveEvent(
+		$events[] = $eventBus->getFactory()->createPageMoveEvent(
 			$oldTitle,
 			$newTitle,
 			$newRevision->getRevisionRecord(),
 			$user,
 			$reason
-		) ];
+		);
+
 		DeferredUpdates::addCallableUpdate(
 			function () use ( $eventBus, $events ) {
 				$eventBus->send( $events );
@@ -263,7 +181,6 @@ class EventBusHooks {
 		array $visibilityChangeMap
 	) {
 		$eventBus = EventBus::getInstance( 'eventbus' );
-		$events = [];
 		$performer = RequestContext::getMain()->getUser();
 		$performer->loadFromId();
 
@@ -353,8 +270,6 @@ class EventBusHooks {
 		$flags,
 		Revision $revision = null
 	) {
-		$events = [];
-
 		if ( is_null( $revision ) ) {
 			wfDebug(
 				__METHOD__ . ' new revision during PageContentInsertComplete for page_id: ' .
@@ -364,14 +279,15 @@ class EventBusHooks {
 			return;
 		}
 
-		$events[] = EventBus::getInstance( 'eventbus' )->getFactory()->createPageCreateEvent(
+		$eventBus = EventBus::getInstance( 'eventbus' );
+		$events[] = $eventBus->getFactory()->createPageCreateEvent(
 			$revision->getRevisionRecord(),
 			$revision->getTitle()
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $events ) {
-				EventBus::getInstance( 'eventbus' )->send( $events );
+			function () use ( $eventBus, $events ) {
+				$eventBus->send( $events );
 			}
 		);
 	}
@@ -415,8 +331,6 @@ class EventBusHooks {
 			return;
 		}
 
-		$events = [];
-
 		if ( is_null( $revision ) ) {
 			wfDebug(
 				__METHOD__ . ' new revision during PageContentSaveComplete ' .
@@ -425,13 +339,14 @@ class EventBusHooks {
 			return;
 		}
 
-		$events[] = EventBus::getInstance( 'eventbus' )->getFactory()->createRevisionCreateEvent(
+		$eventBus = EventBus::getInstance( 'eventbus' );
+		$events[] = $eventBus->getFactory()->createRevisionCreateEvent(
 			$revision->getRevisionRecord()
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $events ) {
-				EventBus::getInstance( 'eventbus' )->send( $events );
+			function () use ( $eventBus, $events ) {
+				$eventBus->send( $events );
 			}
 		);
 	}
@@ -451,59 +366,13 @@ class EventBusHooks {
 		User $user,
 		Block $previousBlock = null
 	) {
-		global $wgDBname;
-		$events = [];
-
-		// This could be a User, a user_id, or a string (IP, etc.)
-		$blockTarget = $block->getTarget();
-
-		$attrs = [
-			// Common Mediawiki entity fields:
-			'database'           => $wgDBname,
-			'performer'          => EventFactory::createPerformerAttrs( $user ),
-		];
-
-		if ( !is_null( $block->mReason ) ) {
-			$attrs['comment'] = $block->mReason;
-		}
-
-		// user entity fields:
-
-		// Note that, except for null, it is always safe to treat the target
-		// as a string; for User objects this will return User::__toString()
-		// which in turn gives User::getName().
-		$attrs['user_text'] = (string)$blockTarget;
-
-		// if the blockTarget is a user, then set user_id.
-		if ( $blockTarget instanceof User ) {
-			// set user_id if the target User has a user_id
-			if ( $blockTarget->getId() ) {
-				$attrs['user_id'] = $blockTarget->getId();
-			}
-
-			// set user_groups, all Users will have this.
-			$attrs['user_groups'] = $blockTarget->getEffectiveGroups();
-		}
-
-		// blocks-change specific fields:
-		$attrs['blocks'] = self::getUserBlocksChangeAttributes( $block );
-
-		// If we had a prior block settings, emit them as prior_state.blocks.
-		if ( $previousBlock ) {
-			$attrs['prior_state'] = [
-				'blocks' => self::getUserBlocksChangeAttributes( $previousBlock )
-			];
-		}
-
-		$events[] = EventFactory::createEvent(
-			EventBus::getUserPageURL( $block->getTarget() ),
-			'mediawiki.user-blocks-change',
-			$attrs
-		);
+		$eventBus = EventBus::getInstance( 'eventbus' );
+		$eventFactory = $eventBus->getFactory();
+		$events[] = $eventFactory->createUserBlockChangeEvent( $user, $block, $previousBlock );
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $events ) {
-				EventBus::getInstance( 'eventbus' )->send( $events );
+			function () use ( $eventBus, $events ) {
+				$eventBus->send( $events );
 			}
 		);
 	}
@@ -521,9 +390,6 @@ class EventBusHooks {
 	public static function onLinksUpdateComplete(
 		LinksUpdate $linksUpdate
 	) {
-		$propEvents = [];
-		$linkEvents = [];
-
 		$addedProps = $linksUpdate->getAddedProperties();
 		$removedProps = $linksUpdate->getRemovedProperties();
 		$arePropsEmpty = empty( $removedProps ) && empty( $addedProps );
@@ -554,7 +420,8 @@ class EventBusHooks {
 		}
 		$pageId = $linksUpdate->mId;
 
-		$eventFactory = EventBus::getInstance( 'eventbus' )->getFactory();
+		$eventBus = EventBus::getInstance( 'eventbus' );
+		$eventFactory = $eventBus->getFactory();
 
 		if ( !$arePropsEmpty ) {
 			$propEvents[] = $eventFactory->createPagePropertiesChangeEvent(
@@ -567,8 +434,8 @@ class EventBusHooks {
 			);
 
 			DeferredUpdates::addCallableUpdate(
-				function () use ( $propEvents ) {
-					EventBus::getInstance( 'eventbus' )->send( $propEvents );
+				function () use ( $eventBus, $propEvents ) {
+					$eventBus->send( $propEvents );
 				}
 			);
 		}
@@ -586,9 +453,8 @@ class EventBusHooks {
 			);
 
 			DeferredUpdates::addCallableUpdate(
-
-				function () use ( $linkEvents ) {
-					EventBus::getInstance( 'eventbus' )->send( $linkEvents );
+				function () use ( $eventBus, $linkEvents ) {
+					$eventBus->send( $linkEvents );
 				}
 			);
 		}
@@ -608,39 +474,22 @@ class EventBusHooks {
 		array $protect,
 		$reason
 	) {
-		global $wgDBname;
-		$events = [];
+		$eventBus = EventBus::getInstance( 'eventbus' );
+		$eventFactory = $eventBus->getFactory();
 
-		// Create a mediawiki page restrictions change event.
-		$attrs = [
-			// Common Mediawiki entity fields
-			'database'           => $wgDBname,
-			'performer'          => EventFactory::createPerformerAttrs( $user ),
-
-			// page entity fields
-			'page_id'            => $wikiPage->getId(),
-			'page_title'         => $wikiPage->getTitle()->getPrefixedDBkey(),
-			'page_namespace'     => $wikiPage->getTitle()->getNamespace(),
-			'page_is_redirect'   => $wikiPage->isRedirect(),
-
-			// page restrictions change specific fields:
-			'reason'             => $reason,
-			'page_restrictions'  => $protect
-		];
-
-		if ( $wikiPage->getRevision() ) {
-			$attrs['rev_id'] = $wikiPage->getRevision()->getId();
-		}
-
-		$events[] = EventFactory::createEvent(
-			EventBus::getArticleURL( $wikiPage->getTitle() ),
-			'mediawiki.page-restrictions-change',
-			$attrs
+		$events[] = $eventFactory->createPageRestrictionsChangeEvent(
+			$user,
+			$wikiPage->getTitle(),
+			$wikiPage->getId(),
+			$wikiPage->getRevision(),
+			$wikiPage->isRedirect(),
+			$reason,
+			$protect
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $events ) {
-				EventBus::getInstance( 'eventbus' )->send( $events );
+			function () use ( $eventBus, $events ) {
+				$eventBus->send( $events );
 			}
 		);
 	}
@@ -684,13 +533,14 @@ class EventBusHooks {
 		}
 
 		$eventBus = EventBus::getInstance( 'eventbus' );
-		$events = [ $eventBus->getFactory()->createRevisionTagsChangeEvent(
+		$events[] = $eventBus->getFactory()->createRevisionTagsChangeEvent(
 			$revisionRecord,
 			$prevTags,
 			$addedTags,
 			$removedTags,
 			$user
-		) ];
+		);
+
 		DeferredUpdates::addCallableUpdate(
 			function () use ( $eventBus, $events ) {
 				$eventBus->send( $events );

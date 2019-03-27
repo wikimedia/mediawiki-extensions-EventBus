@@ -1,75 +1,6 @@
 <?php
 
-
-use Firebase\JWT\JWT;
-use MediaWiki\MediaWikiServices;
-
 class JobQueueEventBus extends JobQueue {
-
-	private function createJobEvent( IJobSpecification $job ) {
-		global $wgDBname;
-
-		$attrs = [
-			'database' => $this->getWiki() ?: $wgDBname,
-			'type' => $job->getType(),
-			'page_namespace' => $job->getTitle()->getNamespace(),
-			'page_title' => $job->getTitle()->getPrefixedDBkey()
-		];
-
-		if ( !is_null( $job->getReleaseTimestamp() ) ) {
-			$attrs['delay_until'] = $job->getReleaseTimestamp();
-		}
-
-		if ( $job->ignoreDuplicates() ) {
-			$attrs['sha1'] = sha1( serialize( $job->getDeduplicationInfo() ) );
-		}
-
-		$params = $job->getParams();
-
-		if ( isset( $params['rootJobTimestamp'] ) && isset( $params['rootJobSignature'] ) ) {
-			$attrs['root_event'] = [
-				'signature' => $params['rootJobSignature'],
-				'dt'        => EventFactory::createDTAttr( $params['rootJobTimestamp'] )
-			];
-		}
-
-		$attrs['params'] = $params;
-
-		$event = EventFactory::createEvent(
-			EventBus::getArticleURL( $job->getTitle() ),
-			'mediawiki.job.' . $job->getType(),
-			$attrs,
-			$this->getWiki()
-		);
-
-		// If the job provides a requestId - use it, otherwise try to get one ourselves
-		if ( isset( $event['params']['requestId'] ) ) {
-			$event['meta']['request_id'] = $event['params']['requestId'];
-		} else {
-			$event['meta']['request_id'] = WebRequest::getRequestId();
-		}
-
-		// Sign the event with mediawiki secret key
-		$serialized_event = EventBus::serializeEvents( $event );
-		if ( is_null( $serialized_event ) ) {
-			return null;
-		}
-		$event['mediawiki_signature'] = self::getEventSignature( $serialized_event );
-
-		return $event;
-	}
-
-	/**
-	 * Creates a cryptographic signature for the event
-	 *
-	 * @param string $event the serialized event to sign
-	 * @return string
-	 */
-	private static function getEventSignature( $event ) {
-		$secret = MediaWikiServices::getInstance()->getMainConfig()->get( 'SecretKey' );
-		return hash( 'sha256', JWT::sign( $event, $secret ) );
-	}
-
 	/**
 	 * Get the allowed queue orders for configuration validation
 	 *
@@ -133,8 +64,11 @@ class JobQueueEventBus extends JobQueue {
 		// Convert the jobs into field maps (de-duplicated against each other)
 		// (job ID => job fields map)
 		$events = [];
+		$eventBus = EventBus::getInstance( 'eventbus' );
+		$eventFactory = $eventBus->getFactory();
+
 		foreach ( $jobs as $job ) {
-			$item = $this->createJobEvent( $job );
+			$item = $eventFactory->createJobEvent( $this->getWiki(), $job );
 			if ( is_null( $item ) ) {
 				continue;
 			}

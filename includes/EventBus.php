@@ -22,7 +22,6 @@
  * @author Eric Evans, Andrew Otto
  */
 
-use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
 use Psr\Log\LoggerInterface;
@@ -226,35 +225,6 @@ class EventBus {
 		}
 
 		return strlen( $events ) > 8192 ? substr( $events, 0, 8192 ) : $events;
-	}
-
-	/**
-	 * Creates a full article path
-	 *
-	 * @param LinkTarget $target article title object
-	 * @return string
-	 */
-	public static function getArticleURL( $target ) {
-		global $wgCanonicalServer, $wgArticlePath;
-
-		$titleFormatter = MediaWikiServices::getInstance()->getTitleFormatter();
-		$titleURL = wfUrlencode( $titleFormatter->getPrefixedDBkey( $target ) );
-		// The $wgArticlePath contains '$1' string where the article title should appear.
-		return $wgCanonicalServer . str_replace( '$1', $titleURL, $wgArticlePath );
-	}
-
-	/**
-	 * Creates a full user page path
-	 *
-	 * @param string $userName userName
-	 * @return string
-	 */
-	public static function getUserPageURL( $userName ) {
-		global $wgCanonicalServer, $wgArticlePath, $wgContLang;
-		$prefixedUserURL = $wgContLang->getNsText( NS_USER ) . ':' . $userName;
-		$encodedUserURL = wfUrlencode( strtr( $prefixedUserURL, ' ', '_' ) );
-		// The $wgArticlePath contains '$1' string where the article title should appear.
-		return $wgCanonicalServer . str_replace( '$1', $encodedUserURL, $wgArticlePath );
 	}
 
 	/**
