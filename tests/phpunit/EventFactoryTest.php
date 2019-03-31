@@ -8,6 +8,9 @@ use MediaWiki\Revision\RevisionRecord;
  * @group EventBus
  */
 class EventFactoryTest extends MediaWikiTestCase {
+	/**
+	 * @var EventFactory
+	 */
 	protected static $eventFactory;
 
 	const MOCK_PAGE_TITLE = 'Test';
@@ -30,7 +33,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		return array_merge( $row, $rowOverrides );
 	}
 
-	private static function defaultOptionProperties( $optionOverrides = [] ) {
+	private static function blockProperties( $optionOverrides = [] ) {
 		$options = [
 			'address' => '127.0.0.0/24',
 			'user' => 1,
@@ -839,17 +842,22 @@ class EventFactoryTest extends MediaWikiTestCase {
 	}
 
 	public function provideUserBlocks() {
-		return [ [ new Block( self::defaultOptionProperties( [ "address" => 'Test_User1' ] ) ),
-				   new Block( self::defaultOptionProperties( [ "address" => 'Test_User2' ] ) ) ]
+		return [ [ new Block( self::blockProperties( [ "address" => 'Test_User1' ] ) ),
+				   new Block( self::blockProperties( [ "address" => 'Test_User2' ] ) ) ]
 			   ];
 	}
 
 	public function provideNonUserBlocks() {
-		return [ [ new Block( self::defaultOptionProperties( [ 'address' => "127.0.0.0/24" ] ) ),
-				   new Block( self::defaultOptionProperties( [ 'address' => "128.0.0.0/24" ] ) ) ]
+		return [ [ new Block( self::blockProperties( [ 'address' => "127.0.0.0/24" ] ) ),
+				   new Block( self::blockProperties( [ 'address' => "128.0.0.0/24" ] ) ) ]
 			   ];
 	}
 
+	public function provideNullOldBlock() {
+		return [
+			[ null, new Block( self::blockProperties( [ 'address' => "Test_User1" ] ) ) ]
+		];
+	}
 	/**
 	 * @dataProvider provideUserBlocks
 	 */
@@ -871,9 +879,6 @@ class EventFactoryTest extends MediaWikiTestCase {
 	 * @dataProvider provideNonUserBlocks
 	 */
 	public function testNonUserTargetsUserBlockChangeEvent( $oldBlock, $newBlock ) {
-		$username = 'Test_User';
-		$user = User::newFromName( $username );
-
 		$event = self::$eventFactory->createUserBlockChangeEvent(
 			User::newFromName( "Test User" ),
 			$newBlock,
@@ -881,8 +886,25 @@ class EventFactoryTest extends MediaWikiTestCase {
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
-		$this->assertFalse( array_key_exists( "user_groups", $event ),
-			"'user_groups' should not be present" );
+		$this->verifyEventType( $event, 'mediawiki.user-blocks-change' );
+		$this->assertArrayNotHasKey( "user_groups", $event, "'user_groups' should not be present" );
+	}
+
+	/**
+	 * @dataProvider provideNullOldBlock
+	 */
+	public function testNullOldBlockUseBlockChangeEvent( $oldBlock, $newBlock ) {
+		$event = self::$eventFactory->createUserBlockChangeEvent(
+			User::newFromName( "Test_User" ),
+			$newBlock,
+			$oldBlock
+		);
+
+		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
+		$this->assertArrayHasKey( 'blocks', $event, "'blocks' key missing" );
+		$this->assertArrayNotHasKey( 'prior_state', $event, "'prior_state' key must not be present" );
+		$this->verifyEventType( $event, 'mediawiki.user-blocks-change' );
+		$this->assertArrayHasKey( 'user_groups', $event, "'user_groups' should be present" );
 	}
 
 	public function testPageRestrictionsChangeEvent() {
