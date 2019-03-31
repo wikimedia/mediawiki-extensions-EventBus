@@ -825,13 +825,13 @@ class EventFactory {
 	 *
 	 * @param User $user
 	 * @param Block $block
-	 * @param Block $previousBlock
+	 * @param Block|null $previousBlock
 	 * @return array
 	 */
 	public function createUserBlockChangeEvent(
 		User $user,
 		Block $block,
-		Block $previousBlock
+		Block $previousBlock = null
 	) {
 		global $wgDBname;
 
