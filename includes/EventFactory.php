@@ -33,22 +33,6 @@ class EventFactory {
 	}
 
 	/**
-	 * Get domain name
-	 *
-	 * @param bool $use_wiki_name	use Wiki display name if it exists
-	 * @return string
-	 */
-	private static function getDomain( $use_wiki_name ) {
-		global $wgServerName;
-
-		$wikiRef = null;
-		if ( $use_wiki_name ) {
-			$wikiRef = WikiMap::getWiki( false );
-		}
-		return ( is_null( $wikiRef ) ? $wgServerName : $wikiRef->getDisplayName() );
-	}
-
-	/**
 	 * Converts a revision visibility hidden bitfield to an array with keys
 	 * of each of the possible visibility settings name mapped to a boolean.
 	 *
@@ -131,17 +115,28 @@ class EventFactory {
 	 * @param string $uri
 	 * @param string $topic
 	 * @param array $attrs
-	 * @param string|bool $wiki
+	 * @param string|null $wiki wikiId if provided
 	 *
-	 * @return array $attrs + meta subobject
+	 * @return array $attrs + meta sub object
 	 */
 	private static function createEvent(
 		$uri,
 		$topic,
 		array $attrs,
-		$wiki = false
+		$wiki = null
 	) {
-		$domain = self::getDomain( $wiki );
+		global $wgServerName;
+
+		if ( !is_null( $wiki ) ) {
+			$wikiRef = WikiMap::getWiki( $wiki );
+			if ( is_null( $wikiRef ) ) {
+				$domain = $wgServerName;
+			} else {
+				$domain = $wikiRef->getDisplayName();
+			}
+		} else {
+			$domain = $wgServerName;
+		}
 
 		$event = [
 			'meta' => [
@@ -150,7 +145,7 @@ class EventFactory {
 				'request_id' => self::getRequestId(),
 				'id'         => self::newId(),
 				'dt'         => gmdate( 'c' ),
-				'domain'     => $domain ?: $wgServerName,
+				'domain'     => $domain,
 			],
 		];
 
@@ -961,6 +956,11 @@ class EventFactory {
 		return $event;
 	}
 
+	/**
+	 * @param string $wiki wikiId
+	 * @param IJobSpecification $job the job specification
+	 * @return array
+	 */
 	public function createJobEvent( $wiki, IJobSpecification $job ) {
 		global $wgDBname;
 
