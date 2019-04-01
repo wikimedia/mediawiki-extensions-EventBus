@@ -68,7 +68,7 @@ class JobQueueEventBus extends JobQueue {
 		$eventFactory = $eventBus->getFactory();
 
 		foreach ( $jobs as $job ) {
-			$item = $eventFactory->createJobEvent( $this->getWiki(), $job );
+			$item = $eventFactory->createJobEvent( $this->getDomain(), $job );
 			if ( is_null( $item ) ) {
 				continue;
 			}
