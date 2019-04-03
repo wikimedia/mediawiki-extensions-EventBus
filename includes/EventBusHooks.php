@@ -36,16 +36,25 @@ class EventBusHooks {
 	}
 
 	/**
+	 * @return EventBus
+	 * @throws ConfigException
+	 */
+	private static function getEventBus() {
+		return EventBus::getInstance( 'eventbus' );
+	}
+
+	/**
 	 * Creates and sends a single resource_change event to EventBus
 	 *
-	 * @param LinkTarget $title  article title object
+	 * @param LinkTarget $title article title object
 	 * @param array $tags the array of tags to use in the event
+	 * @throws ConfigException
 	 */
 	private static function sendResourceChangedEvent(
 		LinkTarget $title,
 		array $tags
 	) {
-		$eventbus = EventBus::getInstance( 'eventbus' );
+		$eventbus = self::getEventBus();
 		$events[] = $eventbus->getFactory()->createResourceChangeEvent( $title, $tags );
 
 		DeferredUpdates::addCallableUpdate( function () use ( $eventbus, $events ) {
@@ -65,6 +74,7 @@ class EventBusHooks {
 	 * @param Content|null $content the content of the deleted article, or null in case of error
 	 * @param ManualLogEntry $logEntry the log entry used to record the deletion
 	 * @param int $archivedRevisionCount the number of revisions archived during the page delete
+	 * @throws ConfigException
 	 */
 	public static function onArticleDeleteComplete(
 		WikiPage $wikiPage,
@@ -75,7 +85,7 @@ class EventBusHooks {
 		ManualLogEntry $logEntry,
 		$archivedRevisionCount
 	) {
-		$eventbus = EventBus::getInstance( 'eventbus' );
+		$eventbus = self::getEventBus();
 
 		$events[] = $eventbus->getFactory()->createPageDeleteEvent(
 			$user,
@@ -83,7 +93,7 @@ class EventBusHooks {
 			$wikiPage->getTitle(),
 			$wikiPage->isRedirect(),
 			$archivedRevisionCount,
-			$wikiPage->getRevision(),
+			$wikiPage->getRevisionRecord(),
 			$reason
 		);
 
@@ -103,6 +113,7 @@ class EventBusHooks {
 	 * @param bool $create whether the restoration caused the page to be created
 	 * @param string $comment comment explaining the undeletion
 	 * @param int $oldPageId ID of page previously deleted (from archive table)
+	 * @throws ConfigException
 	 */
 	public static function onArticleUndelete(
 		Title $title,
@@ -112,7 +123,7 @@ class EventBusHooks {
 	) {
 		$performer = RequestContext::getMain()->getUser();
 
-		$eventBus = EventBus::getInstance( 'eventbus' );
+		$eventBus = self::getEventBus();
 		$events[] = $eventBus->getFactory()->createPageUndeleteEvent(
 			$performer,
 			$title,
@@ -137,6 +148,7 @@ class EventBusHooks {
 	 * @param int $redirid database page_id of the created redirect, or 0 if suppressed
 	 * @param string $reason reason for the move
 	 * @param Revision $newRevision revision created by the move
+	 * @throws ConfigException
 	 */
 	public static function onTitleMoveComplete(
 		Title $oldTitle,
@@ -147,7 +159,7 @@ class EventBusHooks {
 		$reason,
 		Revision $newRevision
 	) {
-		$eventBus = EventBus::getInstance( 'eventbus' );
+		$eventBus = self::getEventBus();
 		$events[] = $eventBus->getFactory()->createPageMoveEvent(
 			$oldTitle,
 			$newTitle,
@@ -174,20 +186,21 @@ class EventBusHooks {
 	 *              This array can be examined to determine exactly what visibility
 	 *              bits have changed for each revision.  This array is of the form
 	 *              [id => ['oldBits' => $oldBits, 'newBits' => $newBits], ... ]
+	 * @throws ConfigException
 	 */
 	public static function onArticleRevisionVisibilitySet(
 		Title $title,
 		array $revIds,
 		array $visibilityChangeMap
 	) {
-		$eventBus = EventBus::getInstance( 'eventbus' );
+		$eventBus = self::getEventBus();
 		$performer = RequestContext::getMain()->getUser();
 		$performer->loadFromId();
 
 		// Create a  event
 		// for each revId that was changed.
 		foreach ( $revIds as $revId ) {
-			// Create the mediawiki/revision/visibilty-change event
+			// Create the mediawiki/revision/visibility-change event
 			$revision = self::getRevisionLookup()->getRevisionById( $revId );
 
 			// If the page is deleted simultaneously (null $revision) or if
@@ -201,7 +214,7 @@ class EventBusHooks {
 				);
 				continue;
 			} elseif ( !array_key_exists( $revId, $visibilityChangeMap ) ) {
-				// This shoudln't happen, log it.
+				// This should not happen, log it.
 				wfDebug(
 					__METHOD__ . ' revision id ' . $revId .
 					' not found in visibilityChangeMap. Cannot create ' .
@@ -237,6 +250,7 @@ class EventBusHooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ArticlePurge
 	 *
 	 * @param WikiPage $wikiPage
+	 * @throws ConfigException
 	 */
 	public static function onArticlePurge( WikiPage $wikiPage ) {
 		self::sendResourceChangedEvent( $wikiPage->getTitle(), [ 'purge' ] );
@@ -258,6 +272,7 @@ class EventBusHooks {
 	 * @param string|null $section Deprecated
 	 * @param int $flags
 	 * @param Revision|null $revision
+	 * @throws ConfigException
 	 */
 	public static function onPageContentInsertComplete(
 		WikiPage $article,
@@ -279,7 +294,7 @@ class EventBusHooks {
 			return;
 		}
 
-		$eventBus = EventBus::getInstance( 'eventbus' );
+		$eventBus = self::getEventBus();
 		$events[] = $eventBus->getFactory()->createPageCreateEvent(
 			$revision->getRevisionRecord(),
 			$revision->getTitle()
@@ -311,6 +326,7 @@ class EventBusHooks {
 	 * @param Revision|null $revision
 	 * @param Status $status
 	 * @param int $baseRevId
+	 * @throws ConfigException
 	 */
 	public static function onPageContentSaveComplete(
 		Wikipage $wikiPage,
@@ -339,7 +355,7 @@ class EventBusHooks {
 			return;
 		}
 
-		$eventBus = EventBus::getInstance( 'eventbus' );
+		$eventBus = self::getEventBus();
 		$events[] = $eventBus->getFactory()->createRevisionCreateEvent(
 			$revision->getRevisionRecord()
 		);
@@ -360,13 +376,14 @@ class EventBusHooks {
 	 * @param User $user the user who did the block (not the one being blocked)
 	 * @param Block|null $previousBlock the previous block state for the block target.
 	 *        null if this is a new block target.
+	 * @throws ConfigException
 	 */
 	public static function onBlockIpComplete(
 		Block $block,
 		User $user,
 		Block $previousBlock = null
 	) {
-		$eventBus = EventBus::getInstance( 'eventbus' );
+		$eventBus = self::getEventBus();
 		$eventFactory = $eventBus->getFactory();
 		$events[] = $eventFactory->createUserBlockChangeEvent( $user, $block, $previousBlock );
 
@@ -386,6 +403,7 @@ class EventBusHooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/LinksUpdateComplete
 	 *
 	 * @param LinksUpdate $linksUpdate the update object
+	 * @throws ConfigException
 	 */
 	public static function onLinksUpdateComplete(
 		LinksUpdate $linksUpdate
@@ -420,7 +438,7 @@ class EventBusHooks {
 		}
 		$pageId = $linksUpdate->mId;
 
-		$eventBus = EventBus::getInstance( 'eventbus' );
+		$eventBus = self::getEventBus();
 		$eventFactory = $eventBus->getFactory();
 
 		if ( !$arePropsEmpty ) {
@@ -467,6 +485,7 @@ class EventBusHooks {
 	 * @param User $user the user who have changed the article
 	 * @param array $protect set of new restrictions details
 	 * @param string $reason the reason for page protection
+	 * @throws ConfigException
 	 */
 	public static function onArticleProtectComplete(
 		Wikipage $wikiPage,
@@ -474,14 +493,14 @@ class EventBusHooks {
 		array $protect,
 		$reason
 	) {
-		$eventBus = EventBus::getInstance( 'eventbus' );
+		$eventBus = self::getEventBus();
 		$eventFactory = $eventBus->getFactory();
 
 		$events[] = $eventFactory->createPageRestrictionsChangeEvent(
 			$user,
 			$wikiPage->getTitle(),
 			$wikiPage->getId(),
-			$wikiPage->getRevision(),
+			$wikiPage->getRevisionRecord(),
 			$wikiPage->isRedirect(),
 			$reason,
 			$protect
@@ -509,6 +528,7 @@ class EventBusHooks {
 	 * the action, or null
 	 * @param User|null $user User who performed the tagging when the tagging is subsequent
 	 * to the action, or null
+	 * @throws ConfigException
 	 */
 	public static function onChangeTagsAfterUpdateTags(
 		array $addedTags,
@@ -532,7 +552,7 @@ class EventBusHooks {
 			return;
 		}
 
-		$eventBus = EventBus::getInstance( 'eventbus' );
+		$eventBus = self::getEventBus();
 		$events[] = $eventBus->getFactory()->createRevisionTagsChangeEvent(
 			$revisionRecord,
 			$prevTags,
@@ -570,6 +590,7 @@ class EventBusHooks {
 	 *   this parameter will be null.
 	 * @param string $summary Change summary provided by the user, or empty string if none
 	 *   was provided.
+	 * @throws ConfigException
 	 */
 	public static function onCentralNoticeCampaignChange(
 		$changeType,
@@ -580,7 +601,7 @@ class EventBusHooks {
 		$endSettings,
 		$summary
 	) {
-		$eventBus = EventBus::getInstance( 'eventbus' );
+		$eventBus = self::getEventBus();
 		$eventFactory = $eventBus->getFactory();
 
 		// Since we're running this hook, we'll assume that CentralNotice is installed.

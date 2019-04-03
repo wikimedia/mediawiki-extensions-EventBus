@@ -12,7 +12,7 @@ use MediaWiki\Revision\SuppressedDataException;
 class EventFactory {
 	/**
 	 * Return a title formatter instance
-	 * @return object
+	 * @return TitleFormatter
 	 */
 	private static function getTitleFormatter() {
 		return MediaWikiServices::getInstance()->getTitleFormatter();
@@ -68,22 +68,6 @@ class EventFactory {
 		$context = RequestContext::getMain();
 		$xreqid = $context->getRequest()->getHeader( 'x-request-id' );
 		return $xreqid ?: UIDGenerator::newUUIDv4();
-	}
-
-	/**
-	 * Get the revision Id from either RevisionRecord or Revision
-	 * @param Revision|RevisionRecord $rev
-	 * @return int|null
-	 */
-	private static function getRevisionId( $rev ) {
-		if ( $rev instanceof RevisionRecord ) {
-			return $rev->getId();
-		} elseif ( $rev instanceof Revision ) {
-			$record = $rev->getRevisionRecord();
-			return $record ?: $record->getId();
-		}
-
-		return null;
 	}
 
 	/**
@@ -345,8 +329,8 @@ class EventFactory {
 	/**
 	 * Creates a cryptographic signature for the event
 	 *
-	 * @param string $event the serialized event to sign
-	 * @return string
+	 * @param array $event the serialized event to sign
+	 * @throws ConfigException
 	 */
 	private static function signEvent( &$event ) {
 		// Sign the event with mediawiki secret key
@@ -365,20 +349,20 @@ class EventFactory {
 	 * Create a page delete event message
 	 * @param User $user
 	 * @param int $id
-	 * @param Title $title
+	 * @param LinkTarget $title
 	 * @param bool $is_redirect
 	 * @param int $archivedRevisionCount
-	 * @param RevisionRecord|Revision $headRevision
+	 * @param RevisionRecord|null $headRevision
 	 * @param string $reason
 	 * @return array
 	 */
 	public function createPageDeleteEvent(
 		User $user,
 		$id,
-		Title $title,
+		LinkTarget $title,
 		$is_redirect,
 		$archivedRevisionCount,
-		$headRevision,
+		RevisionRecord $headRevision = null,
 		$reason
 	) {
 		global $wgDBname;
@@ -391,14 +375,13 @@ class EventFactory {
 
 			// page entity fields
 			'page_id'            => $id,
-			'page_title'         => $title->getPrefixedDBkey(),
+			'page_title'         => self::getTitleFormatter()->getPrefixedDBkey( $title ),
 			'page_namespace'     => $title->getNamespace(),
 			'page_is_redirect'   => $is_redirect,
 		];
 
-		$headRevisionId = self::getRevisionId( $headRevision );
-		if ( !is_null( $headRevisionId ) ) {
-			$attrs['rev_id'] = $headRevisionId;
+		if ( !is_null( $headRevision ) && !is_null( $headRevision->getId() ) ) {
+			$attrs['rev_id'] = $headRevision->getId();
 		}
 
 		// page delete specific fields:
@@ -442,7 +425,7 @@ class EventFactory {
 
 			// page entity fields
 			'page_id'            => $title->getArticleID(),
-			'page_title'         => $title->getPrefixedDBkey(),
+			'page_title'         => self::getTitleFormatter()->getPrefixedDBkey( $title ),
 			'page_namespace'     => $title->getNamespace(),
 			'page_is_redirect'   => $title->isRedirect(),
 			'rev_id'             => $title->getLatestRevID(),
@@ -704,7 +687,7 @@ class EventFactory {
 
 			// page entity fields
 			'page_id'            => $pageId,
-			'page_title'         => $title->getPrefixedDBkey(),
+			'page_title'         => self::getTitleFormatter()->getPrefixedDBkey( $title ),
 			'page_namespace'     => $title->getNamespace(),
 			'page_is_redirect'   => $title->isRedirect(),
 			'rev_id'			 => $revId
@@ -762,7 +745,7 @@ class EventFactory {
 
 			// page entity fields
 			'page_id'            => $pageId,
-			'page_title'         => $title->getPrefixedDBkey(),
+			'page_title'         => self::getTitleFormatter()->getPrefixedDBkey( $title ),
 			'page_namespace'     => $title->getNamespace(),
 			'page_is_redirect'   => $title->isRedirect(),
 			'rev_id'			 => $revId
@@ -882,19 +865,19 @@ class EventFactory {
 	 * Create a page restrictions change event message
 	 *
 	 * @param User $user
-	 * @param Title $title
+	 * @param LinkTarget $title
 	 * @param int $pageId
-	 * @param Revision|RevisionRecord $rev
+	 * @param RevisionRecord|null $revision
 	 * @param bool $is_redirect
 	 * @param string $reason
-	 * @param string $protect
+	 * @param array $protect
 	 * @return array
 	 */
 	public function createPageRestrictionsChangeEvent(
 		User $user,
-		Title $title,
+		LinkTarget $title,
 		$pageId,
-		$rev,
+		RevisionRecord $revision = null,
 		$is_redirect,
 		$reason,
 		$protect
@@ -909,7 +892,7 @@ class EventFactory {
 
 			// page entity fields
 			'page_id'            => $pageId,
-			'page_title'         => $title->getPrefixedDBkey(),
+			'page_title'         => self::getTitleFormatter()->getPrefixedDBkey( $title ),
 			'page_namespace'     => $title->getNamespace(),
 			'page_is_redirect'   => $is_redirect,
 
@@ -918,8 +901,8 @@ class EventFactory {
 			'page_restrictions'  => $protect
 		];
 
-		if ( !is_null( $rev ) ) {
-			$attrs['rev_id'] = self::getRevisionId( $rev );
+		if ( !is_null( $revision ) && !is_null( $revision->getId() ) ) {
+			$attrs['rev_id'] = $revision->getId();
 		}
 
 		return self::createEvent(
@@ -932,11 +915,11 @@ class EventFactory {
 	/**
 	 * Create a recent change event message
 	 *
-	 * @param Title $title
+	 * @param LinkTarget $title
 	 * @param array $attrs
 	 * @return array
 	 */
-	public function createRecentChangeEvent( Title $title, $attrs ) {
+	public function createRecentChangeEvent( LinkTarget $title, $attrs ) {
 		if ( isset( $attrs['comment'] ) ) {
 			$attrs['parsedcomment'] = Linker::formatComment( $attrs['comment'], $title );
 		}
@@ -960,6 +943,7 @@ class EventFactory {
 	 * @param string $wiki wikiId
 	 * @param IJobSpecification $job the job specification
 	 * @return array
+	 * @throws ConfigException
 	 */
 	public function createJobEvent( $wiki, IJobSpecification $job ) {
 		global $wgDBname;
@@ -968,7 +952,7 @@ class EventFactory {
 			'database' => $wiki ?: $wgDBname,
 			'type' => $job->getType(),
 			'page_namespace' => $job->getTitle()->getNamespace(),
-			'page_title' => $job->getTitle()->getPrefixedDBkey()
+			'page_title' => self::getTitleFormatter()->getPrefixedDBkey( $job->getTitle() )
 		];
 
 		if ( !is_null( $job->getReleaseTimestamp() ) ) {

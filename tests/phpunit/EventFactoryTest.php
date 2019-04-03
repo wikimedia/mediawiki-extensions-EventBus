@@ -14,11 +14,12 @@ class EventFactoryTest extends MediaWikiTestCase {
 	protected static $eventFactory;
 
 	const MOCK_PAGE_TITLE = 'Test';
+	const MOCK_PAGE_ID = 23;
 
 	private static function revisionProperties( $rowOverrides = [] ) {
 		$row = [
 			'id' => 42,
-			'page' => 23,
+			'page' => self::MOCK_PAGE_ID,
 			'timestamp' => '20171017114835',
 			'user_text' => '111.0.1.2',
 			'user' => 0,
@@ -58,10 +59,10 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertEquals( 0, $event['page_namespace'], "'page_namespace' incorrect value" );
 	}
 
-	private function verifyEventType( $event, $expectedType ) {
+	private function assertTopic( $event, $expectedTopic ) {
 		$this->assertArrayHasKey( 'meta', $event, "'meta' key missing" );
 		$this->assertArrayHasKey( 'topic', $event['meta'], "'topic' key missing" );
-		$this->assertEquals( $event['meta']['topic'], $expectedType, "'topic' incorrect value" );
+		$this->assertEquals( $event['meta']['topic'], $expectedTopic, "'topic' incorrect value" );
 	}
 
 	private function assertRevisionProperties( $event, $rowOverrides = [] ) {
@@ -132,7 +133,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 			newMutableRevisionFromArray( $row, 0, Title::newFromText( self::MOCK_PAGE_TITLE ) );
 	}
 
-	public function provideLinkAdditionChange() {
+	public function providePageLinks() {
 		yield 'Add new links' => [
 			[ Title::newFromText( 'added_link_1' ), Title::newFromText( 'added_link_2' ) ],
 			[],
@@ -167,9 +168,6 @@ class EventFactoryTest extends MediaWikiTestCase {
 			],
 			[]
 		];
-	}
-
-	public function provideLinkRemovalChange() {
 		yield 'Removed links' => [
 			[],
 			[],
@@ -205,9 +203,6 @@ class EventFactoryTest extends MediaWikiTestCase {
 				[ 'link' => 'remove_ext_link_2', 'external' => true ]
 			]
 		];
-	}
-
-	public function provideLinkAdditionAndRemovalChange() {
 		yield 'Add new links and external links' => [
 			[ Title::newFromText( 'added_link_1? =' ), Title::newFromText( 'added_link_2' ) ],
 			[ 'added_ext_link_1', 'added_ext_link_2' ],
@@ -229,63 +224,9 @@ class EventFactoryTest extends MediaWikiTestCase {
 	}
 
 	/**
-	 * @dataProvider provideLinkAdditionChange
+	 * @dataProvider providePageLinks
 	 */
-	public function testAddedLinksChange(
-		$addedLinks,
-		$addedExternalLinks,
-		$removedLinks,
-		$removedExternalLinks,
-		$expectedAddedLinks,
-		$expectedRemovedLinks
-	) {
-		$event = self::$eventFactory->createPageLinksChangeEvent(
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
-			$addedLinks,
-			$addedExternalLinks,
-			$removedLinks,
-			$removedExternalLinks,
-			User::newFromName( 'Test_User' ),
-			1,
-			1
-		);
-
-		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
-		$this->assertArrayEquals( $expectedAddedLinks, $event['added_links'],
-			"'added_links' incorrect value" );
-	}
-
-	/**
-	 * @dataProvider provideLinkRemovalChange
-	 */
-	public function testRemovedLinksChange(
-		$addedLinks,
-		$addedExternalLinks,
-		$removedLinks,
-		$removedExternalLinks,
-		$expectedAddedLinks,
-		$expectedRemovedLinks
-	) {
-		$event = self::$eventFactory->createPageLinksChangeEvent(
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
-			$addedLinks,
-			$addedExternalLinks,
-			$removedLinks,
-			$removedExternalLinks,
-			User::newFromName( 'Test_User' ),
-			1,
-			1
-		);
-
-		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
-		$this->assertArrayEquals( $expectedRemovedLinks, $event['removed_links'],
-			"'removed_links' incorrect value" );
-	}
-
-	/**
-	 * @dataProvider provideLinkAdditionAndRemovalChange
-	 */
-	public function testAddedAndRemovedLinksChange(
+	public function testCreateLinksChange(
 		$addedLinks,
 		$addedExternalLinks,
 		$removedLinks,
@@ -301,14 +242,25 @@ class EventFactoryTest extends MediaWikiTestCase {
 				$removedExternalLinks,
 				User::newFromName( 'Test_User' ),
 				1,
-				1
+				self::MOCK_PAGE_ID
 		);
 
-		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
-		$this->assertArrayEquals( $expectedAddedLinks, $event['added_links'],
-			"'added_links' incorrect value" );
-		$this->assertArrayEquals( $expectedRemovedLinks, $event['removed_links'],
-			"'removed_links' incorrect value" );
+		$this->assertTopic( $event, 'mediawiki.page-links-change' );
+		$this->assertPageProperties( $event );
+		if ( empty( $expectedAddedLinks ) ) {
+			$this->assertArrayNotHasKey( 'added_links', $event,
+				"must not have 'added_links'" );
+		} else {
+			$this->assertArrayEquals( $expectedAddedLinks, $event['added_links'],
+				"'added_links' incorrect value" );
+		}
+		if ( empty( $expectedRemovedLinks ) ) {
+			$this->assertArrayNotHasKey( 'removed_links', $event,
+				"must not have 'removed_links'" );
+		} else {
+			$this->assertArrayEquals( $expectedRemovedLinks, $event['removed_links'],
+				"'removed_links' incorrect value" );
+		}
 	}
 
 	public function provideRevisionTagsChange() {
@@ -316,38 +268,52 @@ class EventFactoryTest extends MediaWikiTestCase {
 			[],
 			[ 'added_tag_1', 'added_tag_2' ],
 			[],
-			[ 'added_tag_1', 'added_tag_2' ]
+			[ 'added_tag_1', 'added_tag_2' ],
+			null
 		];
 		yield 'Add new tags to existing tags' => [
 			[ 'existing_tag_1' ],
 			[ 'added_tag_1' ],
 			[],
-			[ 'existing_tag_1', 'added_tag_1' ]
+			[ 'existing_tag_1', 'added_tag_1' ],
+			null
 		];
 		yield 'Remove tags from existing tags' => [
 			[ 'existing_tag_1', 'existing_tag_2' ],
 			[],
 			[ 'existing_tag_2' ],
-			[ 'existing_tag_1' ]
+			[ 'existing_tag_1' ],
+			null
 		];
 		yield 'Duplicated tags' => [
 			[ 'existing_tag_1' ],
 			[ 'existing_tag_1' ],
 			[],
-			[ 'existing_tag_1' ]
+			[ 'existing_tag_1' ],
+			null
+		];
+		yield 'Explicit user' => [
+			[ 'existing_tag_1' ],
+			[ 'existing_tag_1' ],
+			[],
+			[ 'existing_tag_1' ],
+			User::newFromName( 'Test_User' )
 		];
 	}
 
 	/**
 	 * @dataProvider provideRevisionTagsChange
+	 * @throws MWException
 	 */
-	public function testRevisionTagsChange( $prevTags, $addedTags, $removedTags, $expectedTags ) {
+	public function testRevisionTagsChange( $prevTags, $addedTags, $removedTags, $expectedTags,
+											$user ) {
 		$revisionRecord = $this->createMutableRevisionFromArray();
 		$event = self::$eventFactory->createRevisionTagsChangeEvent(
 			$revisionRecord,
 			$prevTags,
 			$addedTags,
-			$removedTags
+			$removedTags,
+			$user
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
@@ -357,32 +323,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 			"'prior_state' incorrect value" );
 		$this->assertArrayEquals( $expectedTags, $event['tags'],
 			"'tags' incorrect values" );
-	}
-
-	public function testRevisionTagsChangeWithoutUser() {
-		$revisionRecord = $this->createMutableRevisionFromArray();
-		$event = self::$eventFactory->createRevisionTagsChangeEvent(
-			$revisionRecord,
-			[],
-			[ 'added_tag_1', 'added_tag_2' ],
-			[]
-		);
-
 		$this->assertArrayHasKey( 'performer', $event, "'performer' missing" );
-	}
-
-	public function testRevisionTagsChangeWithUser() {
-		$revisionRecord = $this->createMutableRevisionFromArray();
-		$event = self::$eventFactory->createRevisionTagsChangeEvent(
-			$revisionRecord,
-			[],
-			[ 'added_tag_1', 'added_tag_2' ],
-			[],
-			User::newFromName( 'Test_User' )
-		);
-
-		$this->assertArrayHasKey( 'performer', $event, "'performer' missing" );
-		$this->assertEquals( 'Test User', $event['performer']['user_text'] );
 	}
 
 	public function provideRevisionVisibilityChange() {
@@ -756,39 +697,15 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertCentralNoticeSettings( $event[ 'prior_state' ], $settings );
 	}
 
-	public function provideNewMutableRevisionFromArray() {
-		yield 'Basic mutable revision' => [
-			[
-				'id' => 42,
-				'page' => 23,
-				'timestamp' => '20171017114835',
-				'user_text' => '111.0.1.2',
-				'user' => 0,
-				'minor_edit' => false,
-				'deleted' => 0,
-				'len' => 46,
-				'parent_id' => 1,
-				'sha1' => 'rdqbbzs3pkhihgbs8qf2q9jsvheag5z',
-				'comment' => 'testing',
-				'content' => new WikitextContent( 'Some Content' ),
-			]
-		];
-	}
-
 	/**
-	 * @dataProvider provideNewMutableRevisionFromArray
+	 * @throws MWException
 	 */
-	public function testPageDeleteEvent( $revisionRecordRow ) {
-		$revisionRecord = MediaWikiServices::getInstance()->
-			getRevisionStore()->
-			newMutableRevisionFromArray( $revisionRecordRow,
-			0,
-			Title::newFromText( 'Test' )
-		);
+	public function testPageDeleteEvent() {
+		$revisionRecord = self::createMutableRevisionFromArray();
 
 		$event = self::$eventFactory->createPageDeleteEvent(
 			User::newFromName( 'Test_User' ),
-			23,
+			self::MOCK_PAGE_ID,
 			Title::newFromText( self::MOCK_PAGE_TITLE ),
 			true,
 			2,
@@ -803,7 +720,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertEquals( 2, $event['rev_count'], "'rev_count' has incorrect value" );
 		$this->assertArrayHasKey( 'comment', $event, "'comment' key missing" );
 		$this->assertEquals( 'testreason', $event['comment'], "'comment' has incorrect value" );
-		$this->verifyEventType( $event, 'mediawiki.page-delete' );
+		$this->assertTopic( $event, 'mediawiki.page-delete' );
 	}
 
 	public function testPageUndeleteEvent() {
@@ -824,12 +741,12 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertArrayHasKey( 'comment', $event, "'comment' key missing" );
 		$this->assertEquals( $event['comment'], 'testreason',
 			"'comment' incorrect value" );
-		$this->verifyEventType( $event, 'mediawiki.page-undelete' );
+		$this->assertTopic( $event, 'mediawiki.page-undelete' );
 	}
 
 	public function testResourceChangeEvent() {
 		$event = self::$eventFactory->createResourceChangeEvent(
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
+			new TitleValue( 0, self::MOCK_PAGE_TITLE ),
 			[ '0' => 'tag0', '1' => 'tag1' ]
 		);
 		$this->assertEquals( gettype( $event ), 'array', 'Returned event should be of type array' );
@@ -838,7 +755,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertArrayHasKey( '1', $event['tags'],  "'tags/1' key missing" );
 		$this->assertEquals( $event['tags']['0'], 'tag0', "'tags/0' incorrect value" );
 		$this->assertEquals( $event['tags']['1'], 'tag1', "'tags/1' incorrect value" );
-		$this->verifyEventType( $event, 'resource_change' );
+		$this->assertTopic( $event, 'resource_change' );
 	}
 
 	public function provideUserBlocks() {
@@ -871,7 +788,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
 		$this->assertArrayHasKey( 'blocks', $event, "'blocks' key missing" );
 		$this->assertArrayHasKey( 'prior_state', $event, "'prior_state' key missing" );
-		$this->verifyEventType( $event, 'mediawiki.user-blocks-change' );
+		$this->assertTopic( $event, 'mediawiki.user-blocks-change' );
 		$this->assertArrayHasKey( 'user_groups', $event, "'user_groups' should be present" );
 	}
 
@@ -886,7 +803,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
-		$this->verifyEventType( $event, 'mediawiki.user-blocks-change' );
+		$this->assertTopic( $event, 'mediawiki.user-blocks-change' );
 		$this->assertArrayNotHasKey( "user_groups", $event, "'user_groups' should not be present" );
 	}
 
@@ -903,13 +820,13 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
 		$this->assertArrayHasKey( 'blocks', $event, "'blocks' key missing" );
 		$this->assertArrayNotHasKey( 'prior_state', $event, "'prior_state' key must not be present" );
-		$this->verifyEventType( $event, 'mediawiki.user-blocks-change' );
+		$this->assertTopic( $event, 'mediawiki.user-blocks-change' );
 		$this->assertArrayHasKey( 'user_groups', $event, "'user_groups' should be present" );
 	}
 
 	public function testPageRestrictionsChangeEvent() {
 		$rec = self::createMutableRevisionFromArray();
-		$title = Title::newFromText( self::MOCK_PAGE_TITLE );
+		$title = new TitleValue( 0, self::MOCK_PAGE_TITLE );
 		$user = $this->getTestUser()->getUser();
 
 		$event = self::$eventFactory->createPageRestrictionsChangeEvent(
@@ -933,12 +850,12 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertArrayHasKey( 'page_restrictions', $event, "'reason' key missing" );
 		$this->assertEquals( 'testprotection', $event['page_restrictions'],
 			"'page_restrictions' incorrect value" );
-		$this->verifyEventType( $event, 'mediawiki.page-restrictions-change' );
+		$this->assertTopic( $event, 'mediawiki.page-restrictions-change' );
 	}
 
 	public function testCreateRecentChangeEvent() {
 		$event = self::$eventFactory->createRecentChangeEvent(
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
+			new TitleValue( 0, self::MOCK_PAGE_TITLE ),
 			[ 'comment' => 'tag0', '1' => 'tag1' ]
 		);
 
@@ -949,7 +866,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertEquals( 'tag0', $event['comment'], "'comment' incorrect value" );
 		$this->assertEquals( 'tag0', $event['parsedcomment'], "'parsedcomment' incorrect value" );
 		$this->assertEquals( 'tag1', $event['1'], "'1' incorrect value" );
-		$this->verifyEventType( $event, 'mediawiki.recentchange' );
+		$this->assertTopic( $event, 'mediawiki.recentchange' );
 	}
 
 	public function testCreateJobEvent() {
@@ -961,7 +878,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$event = self::$eventFactory->createJobEvent( $wgDBname, $job );
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
-		$this->verifyEventType( $event, 'mediawiki.job.' . $command );
+		$this->assertTopic( $event, 'mediawiki.job.' . $command );
 		$this->assertArrayHasKey( 'mediawiki_signature', $event, "'mediawiki_signature' key missing" );
 		$this->assertEquals( $event['meta']['domain'], $wgServerName );
 	}
