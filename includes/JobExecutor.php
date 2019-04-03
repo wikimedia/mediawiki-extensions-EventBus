@@ -60,8 +60,9 @@ class JobExecutor {
 		// Actually execute the job
 		try {
 			$fnameTrxOwner = get_class( $job ) . '::run';
-
-			$lbFactory->beginMasterChanges( $fnameTrxOwner );
+			if ( !$job->hasExecutionFlag( Job::JOB_NO_EXPLICIT_TRX_ROUND ) ) {
+				$lbFactory->beginMasterChanges( $fnameTrxOwner );
+			}
 			$status = $job->run();
 			$this->commitMasterChanges( $lbFactory, $fnameTrxOwner );
 
