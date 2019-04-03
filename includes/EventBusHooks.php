@@ -82,8 +82,8 @@ class EventBusHooks {
 			$id,
 			$wikiPage->getTitle(),
 			$wikiPage->isRedirect(),
-			$wikiPage->getRevision(),
 			$archivedRevisionCount,
+			$wikiPage->getRevision(),
 			$reason
 		);
 
