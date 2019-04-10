@@ -104,9 +104,10 @@ class JobQueueEventBus extends JobQueue {
 
 	/**
 	 * @see JobQueue::ack()
-	 * @param Job $job
+
+	 * @param RunnableJob $job
 	 */
-	protected function doAck( Job $job ) {
+	protected function doAck( RunnableJob $job ) {
 		// not implemented
 	}
 

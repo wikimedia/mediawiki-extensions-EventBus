@@ -874,7 +874,10 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$command = 'deletePage';
 		$title = Title::newFromText( self::MOCK_PAGE_TITLE );
 
-		$job = Job::factory( $command, $title, [] );
+		$job = Job::factory( $command, [
+			'namespace' => $title->getNamespace(),
+			'title' => $title->getDBkey()
+		] );
 		$event = self::$eventFactory->createJobEvent( $wgDBname, $job );
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
