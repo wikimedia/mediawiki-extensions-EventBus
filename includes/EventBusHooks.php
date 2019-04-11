@@ -127,8 +127,8 @@ class EventBusHooks {
 		$events[] = $eventBus->getFactory()->createPageUndeleteEvent(
 			$performer,
 			$title,
-			$oldPageId,
-			$comment
+			$comment,
+			$oldPageId
 		);
 
 		DeferredUpdates::addCallableUpdate( function () use ( $eventBus, $events ) {
