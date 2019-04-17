@@ -89,9 +89,11 @@ class EventFactory {
 		global $wgDBname;
 
 		$linkTarget = $revision->getPageAsLinkTarget();
+		$lb = MediaWikiServices::getInstance()->getDBLoadBalancerFactory();
 		$attrs = [
 			// Common Mediawiki entity fields
 			'database'           => $wgDBname,
+			'chronology_id'      => $lb->getChronologyProtectorClientId(),
 
 			// revision entity fields
 			'page_id'            => $revision->getPageId(),
@@ -353,11 +355,13 @@ class EventFactory {
 	) {
 		global $wgDBname;
 
+		$lb = MediaWikiServices::getInstance()->getDBLoadBalancerFactory();
 		// Create a mediawiki page delete event.
 		$attrs = [
 			// Common Mediawiki entity fields
 			'database'           => $wgDBname,
 			'performer'          => self::createPerformerAttrs( $user ),
+			'chronology_id'      => $lb->getChronologyProtectorClientId(),
 
 			// page entity fields
 			'page_id'            => $id,
@@ -406,11 +410,13 @@ class EventFactory {
 	) {
 		global $wgDBname;
 
+		$lb = MediaWikiServices::getInstance()->getDBLoadBalancerFactory();
 		// Create a mediawiki page undelete event.
 		$attrs = [
 			// Common Mediawiki entity fields
 			'database'           => $wgDBname,
 			'performer'          => self::createPerformerAttrs( $performer ),
+			'chronology_id'      => $lb->getChronologyProtectorClientId(),
 
 			// page entity fields
 			'page_id'            => $title->getArticleID(),
