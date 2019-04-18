@@ -241,6 +241,18 @@ class EventBus {
 	}
 
 	/**
+	 * Recursively calls replaceBinaryValues on an array and transforms
+	 * any binary values.  $array is passed by reference and will be modified.
+	 * @param array &$array
+	 * @return bool return value of array_walk_recursive
+	 */
+	public static function replaceBinaryValuesRecursive( &$array ) {
+		return array_walk_recursive( $array, function ( &$item, $key ) {
+			$item = self::replaceBinaryValues( $item );
+		} );
+	}
+
+	/**
 	 * Checks a part of the event for JSON-serializability
 	 *
 	 * @param array $originalEvent an original event that is being checked.

@@ -54,6 +54,10 @@ class EventBusMonologHandler extends AbstractProcessingHandler {
 
 		DeferredUpdates::addCallableUpdate(
 			function () use ( $event ) {
+				// Events via Monolog might have binary strings in them.
+				// We need to be sure that any binary data is first encoded.
+				//
+				EventBus::replaceBinaryValuesRecursive( $event );
 				$this->eventBus->send( [ $event ] );
 			}
 		);
