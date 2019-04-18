@@ -951,8 +951,12 @@ class EventFactory {
 		$attrs = [
 			'database' => $wiki ?: $wgDBname,
 			'type' => $job->getType(),
-			'page_namespace' => $job->getTitle()->getNamespace(),
-			'page_title' => self::getTitleFormatter()->getPrefixedDBkey( $job->getTitle() )
+			// Deprecated, no longer used.
+			// Hardcode a dummy until it can be safely removed from the schema. (T221368)
+			// - page_namespace: integer
+			// - page_title: non-empty string that is not a valid title
+			'page_namespace' => -1,
+			'page_title' => ':',
 		];
 
 		if ( !is_null( $job->getReleaseTimestamp() ) ) {
@@ -974,8 +978,11 @@ class EventFactory {
 
 		$attrs['params'] = $params;
 
+		// Deprecated, not used. To be removed from the schema. (T221368)
+		$url = 'https://placeholder.invalid/wiki/Special:Badtitle';
+
 		$event = self::createEvent(
-			self::getArticleURL( $job->getTitle() ),
+			$url,
 			'mediawiki.job.' . $job->getType(),
 			$attrs,
 			$wiki
