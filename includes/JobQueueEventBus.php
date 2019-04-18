@@ -85,8 +85,7 @@ class JobQueueEventBus extends JobQueue {
 			return;
 		}
 
-		$bus = EventBus::getInstance( 'eventbus' );
-		$result = $bus->send( array_values( $events ), EventBus::TYPE_JOB );
+		$result = $eventBus->send( array_values( $events ), EventBus::TYPE_JOB );
 
 		if ( is_string( $result ) ) {
 			throw new JobQueueError( "Could not enqueue jobs: $result" );

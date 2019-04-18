@@ -68,11 +68,7 @@ class SpecialRunSingleJob extends UnlistedSpecialPage {
 		}
 
 		// check that we have the needed components of the event
-		if ( !isset( $event['database'] )
-			 || !isset( $event['type'] )
-			 || !isset( $event['page_title'] )
-			 || !isset( $event['params'] )
-		) {
+		if ( !isset( $event['database'], $event['type'], $event['page_title'], $event['params'] ) ) {
 			wfHttpError( 400, 'Bad Request', 'Invalid event received' );
 			return;
 		}
