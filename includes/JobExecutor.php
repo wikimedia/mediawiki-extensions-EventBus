@@ -178,10 +178,25 @@ class JobExecutor {
 		$title = Title::newFromDBkey( $jobEvent['page_title'] );
 
 		if ( is_null( $title ) ) {
-			return [
-				'status'  => false,
-				'message' => 'Title ' . $jobEvent['page_title'] . ' is invalid'
-			];
+			// FIXME: This previously tried to sanity-check against potential
+			// corruption, but this isn't compatible with how MediaWiki stores
+			// title values (they can be dummies, they can be for foreign namespaces,
+			// for which no local formatter exists).
+			//
+			// To fix this, we need to change the Kafka schema to store
+			// "(page_namespace, page_title)" as the actual pair they are and
+			// use Title::makeTitle here (which has no failure mode).
+			//
+			// For now though, EventBusJobQueue will not be able to support
+			// titles from other wikis, and also will not be able to distinguish
+			// these three things:
+			//
+			// - foreign title values
+			// - corrupted title formatting
+			// - dummy titles
+			//
+			// Assume the least bad one of these to minimise breakage.
+			$title = Title::makeTitle( NS_SPECIAL, '' );
 		}
 
 		try {
