@@ -167,40 +167,22 @@ class JobExecutor {
 		}
 
 		$jobType = $jobEvent['type'];
+		$params = $jobEvent['params'];
 
-		if ( !isset( $jobEvent['page_title'] ) ) {
-			return [
-				'status'  => false,
-				'message' => 'Job event page_title is not defined'
-			];
-		}
-
-		$title = Title::newFromDBkey( $jobEvent['page_title'] );
-
-		if ( is_null( $title ) ) {
-			// FIXME: This previously tried to sanity-check against potential
-			// corruption, but this isn't compatible with how MediaWiki stores
-			// title values (they can be dummies, they can be for foreign namespaces,
-			// for which no local formatter exists).
-			//
-			// To fix this, we need to change the Kafka schema to store
-			// "(page_namespace, page_title)" as the actual pair they are and
-			// use Title::makeTitle here (which has no failure mode).
-			//
-			// For now though, EventBusJobQueue will not be able to support
-			// titles from other wikis, and also will not be able to distinguish
-			// these three things:
-			//
-			// - foreign title values
-			// - corrupted title formatting
-			// - dummy titles
-			//
-			// Assume the least bad one of these to minimise breakage.
-			$title = Title::makeTitle( NS_SPECIAL, '' );
+		if ( isset( $jobEvent['page_namespace'] )
+			&& isset( $jobEvent['page_title'] )
+			&& $jobEvent['page_title'] !== ':'
+		) {
+			// Compatibility with jobs queued before 1.34.0-wmf.1
+			$title = Title::newFromDBkey( $jobEvent['page_title'] );
+			if ( $title !== null ) {
+				$params['namespace'] = $title->getNamespace();
+				$params['title'] = $title->getDBkey();
+			}
 		}
 
 		try {
-			$job = Job::factory( $jobType, $title, $jobEvent['params'] );
+			$job = Job::factory( $jobType, $params );
 		} catch ( Exception $e ) {
 			return [
 				'status'  => false,
