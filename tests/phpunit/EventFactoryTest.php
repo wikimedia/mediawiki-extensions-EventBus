@@ -106,7 +106,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	// fixture setup
 	public static function setUpBeforeClass() {
-		self::$eventFactory = new EventFactory();
+		self::$eventFactory = new LegacyEventFactory();
 	}
 
 	// fixture tear-down
@@ -235,6 +235,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$expectedRemovedLinks
 	) {
 			$event = self::$eventFactory->createPageLinksChangeEvent(
+				'mediawiki.page-links-change',
 				Title::newFromText( self::MOCK_PAGE_TITLE ),
 				$addedLinks,
 				$addedExternalLinks,
@@ -309,6 +310,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 											$user ) {
 		$revisionRecord = $this->createMutableRevisionFromArray();
 		$event = self::$eventFactory->createRevisionTagsChangeEvent(
+			'mediawiki.revision-tags-change',
 			$revisionRecord,
 			$prevTags,
 			$addedTags,
@@ -388,6 +390,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$revisionRecord = $this->createMutableRevisionFromArray();
 		$performer = User::newFromName( 'Real_Performer' );
 		$event = self::$eventFactory->createRevisionVisibilityChangeEvent(
+			'mediawiki.revision-visibility-change',
 			$revisionRecord,
 			$performer,
 			$visibilityChanges
@@ -407,6 +410,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	public function testPageMoveEvent() {
 		$event = self::$eventFactory->createPageMoveEvent(
+			'mediawiki.page-move',
 			Title::newFromText( 'Old_Title' ),
 			Title::newFromText( self::MOCK_PAGE_TITLE ),
 			$this->createMutableRevisionFromArray(),
@@ -428,6 +432,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	public function testPageMoveEventWithRedirectPageId() {
 		$event = self::$eventFactory->createPageMoveEvent(
+			'mediawiki.page-move',
 			Title::newFromText( 'Old_Title' ),
 			Title::newFromText( self::MOCK_PAGE_TITLE ),
 			$this->createMutableRevisionFromArray(),
@@ -440,18 +445,9 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertArrayHasKey( 'new_redirect_page', $event, "'new_redirect_page' key missing" );
 	}
 
-	public function testPageCreationEvent() {
-		$event = self::$eventFactory->createPageCreateEvent(
-			$this->createMutableRevisionFromArray(),
-			Title::newFromText( self::MOCK_PAGE_TITLE )
-		);
-
-		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
-		$this->assertPageProperties( $event );
-	}
-
 	public function testPagePropertiesChangeEvent() {
 		$event = self::$eventFactory->createPagePropertiesChangeEvent(
+			'mediawiki.page-properties-change',
 			Title::newFromText( self::MOCK_PAGE_TITLE ),
 			null,
 			null,
@@ -467,6 +463,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	public function testPagePropertiesChangeEventAddedAndRemovedProperties() {
 		$event = self::$eventFactory->createPagePropertiesChangeEvent(
+			'mediawiki.page-properties-change',
 			Title::newFromText( self::MOCK_PAGE_TITLE ),
 			[ 'addedAttr' ],
 			[ 'removedAttr' ],
@@ -482,6 +479,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	public function testPagePropertiesChangeEventNoPerformer() {
 		$event = self::$eventFactory->createPagePropertiesChangeEvent(
+			'mediawiki.page-properties-change',
 			Title::newFromText( self::MOCK_PAGE_TITLE ),
 			null,
 			null,
@@ -497,6 +495,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	public function testPageLinksChangeEvent() {
 		$event = self::$eventFactory->createPageLinksChangeEvent(
+			'mediawiki.page-links-change',
 			Title::newFromText( self::MOCK_PAGE_TITLE ),
 			null,
 			null,
@@ -514,6 +513,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	public function testPageLinksChangeEventAddedAndRemovedProperties() {
 		$event = self::$eventFactory->createPageLinksChangeEvent(
+			'mediawiki.page-links-change',
 			Title::newFromText( self::MOCK_PAGE_TITLE ),
 			[ 'addedLinks' ],
 			[ 'addedExtLinks' ],
@@ -531,6 +531,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	public function testPageLinksChangeEventNoPerformer() {
 		$event = self::$eventFactory->createPageLinksChangeEvent(
+			'mediawiki.page-links-change',
 			Title::newFromText( self::MOCK_PAGE_TITLE ),
 			null,
 			null,
@@ -548,6 +549,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	public function testRevisionCreationEvent() {
 		$event = self::$eventFactory->createRevisionCreateEvent(
+			'mediawiki.revision-create',
 			$this->createMutableRevisionFromArray()
 		);
 
@@ -557,6 +559,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	public function testRevisionCreationEventDoesNotContainRevParentId() {
 		$event = self::$eventFactory->createRevisionCreateEvent(
+			'mediawiki.revision-create',
 			$this->createMutableRevisionFromArray( [
 				'parent_id' => null
 			] )
@@ -569,6 +572,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	public function testRevisionCreationEventContainsRevParentId() {
 		$event = self::$eventFactory->createRevisionCreateEvent(
+			'mediawiki.revision-create',
 			$this->createMutableRevisionFromArray()
 		);
 
@@ -578,6 +582,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	public function testRevisionCreationEventContentChangeExists() {
 		$event = self::$eventFactory->createRevisionCreateEvent(
+			'mediawiki.revision-create',
 			$this->createMutableRevisionFromArray()
 		);
 
@@ -616,6 +621,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$campaignUrl
 	) {
 		$event = self::$eventFactory->createCentralNoticeCampaignCreateEvent(
+			'mediawiki.centralnotice.campaign-create',
 			$campaignName,
 			$user,
 			$settings,
@@ -648,6 +654,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$priorState[ 'enabled'] = false;
 
 		$event = self::$eventFactory->createCentralNoticeCampaignChangeEvent(
+			'mediawiki.centralnotice.campaign-change',
 			$campaignName,
 			$user,
 			$settings,
@@ -679,6 +686,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$campaignUrl
 	) {
 		$event = self::$eventFactory->createCentralNoticeCampaignDeleteEvent(
+			'mediawiki.centralnotice.campaign-delete',
 			$campaignName,
 			$user,
 			$settings,
@@ -704,6 +712,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$revisionRecord = self::createMutableRevisionFromArray();
 
 		$event = self::$eventFactory->createPageDeleteEvent(
+			'mediawiki.page-delete',
 			User::newFromName( 'Test_User' ),
 			self::MOCK_PAGE_ID,
 			Title::newFromText( self::MOCK_PAGE_TITLE ),
@@ -725,6 +734,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	public function testPageUndeleteEvent() {
 		$event = self::$eventFactory->createPageUndeleteEvent(
+			'mediawiki.page-undelete',
 			User::newFromName( 'Test_User' ),
 			Title::newFromText( self::MOCK_PAGE_TITLE ),
 			'testreason',
@@ -746,6 +756,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	public function testResourceChangeEvent() {
 		$event = self::$eventFactory->createResourceChangeEvent(
+			'resource_change',
 			new TitleValue( 0, self::MOCK_PAGE_TITLE ),
 			[ '0' => 'tag0', '1' => 'tag1' ]
 		);
@@ -780,6 +791,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 	 */
 	public function testUserBlockChangeEvent( $oldBlock, $newBlock ) {
 		$event = self::$eventFactory->createUserBlockChangeEvent(
+			'mediawiki.user-blocks-change',
 			User::newFromName( "Test_User" ),
 			$newBlock,
 			$oldBlock
@@ -797,6 +809,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 	 */
 	public function testNonUserTargetsUserBlockChangeEvent( $oldBlock, $newBlock ) {
 		$event = self::$eventFactory->createUserBlockChangeEvent(
+			'mediawiki.user-blocks-change',
 			User::newFromName( "Test User" ),
 			$newBlock,
 			$oldBlock
@@ -812,6 +825,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 	 */
 	public function testNullOldBlockUseBlockChangeEvent( $oldBlock, $newBlock ) {
 		$event = self::$eventFactory->createUserBlockChangeEvent(
+			'mediawiki.user-blocks-change',
 			User::newFromName( "Test_User" ),
 			$newBlock,
 			$oldBlock
@@ -830,6 +844,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$user = $this->getTestUser()->getUser();
 
 		$event = self::$eventFactory->createPageRestrictionsChangeEvent(
+			'mediawiki.page-restrictions-change',
 			$user,
 			$title,
 			23,
@@ -855,6 +870,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	public function testCreateRecentChangeEvent() {
 		$event = self::$eventFactory->createRecentChangeEvent(
+			'mediawiki.recentchange',
 			new TitleValue( 0, self::MOCK_PAGE_TITLE ),
 			[ 'comment' => 'tag0', '1' => 'tag1' ]
 		);

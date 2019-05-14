@@ -41,7 +41,11 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 		$attrs = parent::getLine( $feed, $rc, $actionComment );
 
 		$eventFactory = EventBus::getInstance( 'eventbus' )->getFactory();
-		$event = $eventFactory->createRecentChangeEvent( $rc->getTitle(), $attrs );
+		$event = $eventFactory->createRecentChangeEvent(
+			'mediawiki.recentchange',
+			$rc->getTitle(),
+			$attrs
+		);
 
 		return EventBus::serializeEvents( [ self::removeNulls( $event ) ] );
 	}

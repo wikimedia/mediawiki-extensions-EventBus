@@ -69,20 +69,22 @@ class EventBus {
 	/** @var int which event types are allowed to be sent (TYPE_NONE|TYPE_EVENT|TYPE_JOB|TYPE_ALL) */
 	private $allowedEventTypes;
 
-	/** @var EventFactory event creator */
+	/** @var EventFactory|null event creator */
 	private $eventFactory;
 
 	/**
 	 * @param string $url EventBus service endpoint URL. E.g. http://localhost:8085/v1/events
 	 * @param int|null $timeout HTTP request timeout in seconds, defaults to 5.
+	 * @param EventFactory|null $eventFactory an instance of
+	 * 							the EventFactory to use for event construction.
 	 */
-	public function __construct( $url, $timeout = null ) {
+	public function __construct( $url, $timeout = null, $eventFactory = null ) {
 		global $wgEnableEventBus;
 
 		$this->http = new MultiHttpClient( [] );
 		$this->url = $url;
 		$this->timeout = $timeout ?: self::DEFAULT_REQUEST_TIMEOUT;
-		$this->eventFactory = new EventFactory();
+		$this->eventFactory = $eventFactory;
 
 		switch ( $wgEnableEventBus ) {
 			case 'TYPE_NONE':
@@ -308,7 +310,7 @@ class EventBus {
 
 	/**
 	 * Returns the EventFactory associated with this instance of EventBus
-	 * @return EventFactory
+	 * @return EventFactory|null
 	 */
 	public function getFactory() {
 		return $this->eventFactory;
@@ -350,12 +352,13 @@ class EventBus {
 			throw new ConfigException( $error );
 		}
 
-		$url = $eventServices[$eventServiceName]['url'];
-		$timeout = array_key_exists( 'timeout', $eventServices[$eventServiceName] ) ?
-			$eventServices[$eventServiceName]['timeout'] : null;
+		$eventService = $eventServices[$eventServiceName];
+		$url = $eventService['url'];
+		$timeout = array_key_exists( 'timeout', $eventService ) ? $eventService['timeout'] : null;
+		$eventFactory = $eventServiceName == 'eventbus' ? new LegacyEventFactory() : new EventFactory();
 
 		if ( !array_key_exists( $eventServiceName, self::$instances ) ) {
-			self::$instances[$eventServiceName] = new self( $url, $timeout );
+			self::$instances[$eventServiceName] = new self( $url, $timeout, $eventFactory );
 		}
 
 		return self::$instances[$eventServiceName];

@@ -59,15 +59,6 @@ class EventFactory {
 	}
 
 	/**
-	 * Creates a new type 1 UUID string.
-	 *
-	 * @return string
-	 */
-	private static function newId() {
-		return UIDGenerator::newUUIDv1();
-	}
-
-	/**
 	 * Creates a full article path
 	 *
 	 * @param LinkTarget $target article title object
@@ -79,49 +70,6 @@ class EventFactory {
 		$titleURL = wfUrlencode( self::getTitleFormatter()->getPrefixedDBkey( $target ) );
 		// The $wgArticlePath contains '$1' string where the article title should appear.
 		return $wgCanonicalServer . str_replace( '$1', $titleURL, $wgArticlePath );
-	}
-
-	/**
-	 * Adds a meta subobject to $attrs based on uri and topic and returns it.
-	 *
-	 * @param string $uri
-	 * @param string $topic
-	 * @param array $attrs
-	 * @param string|null $wiki wikiId if provided
-	 *
-	 * @return array $attrs + meta sub object
-	 */
-	private static function createEvent(
-		$uri,
-		$topic,
-		array $attrs,
-		$wiki = null
-	) {
-		global $wgServerName;
-
-		if ( !is_null( $wiki ) ) {
-			$wikiRef = WikiMap::getWiki( $wiki );
-			if ( is_null( $wikiRef ) ) {
-				$domain = $wgServerName;
-			} else {
-				$domain = $wikiRef->getDisplayName();
-			}
-		} else {
-			$domain = $wgServerName;
-		}
-
-		$event = [
-			'meta' => [
-				'uri'        => $uri,
-				'topic'      => $topic,
-				'request_id' => WebRequest::getRequestId(),
-				'id'         => self::newId(),
-				'dt'         => gmdate( 'c' ),
-				'domain'     => $domain,
-			],
-		];
-
-		return $event + $attrs;
 	}
 
 	/**
@@ -236,6 +184,52 @@ class EventFactory {
 	}
 
 	/**
+	 * Adds a meta subobject to $attrs based on uri and topic and returns it.
+	 *
+	 * @param string $uri
+	 * @param string $schema
+	 * @param string $stream
+	 * @param array $attrs
+	 * @param string|null $wiki wikiId if provided
+	 *
+	 * @return array $attrs + meta sub object
+	 */
+	protected function createEvent(
+		$uri,
+		$schema,
+		$stream,
+		array $attrs,
+		$wiki = null
+	) {
+		global $wgServerName;
+
+		if ( !is_null( $wiki ) ) {
+			$wikiRef = WikiMap::getWiki( $wiki );
+			if ( is_null( $wikiRef ) ) {
+				$domain = $wgServerName;
+			} else {
+				$domain = $wikiRef->getDisplayName();
+			}
+		} else {
+			$domain = $wgServerName;
+		}
+
+		$event = [
+			'$schema' => $schema,
+			'meta' => [
+				'uri'        => $uri,
+				'request_id' => WebRequest::getRequestId(),
+				'id'         => UIDGenerator::newUUIDv1(),
+				'dt'         => wfTimestamp( TS_ISO_8601 ),
+				'domain'     => $domain,
+				'stream'     => $stream,
+			],
+		];
+
+		return $event + $attrs;
+	}
+
+	/**
 	 * Format a timestamp for a date-time attribute in an event.
 	 *
 	 * @param string $timestamp Timestamp, in a format supported by wfTimestamp()
@@ -335,6 +329,7 @@ class EventFactory {
 
 	/**
 	 * Create a page delete event message
+	 * @param string $stream the stream to send an event to
 	 * @param User $user
 	 * @param int $id
 	 * @param LinkTarget $title
@@ -345,6 +340,7 @@ class EventFactory {
 	 * @return array
 	 */
 	public function createPageDeleteEvent(
+		$stream,
 		User $user,
 		$id,
 		LinkTarget $title,
@@ -382,15 +378,17 @@ class EventFactory {
 			$attrs['parsedcomment'] = Linker::formatComment( $reason, $title );
 		}
 
-		return self::createEvent(
+		return $this->createEvent(
 			self::getArticleURL( $title ),
-			'mediawiki.page-delete',
+			'/mediawiki/page/delete/1.0.0',
+			$stream,
 			$attrs
 		);
 	}
 
 	/**
 	 * Create a page undelete message
+	 * @param string $stream the stream to send an event to
 	 * @param User $performer
 	 * @param Title $title
 	 * @param string $comment
@@ -398,6 +396,7 @@ class EventFactory {
 	 * @return array
 	 */
 	public function createPageUndeleteEvent(
+		$stream,
 		User $performer,
 		Title $title,
 		$comment,
@@ -438,14 +437,16 @@ class EventFactory {
 			$attrs['parsedcomment'] = Linker::formatComment( $comment, $title );
 		}
 
-		return self::createEvent(
+		return $this->createEvent(
 			self::getArticleURL( $title ),
-			'mediawiki.page-undelete',
+			'/mediawiki/page/undelete/1.0.0',
+			$stream,
 			$attrs
 		);
 	}
 
 	/**
+	 * @param string $stream the stream to send an event to
 	 * @param LinkTarget $oldTitle
 	 * @param LinkTarget $newTitle
 	 * @param RevisionRecord $newRevision
@@ -455,6 +456,7 @@ class EventFactory {
 	 * @return array
 	 */
 	public function createPageMoveEvent(
+		$stream,
 		LinkTarget $oldTitle,
 		LinkTarget $newTitle,
 		RevisionRecord $newRevision,
@@ -517,31 +519,36 @@ class EventFactory {
 			$attrs['parsedcomment'] = Linker::formatComment( $reason, $newTitle );
 		}
 
-		return self::createEvent(
+		return $this->createEvent(
 			self::getArticleURL( $newTitle ),
-			'mediawiki.page-move',
+			'/mediawiki/page/move/1.0.0',
+			$stream,
 			$attrs
 		);
 	}
 
 	/**
 	 * Create an resource change message
+	 * @param string $stream the stream to send an event to
 	 * @param LinkTarget $title
 	 * @param array $tags
 	 * @return array
 	 */
 	public function createResourceChangeEvent(
+		$stream,
 		LinkTarget $title,
 		array $tags
 	) {
-		return self::createEvent(
+		return $this->createEvent(
 			self::getArticleURL( $title ),
-			'resource_change',
+			'/resource-change/1.0.0',
+			$stream,
 			[ 'tags' => $tags ]
 		);
 	}
 
 	/**
+	 * @param string $stream the stream to send an event to
 	 * @param RevisionRecord $revisionRecord the revision record affected by the change.
 	 * @param array $prevTags an array of previous tags
 	 * @param array $addedTags an array of added tags
@@ -550,6 +557,7 @@ class EventFactory {
 	 * @return array
 	 */
 	public function createRevisionTagsChangeEvent(
+		$stream,
 		RevisionRecord $revisionRecord,
 		array $prevTags,
 		array $addedTags,
@@ -569,20 +577,23 @@ class EventFactory {
 		$attrs['tags'] = $newTags;
 		$attrs['prior_state'] = [ 'tags' => $prevTags ];
 
-		return self::createEvent(
+		return $this->createEvent(
 			self::getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
-			'mediawiki.revision-tags-change',
+			'/mediawiki/revision/tags-change/1.0.0',
+			$stream,
 			$attrs
 		);
 	}
 
 	/**
+	 * @param string $stream the stream to send an event to
 	 * @param RevisionRecord $revisionRecord the revision record affected by the change.
 	 * @param User|null $performer the user who made a tags change
 	 * @param array $visibilityChanges
 	 * @return array
 	 */
 	public function createRevisionVisibilityChangeEvent(
+		$stream,
 		RevisionRecord $revisionRecord,
 		User $performer = null,
 		array $visibilityChanges
@@ -596,34 +607,21 @@ class EventFactory {
 			'visibility' => self::bitsToVisibilityObject( $visibilityChanges['oldBits'] )
 		];
 
-		return self::createEvent(
+		return $this->createEvent(
 			self::getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
-			'mediawiki.revision-visibility-change',
+			'/mediawiki/revision/visibility-change/1.0.0',
+			$stream,
 			$attrs
 		);
 	}
 
 	/**
-	 * @param RevisionRecord $revisionRecord the revision record affected by the change.
-	 * @param LinkTarget $title title of new page
-	 * @return array
-	 */
-	public function createPageCreateEvent(
-		RevisionRecord $revisionRecord,
-		LinkTarget $title
-	) {
-		return self::createEvent(
-			self::getArticleURL( $title ),
-			'mediawiki.page-create',
-			self::createRevisionRecordAttrs( $revisionRecord )
-		);
-	}
-
-	/**
+	 * @param string $stream the stream to send an event to
 	 * @param RevisionRecord $revisionRecord the revision record affected by the change.
 	 * @return array
 	 */
 	public function createRevisionCreateEvent(
+		$stream,
 		RevisionRecord $revisionRecord
 	) {
 		$attrs = self::createRevisionRecordAttrs( $revisionRecord );
@@ -642,14 +640,16 @@ class EventFactory {
 			}
 		}
 
-		return self::createEvent(
+		return $this->createEvent(
 			self::getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
-			'mediawiki.revision-create',
+			'/mediawiki/revision/create/1.0.0',
+			$stream,
 			$attrs
 		);
 	}
 
 	/**
+	 * @param string $stream the stream to send an event to
 	 * @param Title $title
 	 * @param array|null $addedProps
 	 * @param array|null $removedProps
@@ -659,6 +659,7 @@ class EventFactory {
 	 * @return array
 	 */
 	public function createPagePropertiesChangeEvent(
+		$stream,
 		Title $title,
 		array $addedProps = null,
 		array $removedProps = null,
@@ -696,14 +697,16 @@ class EventFactory {
 			);
 		}
 
-		return self::createEvent(
+		return $this->createEvent(
 			self::getArticleURL( $title ),
-			'mediawiki.page-properties-change',
+			'/mediawiki/page/properties-change/1.0.0',
+			$stream,
 			$attrs
 		);
 	}
 
 	/**
+	 * @param string $stream the stream to send an event to
 	 * @param Title $title
 	 * @param array|null $addedLinks
 	 * @param array|null $addedExternalLinks
@@ -715,6 +718,7 @@ class EventFactory {
 	 * @return array
 	 */
 	public function createPageLinksChangeEvent(
+		$stream,
 		Title $title,
 		array $addedLinks = null,
 		array $addedExternalLinks = null,
@@ -779,22 +783,24 @@ class EventFactory {
 			$attrs['removed_links'] = $removedLinks;
 		}
 
-		return self::createEvent(
+		return $this->createEvent(
 			self::getArticleURL( $title ),
-			'mediawiki.page-links-change',
+			'/mediawiki/page/links-change/1.0.0',
+			$stream,
 			$attrs
 		);
 	}
 
 	/**
 	 * Create a user or IP block change event message
-	 *
+	 * @param string $stream the stream to send an event to
 	 * @param User $user
 	 * @param Block $block
 	 * @param Block|null $previousBlock
 	 * @return array
 	 */
 	public function createUserBlockChangeEvent(
+		$stream,
 		User $user,
 		Block $block,
 		Block $previousBlock = null
@@ -842,16 +848,17 @@ class EventFactory {
 			];
 		}
 
-		return self::createEvent(
+		return $this->createEvent(
 			self::getUserPageURL( $block->getTarget() ),
-			'mediawiki.user-blocks-change',
+			'/mediawiki/user/blocks-change/1.0.0',
+			$stream,
 			$attrs
 		);
 	}
 
 	/**
 	 * Create a page restrictions change event message
-	 *
+	 * @param string $stream the stream to send an event to
 	 * @param User $user
 	 * @param LinkTarget $title
 	 * @param int $pageId
@@ -862,6 +869,7 @@ class EventFactory {
 	 * @return array
 	 */
 	public function createPageRestrictionsChangeEvent(
+		$stream,
 		User $user,
 		LinkTarget $title,
 		$pageId,
@@ -893,28 +901,30 @@ class EventFactory {
 			$attrs['rev_id'] = $revision->getId();
 		}
 
-		return self::createEvent(
+		return $this->createEvent(
 			self::getArticleURL( $title ),
-			'mediawiki.page-restrictions-change',
+			'/mediawiki/page/restrictions-change/1.0.0',
+			$stream,
 			$attrs
 		);
 	}
 
 	/**
 	 * Create a recent change event message
-	 *
+	 * @param string $stream the stream to send an event to
 	 * @param LinkTarget $title
 	 * @param array $attrs
 	 * @return array
 	 */
-	public function createRecentChangeEvent( LinkTarget $title, $attrs ) {
+	public function createRecentChangeEvent( $stream, LinkTarget $title, $attrs ) {
 		if ( isset( $attrs['comment'] ) ) {
 			$attrs['parsedcomment'] = Linker::formatComment( $attrs['comment'], $title );
 		}
 
-		$event = self::createEvent(
+		$event = $this->createEvent(
 			self::getArticleURL( $title ),
-			'mediawiki.recentchange',
+			'/mediawiki/recentchange/1.0.0',
+			$stream,
 			$attrs
 		);
 
@@ -969,8 +979,9 @@ class EventFactory {
 		// Deprecated, not used. To be removed from the schema. (T221368)
 		$url = 'https://placeholder.invalid/wiki/Special:Badtitle';
 
-		$event = self::createEvent(
+		$event = $this->createEvent(
 			$url,
+			'/mediawiki/job/1.0.0',
 			'mediawiki.job.' . $job->getType(),
 			$attrs,
 			$wiki
@@ -989,6 +1000,7 @@ class EventFactory {
 	}
 
 	public function createCentralNoticeCampaignCreateEvent(
+		$stream,
 		$campaignName,
 		User $user,
 		array $settings,
@@ -998,14 +1010,16 @@ class EventFactory {
 		$attrs = self::createCommonCentralNoticeAttrs( $campaignName, $user, $summary );
 		$attrs += self::createCentralNoticeCampignSettingsAttrs( $settings );
 
-		return self::createEvent(
+		return $this->createEvent(
 			$campaignUrl,
-			'mediawiki.centralnotice.campaign-create',
+			'/mediawiki/centralnotice/campaign-create/1.0.0',
+			$stream,
 			$attrs
 		);
 	}
 
 	public function createCentralNoticeCampaignChangeEvent(
+		$stream,
 		$campaignName,
 		User $user,
 		array $settings,
@@ -1019,14 +1033,16 @@ class EventFactory {
 		$attrs[ 'prior_state' ] =
 					self::createCentralNoticeCampignSettingsAttrs( $priorState );
 
-		return self::createEvent(
+		return $this->createEvent(
 			$campaignUrl,
-			'mediawiki.centralnotice.campaign-change',
+			'/mediawiki/centralnotice/campaign-change/1.0.0',
+			$stream,
 			$attrs
 		);
 	}
 
 	public function createCentralNoticeCampaignDeleteEvent(
+		$stream,
 		$campaignName,
 		User $user,
 		array $priorState,
@@ -1037,9 +1053,10 @@ class EventFactory {
 		$attrs[ 'prior_state' ] =
 					self::createCentralNoticeCampignSettingsAttrs( $priorState );
 
-		return self::createEvent(
+		return $this->createEvent(
 			$campaignUrl,
-			'mediawiki.centralnotice.campaign-delete',
+			'/mediawiki/centralnotice/campaign-delete/1.0.0',
+			$stream,
 			$attrs
 		);
 	}

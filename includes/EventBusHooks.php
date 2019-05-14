@@ -35,12 +35,35 @@ class EventBusHooks {
 		return MediaWikiServices::getInstance()->getRevisionLookup();
 	}
 
+	private static function getEventServiceStreamConfig() {
+		try {
+			return MediaWikiServices::getInstance()
+				->getMainConfig()
+				->get( 'EventServiceStreamConfig' );
+		}
+		catch ( ConfigException $e ) {
+			return [
+				'default' => [
+					'EventServiceName' => 'eventbus'
+				]
+			];
+		}
+	}
+
 	/**
+	 * @param string $stream the stream to send an event to
 	 * @return EventBus
 	 * @throws ConfigException
 	 */
-	private static function getEventBus() {
-		return EventBus::getInstance( 'eventbus' );
+	private static function getEventBus( $stream ) {
+		$streamConfig = self::getEventServiceStreamConfig();
+		if ( array_key_exists( $stream, $streamConfig ) ) {
+			return EventBus::getInstance( $streamConfig[$stream]['EventServiceName'] );
+		}
+		if ( array_key_exists( 'default', $streamConfig ) ) {
+			return EventBus::getInstance( $streamConfig['default']['EventServiceName'] );
+		}
+		throw new ConfigException( 'wgEventBusEventDestination has no default provided' );
 	}
 
 	/**
@@ -54,8 +77,9 @@ class EventBusHooks {
 		LinkTarget $title,
 		array $tags
 	) {
-		$eventbus = self::getEventBus();
-		$events[] = $eventbus->getFactory()->createResourceChangeEvent( $title, $tags );
+		$stream = 'resource_change';
+		$eventbus = self::getEventBus( $stream );
+		$events[] = $eventbus->getFactory()->createResourceChangeEvent( $stream, $title, $tags );
 
 		DeferredUpdates::addCallableUpdate( function () use ( $eventbus, $events ) {
 			$eventbus->send( $events );
@@ -85,9 +109,11 @@ class EventBusHooks {
 		ManualLogEntry $logEntry,
 		$archivedRevisionCount
 	) {
-		$eventbus = self::getEventBus();
+		$stream = 'mediawiki.page-delete';
+		$eventbus = self::getEventBus( $stream );
 
 		$events[] = $eventbus->getFactory()->createPageDeleteEvent(
+			$stream,
 			$user,
 			$id,
 			$wikiPage->getTitle(),
@@ -121,10 +147,12 @@ class EventBusHooks {
 		$comment,
 		$oldPageId
 	) {
+		$stream = 'mediawiki.page-undelete';
 		$performer = RequestContext::getMain()->getUser();
 
-		$eventBus = self::getEventBus();
+		$eventBus = self::getEventBus( $stream );
 		$events[] = $eventBus->getFactory()->createPageUndeleteEvent(
+			$stream,
 			$performer,
 			$title,
 			$comment,
@@ -132,7 +160,7 @@ class EventBusHooks {
 		);
 
 		DeferredUpdates::addCallableUpdate( function () use ( $eventBus, $events ) {
-			EventBus::getInstance( 'eventbus' )->send( $events );
+			$eventBus->send( $events );
 		} );
 	}
 
@@ -159,8 +187,10 @@ class EventBusHooks {
 		$reason,
 		Revision $newRevision
 	) {
-		$eventBus = self::getEventBus();
+		$stream = 'mediawiki.page-move';
+		$eventBus = self::getEventBus( $stream );
 		$events[] = $eventBus->getFactory()->createPageMoveEvent(
+			$stream,
 			$oldTitle,
 			$newTitle,
 			$newRevision->getRevisionRecord(),
@@ -193,7 +223,8 @@ class EventBusHooks {
 		array $revIds,
 		array $visibilityChangeMap
 	) {
-		$eventBus = self::getEventBus();
+		$stream = 'mediawiki.revision-visibility-change';
+		$eventBus = self::getEventBus( $stream );
 		$performer = RequestContext::getMain()->getUser();
 		$performer->loadFromId();
 
@@ -223,6 +254,7 @@ class EventBusHooks {
 				continue;
 			} else {
 				$events[] = $eventBus->getFactory()->createRevisionVisibilityChangeEvent(
+					$stream,
 					$revision,
 					$performer,
 					$visibilityChangeMap[$revId]
@@ -294,10 +326,11 @@ class EventBusHooks {
 			return;
 		}
 
-		$eventBus = self::getEventBus();
-		$events[] = $eventBus->getFactory()->createPageCreateEvent(
-			$revision->getRevisionRecord(),
-			$revision->getTitle()
+		$stream = 'mediawiki.page-create';
+		$eventBus = self::getEventBus( $stream );
+		$events[] = $eventBus->getFactory()->createRevisionCreateEvent(
+			$stream,
+			$revision->getRevisionRecord()
 		);
 
 		DeferredUpdates::addCallableUpdate(
@@ -355,8 +388,10 @@ class EventBusHooks {
 			return;
 		}
 
-		$eventBus = self::getEventBus();
+		$stream = 'mediawiki.revision-create';
+		$eventBus = self::getEventBus( $stream );
 		$events[] = $eventBus->getFactory()->createRevisionCreateEvent(
+			$stream,
 			$revision->getRevisionRecord()
 		);
 
@@ -383,9 +418,11 @@ class EventBusHooks {
 		User $user,
 		Block $previousBlock = null
 	) {
-		$eventBus = self::getEventBus();
+		$stream = 'mediawiki.user-blocks-change';
+		$eventBus = self::getEventBus( 'mediawiki.user-blocks-change' );
 		$eventFactory = $eventBus->getFactory();
-		$events[] = $eventFactory->createUserBlockChangeEvent( $user, $block, $previousBlock );
+		$events[] = $eventFactory->createUserBlockChangeEvent(
+			$stream, $user, $block, $previousBlock );
 
 		DeferredUpdates::addCallableUpdate(
 			function () use ( $eventBus, $events ) {
@@ -438,11 +475,12 @@ class EventBusHooks {
 		}
 		$pageId = $linksUpdate->mId;
 
-		$eventBus = self::getEventBus();
-		$eventFactory = $eventBus->getFactory();
-
 		if ( !$arePropsEmpty ) {
+			$stream = 'mediawiki.page-properties-change';
+			$eventBus = self::getEventBus( $stream );
+			$eventFactory = $eventBus->getFactory();
 			$propEvents[] = $eventFactory->createPagePropertiesChangeEvent(
+				$stream,
 				$title,
 				$addedProps,
 				$removedProps,
@@ -459,7 +497,11 @@ class EventBusHooks {
 		}
 
 		if ( !$areLinksEmpty ) {
+			$stream = 'mediawiki.page-properties-change';
+			$eventBus = self::getEventBus( $stream );
+			$eventFactory = $eventBus->getFactory();
 			$linkEvents[] = $eventFactory->createPageLinksChangeEvent(
+				'mediawiki.page-links-change',
 				$title,
 				$addedLinks,
 				$addedExternalLinks,
@@ -493,10 +535,12 @@ class EventBusHooks {
 		array $protect,
 		$reason
 	) {
-		$eventBus = self::getEventBus();
+		$stream = 'mediawiki.page-restrictions-change';
+		$eventBus = self::getEventBus( $stream );
 		$eventFactory = $eventBus->getFactory();
 
 		$events[] = $eventFactory->createPageRestrictionsChangeEvent(
+			$stream,
 			$user,
 			$wikiPage->getTitle(),
 			$wikiPage->getId(),
@@ -552,8 +596,10 @@ class EventBusHooks {
 			return;
 		}
 
-		$eventBus = self::getEventBus();
+		$stream = 'mediawiki.revision-tags-change';
+		$eventBus = self::getEventBus( $stream );
 		$events[] = $eventBus->getFactory()->createRevisionTagsChangeEvent(
+			$stream,
 			$revisionRecord,
 			$prevTags,
 			$addedTags,
@@ -601,15 +647,16 @@ class EventBusHooks {
 		$endSettings,
 		$summary
 	) {
-		$eventBus = self::getEventBus();
-		$eventFactory = $eventBus->getFactory();
-
 		// Since we're running this hook, we'll assume that CentralNotice is installed.
 		$campaignUrl = Campaign::getCanonicalURL( $campaignName );
 
 		switch ( $changeType ) {
 			case 'created':
+				$stream = 'mediawiki.centralnotice.campaign-create';
+				$eventBus = self::getEventBus( $stream );
+				$eventFactory = $eventBus->getFactory();
 				$event = $eventFactory->createCentralNoticeCampaignCreateEvent(
+					$stream,
 					$campaignName,
 					$user,
 					$endSettings,
@@ -619,7 +666,11 @@ class EventBusHooks {
 				break;
 
 			case 'modified':
+				$stream = 'mediawiki.centralnotice.campaign-change';
+				$eventBus = self::getEventBus( $stream );
+				$eventFactory = $eventBus->getFactory();
 				$event = $eventFactory->createCentralNoticeCampaignChangeEvent(
+					$stream,
 					$campaignName,
 					$user,
 					$endSettings,
@@ -630,7 +681,11 @@ class EventBusHooks {
 				break;
 
 			case 'removed':
+				$stream = 'mediawiki.centralnotice.campaign-delete';
+				$eventBus = self::getEventBus( $stream );
+				$eventFactory = $eventBus->getFactory();
 				$event = $eventFactory->createCentralNoticeCampaignDeleteEvent(
+					$stream,
 					$campaignName,
 					$user,
 					$beginSettings,
