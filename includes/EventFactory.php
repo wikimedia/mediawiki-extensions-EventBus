@@ -223,7 +223,7 @@ class EventFactory {
 			'meta' => [
 				'uri'        => $uri,
 				'request_id' => WebRequest::getRequestId(),
-				'id'         => UIDGenerator::newUUIDv1(),
+				'id'         => UIDGenerator::newUUIDv4(),
 				'dt'         => wfTimestamp( TS_ISO_8601 ),
 				'domain'     => $domain,
 				'stream'     => $stream,
