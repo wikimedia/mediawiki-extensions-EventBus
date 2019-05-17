@@ -931,7 +931,7 @@ class EventFactory {
 		// If timestamp exists on the recentchange event (it should),
 		// then use it as the meta.dt event datetime.
 		if ( array_key_exists( 'timestamp', $event ) ) {
-			$event['meta']['dt'] = gmdate( 'c', $event['timestamp'] );
+			$event['meta']['dt'] = wfTimestamp( TS_ISO_8601, $event['timestamp'] );
 		}
 
 		return $event;
