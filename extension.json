@@ -34,7 +34,7 @@
 		"EventBusRCFeedFormatter": "includes/EventBusRCFeedFormatter.php",
 		"JobQueueEventBus": "includes/JobQueueEventBus.php",
 		"JobExecutor": "includes/JobExecutor.php",
-	  	"LegacyEventFactory": "includes/LegacyEventFactory.php",
+		"LegacyEventFactory": "includes/LegacyEventFactory.php",
 		"SpecialRunSingleJob": "includes/SpecialRunSingleJob.php"
 	},
 	"MessagesDirs": {
