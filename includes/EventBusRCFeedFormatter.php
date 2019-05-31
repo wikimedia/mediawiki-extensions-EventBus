@@ -66,6 +66,7 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 	 * event returned here.
 	 *
 	 * @inheritDoc
+	 * @suppress PhanTypeMismatchReturn
 	 */
 	protected function formatArray( array $event ) {
 		return $event;

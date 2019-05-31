@@ -49,10 +49,10 @@ class EventBusHooks {
 	) {
 		$stream = 'resource_change';
 		$eventbus = EventBus::getInstanceForStream( $stream );
-		$events[] = $eventbus->getFactory()->createResourceChangeEvent( $stream, $title, $tags );
+		$event = $eventbus->getFactory()->createResourceChangeEvent( $stream, $title, $tags );
 
-		DeferredUpdates::addCallableUpdate( function () use ( $eventbus, $events ) {
-			$eventbus->send( $events );
+		DeferredUpdates::addCallableUpdate( function () use ( $eventbus, $event ) {
+			$eventbus->send( [ $event ] );
 		} );
 	}
 
@@ -82,7 +82,7 @@ class EventBusHooks {
 		$stream = 'mediawiki.page-delete';
 		$eventbus = EventBus::getInstanceForStream( $stream );
 
-		$events[] = $eventbus->getFactory()->createPageDeleteEvent(
+		$event = $eventbus->getFactory()->createPageDeleteEvent(
 			$stream,
 			$user,
 			$id,
@@ -94,8 +94,8 @@ class EventBusHooks {
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $eventbus, $events ) {
-				$eventbus->send( $events );
+			function () use ( $eventbus, $event ) {
+				$eventbus->send( [ $event ] );
 			}
 		);
 	}
@@ -121,7 +121,7 @@ class EventBusHooks {
 		$performer = RequestContext::getMain()->getUser();
 
 		$eventBus = EventBus::getInstanceForStream( $stream );
-		$events[] = $eventBus->getFactory()->createPageUndeleteEvent(
+		$event = $eventBus->getFactory()->createPageUndeleteEvent(
 			$stream,
 			$performer,
 			$title,
@@ -129,8 +129,8 @@ class EventBusHooks {
 			$oldPageId
 		);
 
-		DeferredUpdates::addCallableUpdate( function () use ( $eventBus, $events ) {
-			$eventBus->send( $events );
+		DeferredUpdates::addCallableUpdate( function () use ( $eventBus, $event ) {
+			$eventBus->send( [ $event ] );
 		} );
 	}
 
@@ -159,7 +159,7 @@ class EventBusHooks {
 	) {
 		$stream = 'mediawiki.page-move';
 		$eventBus = EventBus::getInstanceForStream( $stream );
-		$events[] = $eventBus->getFactory()->createPageMoveEvent(
+		$event = $eventBus->getFactory()->createPageMoveEvent(
 			$stream,
 			$oldTitle,
 			$newTitle,
@@ -169,8 +169,8 @@ class EventBusHooks {
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $eventBus, $events ) {
-				$eventBus->send( $events );
+			function () use ( $eventBus, $event ) {
+				$eventBus->send( [ $event ] );
 			}
 		);
 	}
@@ -194,6 +194,7 @@ class EventBusHooks {
 		array $visibilityChangeMap
 	) {
 		$stream = 'mediawiki.revision-visibility-change';
+		$events = [];
 		$eventBus = EventBus::getInstanceForStream( $stream );
 		$performer = RequestContext::getMain()->getUser();
 		$performer->loadFromId();
@@ -232,7 +233,7 @@ class EventBusHooks {
 			}
 		}
 
-		if ( empty( $events ) ) {
+		if ( $events === [] ) {
 			// For revision-visibility-set it's possible that
 			// the page was deleted simultaneously and we can not
 			// send a meaningful event.
@@ -298,14 +299,14 @@ class EventBusHooks {
 
 		$stream = 'mediawiki.page-create';
 		$eventBus = EventBus::getInstanceForStream( $stream );
-		$events[] = $eventBus->getFactory()->createRevisionCreateEvent(
+		$event = $eventBus->getFactory()->createRevisionCreateEvent(
 			$stream,
 			$revision->getRevisionRecord()
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $eventBus, $events ) {
-				$eventBus->send( $events );
+			function () use ( $eventBus, $event ) {
+				$eventBus->send( [ $event ] );
 			}
 		);
 	}
@@ -360,14 +361,14 @@ class EventBusHooks {
 
 		$stream = 'mediawiki.revision-create';
 		$eventBus = EventBus::getInstanceForStream( $stream );
-		$events[] = $eventBus->getFactory()->createRevisionCreateEvent(
+		$event = $eventBus->getFactory()->createRevisionCreateEvent(
 			$stream,
 			$revision->getRevisionRecord()
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $eventBus, $events ) {
-				$eventBus->send( $events );
+			function () use ( $eventBus, $event ) {
+				$eventBus->send( [ $event ] );
 			}
 		);
 	}
@@ -391,12 +392,12 @@ class EventBusHooks {
 		$stream = 'mediawiki.user-blocks-change';
 		$eventBus = EventBus::getInstanceForStream( 'mediawiki.user-blocks-change' );
 		$eventFactory = $eventBus->getFactory();
-		$events[] = $eventFactory->createUserBlockChangeEvent(
+		$event = $eventFactory->createUserBlockChangeEvent(
 			$stream, $user, $block, $previousBlock );
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $eventBus, $events ) {
-				$eventBus->send( $events );
+			function () use ( $eventBus, $event ) {
+				$eventBus->send( [ $event ] );
 			}
 		);
 	}
@@ -449,7 +450,7 @@ class EventBusHooks {
 			$stream = 'mediawiki.page-properties-change';
 			$eventBus = EventBus::getInstanceForStream( $stream );
 			$eventFactory = $eventBus->getFactory();
-			$propEvents[] = $eventFactory->createPagePropertiesChangeEvent(
+			$propEvent = $eventFactory->createPagePropertiesChangeEvent(
 				$stream,
 				$title,
 				$addedProps,
@@ -460,8 +461,8 @@ class EventBusHooks {
 			);
 
 			DeferredUpdates::addCallableUpdate(
-				function () use ( $eventBus, $propEvents ) {
-					$eventBus->send( $propEvents );
+				function () use ( $eventBus, $propEvent ) {
+					$eventBus->send( [ $propEvent ] );
 				}
 			);
 		}
@@ -470,7 +471,7 @@ class EventBusHooks {
 			$stream = 'mediawiki.page-properties-change';
 			$eventBus = EventBus::getInstanceForStream( $stream );
 			$eventFactory = $eventBus->getFactory();
-			$linkEvents[] = $eventFactory->createPageLinksChangeEvent(
+			$linkEvent = $eventFactory->createPageLinksChangeEvent(
 				'mediawiki.page-links-change',
 				$title,
 				$addedLinks,
@@ -483,8 +484,8 @@ class EventBusHooks {
 			);
 
 			DeferredUpdates::addCallableUpdate(
-				function () use ( $eventBus, $linkEvents ) {
-					$eventBus->send( $linkEvents );
+				function () use ( $eventBus, $linkEvent ) {
+					$eventBus->send( [ $linkEvent ] );
 				}
 			);
 		}
@@ -509,7 +510,7 @@ class EventBusHooks {
 		$eventBus = EventBus::getInstanceForStream( $stream );
 		$eventFactory = $eventBus->getFactory();
 
-		$events[] = $eventFactory->createPageRestrictionsChangeEvent(
+		$event = $eventFactory->createPageRestrictionsChangeEvent(
 			$stream,
 			$user,
 			$wikiPage->getTitle(),
@@ -521,8 +522,8 @@ class EventBusHooks {
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $eventBus, $events ) {
-				$eventBus->send( $events );
+			function () use ( $eventBus, $event ) {
+				$eventBus->send( [ $event ] );
 			}
 		);
 	}
@@ -568,7 +569,7 @@ class EventBusHooks {
 
 		$stream = 'mediawiki.revision-tags-change';
 		$eventBus = EventBus::getInstanceForStream( $stream );
-		$events[] = $eventBus->getFactory()->createRevisionTagsChangeEvent(
+		$event = $eventBus->getFactory()->createRevisionTagsChangeEvent(
 			$stream,
 			$revisionRecord,
 			$prevTags,
@@ -578,8 +579,8 @@ class EventBusHooks {
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $eventBus, $events ) {
-				$eventBus->send( $events );
+			function () use ( $eventBus, $event ) {
+				$eventBus->send( [ $event ] );
 			}
 		);
 	}
