@@ -22,6 +22,7 @@
  * @author Eric Evans, Andrew Otto
  */
 
+use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Revision\RevisionLookup;
@@ -407,16 +408,16 @@ class EventBusHooks {
 	 *
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/BlockIpComplete
 	 *
-	 * @param Block $block the Block object that was saved
+	 * @param DatabaseBlock $block the block object that was saved
 	 * @param User $user the user who did the block (not the one being blocked)
-	 * @param Block|null $previousBlock the previous block state for the block target.
+	 * @param DatabaseBlock|null $previousBlock the previous block state for the block target.
 	 *        null if this is a new block target.
 	 * @throws ConfigException
 	 */
 	public static function onBlockIpComplete(
-		Block $block,
+		DatabaseBlock $block,
 		User $user,
-		Block $previousBlock = null
+		DatabaseBlock $previousBlock = null
 	) {
 		$stream = 'mediawiki.user-blocks-change';
 		$eventBus = self::getEventBus( 'mediawiki.user-blocks-change' );

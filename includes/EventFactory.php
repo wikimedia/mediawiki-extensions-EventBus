@@ -1,6 +1,7 @@
 <?php
 
 use Firebase\JWT\JWT;
+use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Revision\RevisionRecord;
@@ -25,8 +26,9 @@ class EventFactory {
 	 * @return string
 	 */
 	private static function getUserPageURL( $userName ) {
-		global $wgCanonicalServer, $wgArticlePath, $wgContLang;
-		$prefixedUserURL = $wgContLang->getNsText( NS_USER ) . ':' . $userName;
+		global $wgCanonicalServer, $wgArticlePath;
+		$contLang = MediaWikiServices::getInstance()->getContentLanguage();
+		$prefixedUserURL = $contLang->getNsText( NS_USER ) . ':' . $userName;
 		$encodedUserURL = wfUrlencode( strtr( $prefixedUserURL, ' ', '_' ) );
 		// The $wgArticlePath contains '$1' string where the article title should appear.
 		return $wgCanonicalServer . str_replace( '$1', $encodedUserURL, $wgArticlePath );
@@ -287,13 +289,13 @@ class EventFactory {
 	}
 
 	/**
-	 * Given a Block $block, returns an array suitable for use
+	 * Given a DatabaseBlock $block, returns an array suitable for use
 	 * as a 'blocks' object in the user/blocks-change event schema.
 	 *
-	 * @param Block $block
+	 * @param DatabaseBlock $block
 	 * @return array
 	 */
-	private static function getUserBlocksChangeAttributes( Block $block ) {
+	private static function getUserBlocksChangeAttributes( DatabaseBlock $block ) {
 		$blockAttrs = [
 			# Block properties are sometimes a string/int like '0'.
 			# Cast to int then to bool to make sure it is a proper bool.
@@ -795,15 +797,15 @@ class EventFactory {
 	 * Create a user or IP block change event message
 	 * @param string $stream the stream to send an event to
 	 * @param User $user
-	 * @param Block $block
-	 * @param Block|null $previousBlock
+	 * @param DatabaseBlock $block
+	 * @param DatabaseBlock|null $previousBlock
 	 * @return array
 	 */
 	public function createUserBlockChangeEvent(
 		$stream,
 		User $user,
-		Block $block,
-		Block $previousBlock = null
+		DatabaseBlock $block,
+		DatabaseBlock $previousBlock = null
 	) {
 		global $wgDBname;
 

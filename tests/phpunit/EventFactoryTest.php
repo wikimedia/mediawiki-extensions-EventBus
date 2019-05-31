@@ -1,5 +1,6 @@
 <?php
 
+use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Revision\RevisionRecord;
 
@@ -770,20 +771,20 @@ class EventFactoryTest extends MediaWikiTestCase {
 	}
 
 	public function provideUserBlocks() {
-		return [ [ new Block( self::blockProperties( [ "address" => 'Test_User1' ] ) ),
-				   new Block( self::blockProperties( [ "address" => 'Test_User2' ] ) ) ]
+		return [ [ new DatabaseBlock( self::blockProperties( [ "address" => 'Test_User1' ] ) ),
+				   new DatabaseBlock( self::blockProperties( [ "address" => 'Test_User2' ] ) ) ]
 			   ];
 	}
 
 	public function provideNonUserBlocks() {
-		return [ [ new Block( self::blockProperties( [ 'address' => "127.0.0.0/24" ] ) ),
-				   new Block( self::blockProperties( [ 'address' => "128.0.0.0/24" ] ) ) ]
+		return [ [ new DatabaseBlock( self::blockProperties( [ 'address' => "127.0.0.0/24" ] ) ),
+				   new DatabaseBlock( self::blockProperties( [ 'address' => "128.0.0.0/24" ] ) ) ]
 			   ];
 	}
 
 	public function provideNullOldBlock() {
 		return [
-			[ null, new Block( self::blockProperties( [ 'address' => "Test_User1" ] ) ) ]
+			[ null, new DatabaseBlock( self::blockProperties( [ 'address' => "Test_User1" ] ) ) ]
 		];
 	}
 	/**
