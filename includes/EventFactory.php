@@ -299,7 +299,7 @@ class EventFactory {
 		$blockAttrs = [
 			# Block properties are sometimes a string/int like '0'.
 			# Cast to int then to bool to make sure it is a proper bool.
-			'name'           => (bool)(int)$block->mHideName,
+			'name'           => (bool)(int)$block->getHideName(),
 			'email'          => (bool)(int)$block->isEmailBlocked(),
 			'user_talk'      => !(bool)(int)$block->isUsertalkEditAllowed(),
 			'account_create' => (bool)(int)$block->isCreateAccountBlocked(),
