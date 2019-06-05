@@ -1,8 +1,6 @@
 <?php
 
 /**
- * Class JobExecutor.
- *
  * A massively simplified JobRunner with a solo purpose of
  * executing a Job
  */
@@ -12,7 +10,7 @@ use MediaWiki\MediaWikiServices;
 use MediaWiki\Logger\LoggerFactory;
 use Psr\Log\LoggerInterface;
 use Wikimedia\ScopedCallback;
-use Wikimedia\Rdbms\LBFactory;
+use Wikimedia\Rdbms\ILBFactory;
 use Wikimedia\Rdbms\DBError;
 
 class JobExecutor {
@@ -251,12 +249,12 @@ class JobExecutor {
 	 * be merged with it once the kafka-based JobQueue will be moved to use
 	 * the SpecialRunSingleJob and moved to the core.
 	 *
-	 * @param LBFactory $lbFactory
+	 * @param ILBFactory $lbFactory
 	 * @param string $fnameTrxOwner
 	 * @throws DBError
 	 * @throws ConfigException
 	 */
-	private function commitMasterChanges( LBFactory $lbFactory, $fnameTrxOwner ) {
+	private function commitMasterChanges( ILBFactory $lbFactory, $fnameTrxOwner ) {
 		$syncThreshold = $this->config()->get( 'JobSerialCommitThreshold' );
 		$maxWriteDuration = $this->config()->get( 'MaxJobDBWriteDuration' );
 
