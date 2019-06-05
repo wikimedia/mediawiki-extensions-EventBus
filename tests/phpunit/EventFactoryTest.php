@@ -803,6 +803,10 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertArrayHasKey( 'prior_state', $event, "'prior_state' key missing" );
 		$this->assertTopic( $event, 'mediawiki.user-blocks-change' );
 		$this->assertArrayHasKey( 'user_groups', $event, "'user_groups' should be present" );
+		$this->assertSame(
+			wfTimestamp( TS_ISO_8601, $newBlock->getExpiry() ),
+			$event['blocks']['expiry_dt']
+		);
 	}
 
 	/**

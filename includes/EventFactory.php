@@ -305,7 +305,7 @@ class EventFactory {
 			'account_create' => (bool)(int)$block->isCreateAccountBlocked(),
 		];
 		if ( $block->getExpiry() != 'infinity' ) {
-			$blockAttrs['expiry_dt'] = $block->getExpiry();
+			$blockAttrs['expiry_dt'] = self::createDTAttr( $block->getExpiry() );
 		}
 		return $blockAttrs;
 	}
