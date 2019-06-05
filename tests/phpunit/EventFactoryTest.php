@@ -400,11 +400,8 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
 		$this->assertRevisionProperties( $event );
 		$this->assertNotNull( $event['prior_state'], "'prior_state' exist'" );
-		$this->assertArrayEquals( $expectedVisibilityObject, $event['visibility'],
-			"'New visibility' incorect values" );
-		$this->assertArrayEquals( $expectedPriorVisibility,
-			$event['prior_state']['visibility'],
-			"'prior_state/visibility' incorrect values" );
+		$this->assertArrayEquals( $expectedVisibilityObject, $event['visibility'] );
+		$this->assertArrayEquals( $expectedPriorVisibility, $event['prior_state']['visibility'] );
 		$this->assertEquals( $performer->getName(), $event['performer']['user_text'],
 			"'user_text' inccorect value" );
 	}
