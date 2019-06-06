@@ -617,7 +617,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 	public function testCentralNoticeCampaignCreateEvent(
 		$campaignName,
 		User $user,
-		$settings,
+		array $settings,
 		$summary,
 		$campaignUrl
 	) {
@@ -647,7 +647,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 	public function testCentralNoticeCampaignChangeEvent(
 		$campaignName,
 		User $user,
-		$settings,
+		array $settings,
 		$summary,
 		$campaignUrl
 	) {
@@ -682,7 +682,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 	public function testCentralNoticeCampaignDeleteEvent(
 		$campaignName,
 		User $user,
-		$settings,
+		array $settings,
 		$summary,
 		$campaignUrl
 	) {
