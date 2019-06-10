@@ -167,18 +167,6 @@ class JobExecutor {
 		$jobType = $jobEvent['type'];
 		$params = $jobEvent['params'];
 
-		if ( isset( $jobEvent['page_namespace'] )
-			&& isset( $jobEvent['page_title'] )
-			&& $jobEvent['page_title'] !== ':'
-		) {
-			// Compatibility with jobs queued before 1.34.0-wmf.1
-			$title = Title::newFromDBkey( $jobEvent['page_title'] );
-			if ( $title !== null ) {
-				$params['namespace'] = $title->getNamespace();
-				$params['title'] = $title->getDBkey();
-			}
-		}
-
 		try {
 			$job = Job::factory( $jobType, $params );
 		} catch ( Exception $e ) {

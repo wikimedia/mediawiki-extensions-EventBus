@@ -951,12 +951,6 @@ class EventFactory {
 		$attrs = [
 			'database' => $wiki ?: $wgDBname,
 			'type' => $job->getType(),
-			// Deprecated, no longer used.
-			// Hardcode a dummy until it can be safely removed from the schema. (T221368)
-			// - page_namespace: integer
-			// - page_title: non-empty string that is not a valid title
-			'page_namespace' => -1,
-			'page_title' => ':',
 		];
 
 		if ( !is_null( $job->getReleaseTimestamp() ) ) {
