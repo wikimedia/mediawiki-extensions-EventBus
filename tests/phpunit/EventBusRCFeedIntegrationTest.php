@@ -31,8 +31,15 @@ class EventBusRCFeedIntegrationTest extends MediaWikiTestCase {
 			->method( 'send' )
 			->with( $this->anything(), $this->callback( function ( $line ) {
 				$line = FormatJson::decode( $line, true )[0];
+
+				// meta and $schema might change, only assert that a few values are correct.
 				$this->assertNotEmpty( $line['meta'] );
+				$this->assertEquals( $line['meta']['dt'], wfTimestamp( TS_ISO_8601, 1301644800 ) );
+
+				// Unset meta and $schema and verify assert that the rest of the event is correct.
 				unset( $line['meta'] );
+				unset( $line['$schema'] );
+
 				$this->assertEquals(
 					[
 						'type' => 'log',

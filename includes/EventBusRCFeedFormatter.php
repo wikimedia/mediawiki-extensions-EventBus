@@ -8,6 +8,12 @@
  */
 class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 	/**
+	 * Stream name to which this event belongs.
+	 * @var string
+	 */
+	const STREAM = 'mediawiki.recentchange';
+
+	/**
 	 * Removes properties which values are 'null' from the event.
 	 * Will modify the original event passed in
 	 *
@@ -40,9 +46,9 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 	public function getLine( array $feed, RecentChange $rc, $actionComment ) {
 		$attrs = parent::getLine( $feed, $rc, $actionComment );
 
-		$eventFactory = EventBus::getInstance( 'eventbus' )->getFactory();
+		$eventFactory = EventBus::getInstanceForStream( self::STREAM )->getFactory();
 		$event = $eventFactory->createRecentChangeEvent(
-			'mediawiki.recentchange',
+			self::STREAM,
 			$rc->getTitle(),
 			$attrs
 		);

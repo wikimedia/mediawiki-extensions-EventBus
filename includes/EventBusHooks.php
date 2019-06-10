@@ -36,37 +36,6 @@ class EventBusHooks {
 		return MediaWikiServices::getInstance()->getRevisionLookup();
 	}
 
-	private static function getEventServiceStreamConfig() {
-		try {
-			return MediaWikiServices::getInstance()
-				->getMainConfig()
-				->get( 'EventServiceStreamConfig' );
-		}
-		catch ( ConfigException $e ) {
-			return [
-				'default' => [
-					'EventServiceName' => 'eventbus'
-				]
-			];
-		}
-	}
-
-	/**
-	 * @param string $stream the stream to send an event to
-	 * @return EventBus
-	 * @throws ConfigException
-	 */
-	private static function getEventBus( $stream ) {
-		$streamConfig = self::getEventServiceStreamConfig();
-		if ( array_key_exists( $stream, $streamConfig ) ) {
-			return EventBus::getInstance( $streamConfig[$stream]['EventServiceName'] );
-		}
-		if ( array_key_exists( 'default', $streamConfig ) ) {
-			return EventBus::getInstance( $streamConfig['default']['EventServiceName'] );
-		}
-		throw new ConfigException( 'wgEventBusEventDestination has no default provided' );
-	}
-
 	/**
 	 * Creates and sends a single resource_change event to EventBus
 	 *
@@ -79,7 +48,7 @@ class EventBusHooks {
 		array $tags
 	) {
 		$stream = 'resource_change';
-		$eventbus = self::getEventBus( $stream );
+		$eventbus = EventBus::getInstanceForStream( $stream );
 		$events[] = $eventbus->getFactory()->createResourceChangeEvent( $stream, $title, $tags );
 
 		DeferredUpdates::addCallableUpdate( function () use ( $eventbus, $events ) {
@@ -111,7 +80,7 @@ class EventBusHooks {
 		$archivedRevisionCount
 	) {
 		$stream = 'mediawiki.page-delete';
-		$eventbus = self::getEventBus( $stream );
+		$eventbus = EventBus::getInstanceForStream( $stream );
 
 		$events[] = $eventbus->getFactory()->createPageDeleteEvent(
 			$stream,
@@ -151,7 +120,7 @@ class EventBusHooks {
 		$stream = 'mediawiki.page-undelete';
 		$performer = RequestContext::getMain()->getUser();
 
-		$eventBus = self::getEventBus( $stream );
+		$eventBus = EventBus::getInstanceForStream( $stream );
 		$events[] = $eventBus->getFactory()->createPageUndeleteEvent(
 			$stream,
 			$performer,
@@ -189,7 +158,7 @@ class EventBusHooks {
 		Revision $newRevision
 	) {
 		$stream = 'mediawiki.page-move';
-		$eventBus = self::getEventBus( $stream );
+		$eventBus = EventBus::getInstanceForStream( $stream );
 		$events[] = $eventBus->getFactory()->createPageMoveEvent(
 			$stream,
 			$oldTitle,
@@ -225,7 +194,7 @@ class EventBusHooks {
 		array $visibilityChangeMap
 	) {
 		$stream = 'mediawiki.revision-visibility-change';
-		$eventBus = self::getEventBus( $stream );
+		$eventBus = EventBus::getInstanceForStream( $stream );
 		$performer = RequestContext::getMain()->getUser();
 		$performer->loadFromId();
 
@@ -328,7 +297,7 @@ class EventBusHooks {
 		}
 
 		$stream = 'mediawiki.page-create';
-		$eventBus = self::getEventBus( $stream );
+		$eventBus = EventBus::getInstanceForStream( $stream );
 		$events[] = $eventBus->getFactory()->createRevisionCreateEvent(
 			$stream,
 			$revision->getRevisionRecord()
@@ -390,7 +359,7 @@ class EventBusHooks {
 		}
 
 		$stream = 'mediawiki.revision-create';
-		$eventBus = self::getEventBus( $stream );
+		$eventBus = EventBus::getInstanceForStream( $stream );
 		$events[] = $eventBus->getFactory()->createRevisionCreateEvent(
 			$stream,
 			$revision->getRevisionRecord()
@@ -420,7 +389,7 @@ class EventBusHooks {
 		DatabaseBlock $previousBlock = null
 	) {
 		$stream = 'mediawiki.user-blocks-change';
-		$eventBus = self::getEventBus( 'mediawiki.user-blocks-change' );
+		$eventBus = EventBus::getInstanceForStream( 'mediawiki.user-blocks-change' );
 		$eventFactory = $eventBus->getFactory();
 		$events[] = $eventFactory->createUserBlockChangeEvent(
 			$stream, $user, $block, $previousBlock );
@@ -478,7 +447,7 @@ class EventBusHooks {
 
 		if ( !$arePropsEmpty ) {
 			$stream = 'mediawiki.page-properties-change';
-			$eventBus = self::getEventBus( $stream );
+			$eventBus = EventBus::getInstanceForStream( $stream );
 			$eventFactory = $eventBus->getFactory();
 			$propEvents[] = $eventFactory->createPagePropertiesChangeEvent(
 				$stream,
@@ -499,7 +468,7 @@ class EventBusHooks {
 
 		if ( !$areLinksEmpty ) {
 			$stream = 'mediawiki.page-properties-change';
-			$eventBus = self::getEventBus( $stream );
+			$eventBus = EventBus::getInstanceForStream( $stream );
 			$eventFactory = $eventBus->getFactory();
 			$linkEvents[] = $eventFactory->createPageLinksChangeEvent(
 				'mediawiki.page-links-change',
@@ -537,7 +506,7 @@ class EventBusHooks {
 		$reason
 	) {
 		$stream = 'mediawiki.page-restrictions-change';
-		$eventBus = self::getEventBus( $stream );
+		$eventBus = EventBus::getInstanceForStream( $stream );
 		$eventFactory = $eventBus->getFactory();
 
 		$events[] = $eventFactory->createPageRestrictionsChangeEvent(
@@ -598,7 +567,7 @@ class EventBusHooks {
 		}
 
 		$stream = 'mediawiki.revision-tags-change';
-		$eventBus = self::getEventBus( $stream );
+		$eventBus = EventBus::getInstanceForStream( $stream );
 		$events[] = $eventBus->getFactory()->createRevisionTagsChangeEvent(
 			$stream,
 			$revisionRecord,
@@ -654,7 +623,7 @@ class EventBusHooks {
 		switch ( $changeType ) {
 			case 'created':
 				$stream = 'mediawiki.centralnotice.campaign-create';
-				$eventBus = self::getEventBus( $stream );
+				$eventBus = EventBus::getInstanceForStream( $stream );
 				$eventFactory = $eventBus->getFactory();
 				$event = $eventFactory->createCentralNoticeCampaignCreateEvent(
 					$stream,
@@ -668,7 +637,7 @@ class EventBusHooks {
 
 			case 'modified':
 				$stream = 'mediawiki.centralnotice.campaign-change';
-				$eventBus = self::getEventBus( $stream );
+				$eventBus = EventBus::getInstanceForStream( $stream );
 				$eventFactory = $eventBus->getFactory();
 				$event = $eventFactory->createCentralNoticeCampaignChangeEvent(
 					$stream,
@@ -683,7 +652,7 @@ class EventBusHooks {
 
 			case 'removed':
 				$stream = 'mediawiki.centralnotice.campaign-delete';
-				$eventBus = self::getEventBus( $stream );
+				$eventBus = EventBus::getInstanceForStream( $stream );
 				$eventFactory = $eventBus->getFactory();
 				$event = $eventFactory->createCentralNoticeCampaignDeleteEvent(
 					$stream,

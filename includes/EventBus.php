@@ -363,4 +363,47 @@ class EventBus {
 
 		return self::$instances[$eventServiceName];
 	}
+
+	/**
+	 * Gets the configured EventServiceStreamConfig, which keys
+	 * stream names to EventServiceNames, allowing for dynamic
+	 * configuration routing of event streams to different Event Services.
+	 * If EventServiceStreamConfig is not configured, this falls
+	 * back to routing all to an EventServiceName of 'eventbus'.
+	 *
+	 * @return array
+	 */
+	private static function getEventServiceStreamConfig() {
+		try {
+			return MediaWikiServices::getInstance()
+				->getMainConfig()
+				->get( 'EventServiceStreamConfig' );
+		}
+		catch ( ConfigException $e ) {
+			return [
+				'default' => [
+					'EventServiceName' => 'eventbus'
+				]
+			];
+		}
+	}
+
+	/**
+	 * Looks in EventServiceStreamConfig for an EventServiceName for $stream.
+	 * If none is found, falls back to a 'default' entry.
+	 *
+	 * @param string $stream the stream to send an event to
+	 * @return EventBus
+	 * @throws ConfigException
+	 */
+	public static function getInstanceForStream( $stream ) {
+		$streamConfig = self::getEventServiceStreamConfig();
+		if ( array_key_exists( $stream, $streamConfig ) ) {
+			return self::getInstance( $streamConfig[$stream]['EventServiceName'] );
+		}
+		if ( array_key_exists( 'default', $streamConfig ) ) {
+			return self::getInstance( $streamConfig['default']['EventServiceName'] );
+		}
+		throw new ConfigException( 'wgEventServiceStreamConfig has no default provided' );
+	}
 }
