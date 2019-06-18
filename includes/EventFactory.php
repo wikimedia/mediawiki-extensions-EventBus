@@ -1008,7 +1008,7 @@ class EventFactory {
 
 		return $this->createEvent(
 			$campaignUrl,
-			'/mediawiki/centralnotice/campaign-create/1.0.0',
+			'/mediawiki/centralnotice/campaign/create/1.0.0',
 			$stream,
 			$attrs
 		);
@@ -1031,7 +1031,7 @@ class EventFactory {
 
 		return $this->createEvent(
 			$campaignUrl,
-			'/mediawiki/centralnotice/campaign-change/1.0.0',
+			'/mediawiki/centralnotice/campaign/change/1.0.0',
 			$stream,
 			$attrs
 		);
@@ -1051,7 +1051,7 @@ class EventFactory {
 
 		return $this->createEvent(
 			$campaignUrl,
-			'/mediawiki/centralnotice/campaign-delete/1.0.0',
+			'/mediawiki/centralnotice/campaign/delete/1.0.0',
 			$stream,
 			$attrs
 		);
