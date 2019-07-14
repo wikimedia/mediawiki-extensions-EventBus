@@ -784,6 +784,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 			[ null, new DatabaseBlock( self::blockProperties( [ 'address' => "Test_User1" ] ) ) ]
 		];
 	}
+
 	/**
 	 * @dataProvider provideUserBlocks
 	 */
