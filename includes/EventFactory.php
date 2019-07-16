@@ -549,7 +549,7 @@ class EventFactory {
 	) {
 		return $this->createEvent(
 			self::getArticleURL( $title ),
-			'/resource-change/1.0.0',
+			'/resource_change/1.0.0',
 			$stream,
 			[ 'tags' => $tags ]
 		);
