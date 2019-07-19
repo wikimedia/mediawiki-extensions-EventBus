@@ -186,9 +186,19 @@ class EventBus {
 		try {
 			$serializedEvents = FormatJson::encode( $events, false, FormatJson::ALL_OK );
 			if ( empty( $serializedEvents ) ) {
+				// Something failed. Let's figure out exactly which one.
+				$bad = [];
+				foreach ( $events as $event ) {
+					$result = FormatJson::encode( $event, false, FormatJson::ALL_OK );
+					if ( empty( $result ) ) {
+						$bad[] = $event;
+					}
+				}
 				$context = [
 					'exception' => new Exception(),
-					'json_last_error' => json_last_error_msg()
+					'json_last_error' => json_last_error_msg(),
+					// Use PHP serialization since that will *always* work.
+					'events' => serialize( $bad ),
 				];
 				self::logger()->error(
 					'FormatJson::encode($events) failed: ' . $context['json_last_error'] .
