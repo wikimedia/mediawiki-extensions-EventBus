@@ -892,15 +892,19 @@ class EventFactoryTest extends MediaWikiTestCase {
 		global $wgDBname, $wgServerName;
 		$command = 'deletePage';
 		$title = Title::newFromText( self::MOCK_PAGE_TITLE );
-
+		$stream = 'mediawiki.job.' . $command;
 		$job = Job::factory( $command, [
 			'namespace' => $title->getNamespace(),
 			'title' => $title->getDBkey()
 		] );
-		$event = self::$eventFactory->createJobEvent( $wgDBname, $job );
+		$event = self::$eventFactory->createJobEvent(
+			$stream,
+			$wgDBname,
+			$job
+		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
-		$this->assertTopic( $event, 'mediawiki.job.' . $command );
+		$this->assertTopic( $event, $stream );
 		$this->assertArrayHasKey( 'mediawiki_signature', $event, "'mediawiki_signature' key missing" );
 		$this->assertEquals( $event['meta']['domain'], $wgServerName );
 	}
