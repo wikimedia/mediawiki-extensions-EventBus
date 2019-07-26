@@ -946,12 +946,18 @@ class EventFactory {
 	}
 
 	/**
+	 * Creates an event representing a job specification.
+	 * @param string $stream the stream to send an event to
 	 * @param string $wiki wikiId
 	 * @param IJobSpecification $job the job specification
 	 * @return array
 	 * @throws ConfigException
 	 */
-	public function createJobEvent( $wiki, IJobSpecification $job ) {
+	public function createJobEvent(
+		$stream,
+		$wiki,
+		IJobSpecification $job
+	) {
 		global $wgDBname;
 
 		$attrs = [
@@ -984,7 +990,7 @@ class EventFactory {
 		$event = $this->createEvent(
 			$url,
 			'/mediawiki/job/1.0.0',
-			'mediawiki.job.' . $job->getType(),
+			$stream,
 			$attrs,
 			$wiki
 		);

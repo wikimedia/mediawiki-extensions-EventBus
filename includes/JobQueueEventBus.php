@@ -56,39 +56,55 @@ class JobQueueEventBus extends JobQueue {
 	}
 
 	/**
-	 * @see JobQueue::batchPush()
 	 * @param IJobSpecification[] $jobs
 	 * @param int $flags
+	 * @throws ConfigException
+	 * @see JobQueue::batchPush()
 	 */
 	protected function doBatchPush( array $jobs, $flags ) {
-		// Convert the jobs into field maps (de-duplicated against each other)
-		// (job ID => job fields map)
-		$events = [];
-		$eventBus = EventBus::getInstance( 'eventbus' );
-		$eventFactory = $eventBus->getFactory();
+		$streamEvents = [];
+		$streamBuses = [];
+		$count = 0;
 
 		foreach ( $jobs as $job ) {
-			$item = $eventFactory->createJobEvent( $this->getDomain(), $job );
+			$stream = 'mediawiki.job.' . $job->getType();
+			if ( !isset( $streamBuses[$stream] ) ) {
+				$streamBuses[$stream] = EventBus::getInstanceForStream( $stream );
+			}
+			$item = $streamBuses[$stream]->getFactory()->createJobEvent(
+				$stream,
+				$this->getDomain(),
+				$job
+			);
+
 			if ( is_null( $item ) ) {
 				continue;
 			}
+
+			$count++;
 			// hash identifier => de-duplicate
 			if ( isset( $item['sha1'] ) ) {
-				$events[$item['sha1']] = $item;
+				$streamEvents[$stream][$item['sha1']] = $item;
 			} else {
-				$events[$item['meta']['id']] = $item;
+				$streamEvents[$stream][$item['meta']['id']] = $item;
 			}
 		}
 
-		if ( !count( $events ) ) {
+		if ( !$count ) {
 			// nothing to do
 			return;
 		}
 
-		$result = $eventBus->send( array_values( $events ), EventBus::TYPE_JOB );
+		foreach ( array_keys( $streamEvents ) as $stream ) {
+			$result = $streamBuses[$stream]->send(
+				array_values( $streamEvents[$stream] ),
+				EventBus::TYPE_JOB
+			);
 
-		if ( is_string( $result ) ) {
-			throw new JobQueueError( "Could not enqueue jobs: $result" );
+			// This means sending jobs to the $stream has failed.
+			if ( is_string( $result ) ) {
+				throw new JobQueueError( "Could not enqueue jobs: $result" );
+			}
 		}
 	}
 
