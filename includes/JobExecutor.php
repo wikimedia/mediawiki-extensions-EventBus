@@ -54,14 +54,21 @@ class JobExecutor {
 		$lbFactory = MediaWikiServices::getInstance()->getDBLoadBalancerFactory();
 
 		WebRequest::overrideRequestId( $job->getRequestId() );
+		// Clear out title cache data from prior snapshots
+		MediaWikiServices::getInstance()->getLinkCache()->clear();
 
 		// Actually execute the job
 		try {
 			$fnameTrxOwner = get_class( $job ) . '::run';
-			if ( !$job->hasExecutionFlag( Job::JOB_NO_EXPLICIT_TRX_ROUND ) ) {
+			// Flush any pending changes left over from an implicit transaction round
+			if ( $job->hasExecutionFlag( $job::JOB_NO_EXPLICIT_TRX_ROUND ) ) {
+				$lbFactory->commitMasterChanges( $fnameTrxOwner );
+			} else {
 				$lbFactory->beginMasterChanges( $fnameTrxOwner );
 			}
+			// Clear any stale REPEATABLE-READ snapshots from replica DB connections
 			$status = $job->run();
+			// Commit all pending changes from this job
 			$this->commitMasterChanges( $lbFactory, $fnameTrxOwner );
 
 			if ( $status === false ) {
