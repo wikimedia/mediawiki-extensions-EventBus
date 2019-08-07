@@ -908,4 +908,27 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertArrayHasKey( 'mediawiki_signature', $event, "'mediawiki_signature' key missing" );
 		$this->assertEquals( $event['meta']['domain'], $wgServerName );
 	}
+
+	public function testCreateDelayedJobEvent() {
+		global $wgDBname, $wgServerName;
+		$command = 'cdnPurge';
+		$url = 'https://en.wikipedia.org/wiki/Main_Page';
+		$releaseTimestamp = time() + 10000;
+		$stream = 'mediawiki.job.' . $command;
+		$job = Job::factory( $command, [
+			'urls' => [ $url ],
+			'jobReleaseTimestamp' => $releaseTimestamp
+		] );
+		$event = self::$eventFactory->createJobEvent(
+			$stream,
+			$wgDBname,
+			$job
+		);
+
+		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
+		$this->assertTopic( $event, $stream );
+		$this->assertArrayHasKey( 'mediawiki_signature', $event, "'mediawiki_signature' key missing" );
+		$this->assertEquals( $event['meta']['domain'], $wgServerName );
+		$this->assertSame( $event['delay_until'], wfTimestamp( TS_ISO_8601, $releaseTimestamp ) );
+	}
 }

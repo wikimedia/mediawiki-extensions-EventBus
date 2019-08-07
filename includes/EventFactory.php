@@ -966,7 +966,7 @@ class EventFactory {
 		];
 
 		if ( !is_null( $job->getReleaseTimestamp() ) ) {
-			$attrs['delay_until'] = $job->getReleaseTimestamp();
+			$attrs['delay_until'] = wfTimestamp( TS_ISO_8601, $job->getReleaseTimestamp() );
 		}
 
 		if ( $job->ignoreDuplicates() ) {
