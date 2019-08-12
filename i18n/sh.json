@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Vlad5250"
+		]
+	},
+	"eventbus-desc": "Propagira informacije za promjene na uslugu za događaje RESTful"
+}
