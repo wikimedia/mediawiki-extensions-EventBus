@@ -1,9 +1,11 @@
 <?php
 
 /**
- * Emit a recent change notification via EventBus.  The feed uri should be
- * start with eventbus://.  The event's topic will be 'mediawiki.recentchange' as
- * set in EventBusRCFeedFormatter::TOPIC.
+ * Emit a recent change notification via EventBus.
+ *
+ * The event's stream will be 'mediawiki.recentchange' as set
+ * in EventBusRCFeedFormatter::STREAM. wgEventServiceStreamConfig
+ * specifies the destination event service for recentchange events.
  *
  * @example
  *
@@ -15,11 +17,18 @@
  *      )
  * );
  *
+ * // Event service per event stream configuration:
+ * $wgEventServiceStreamConfig = array(
+ * 	     'default' => array(
+ *           'mediawiki.recentchange' => array(
+ *               'EventServiceName' => 'eventgate-main'
+ *           )
+ *       )
+ * );
+ *
  * // RCFeed configuration to use a defined Event Service instance.
- * $wgRCFeeds['eventbus-main'] = array(
+ * $wgRCFeeds['eventbus'] = array(
  *      'class'            => 'EventBusRCFeedEngine',
- *      // eventServiceName must match an entry in wgEventServices.
- *      'eventServiceName' => 'eventbus-main'
  *      'formatter'        => 'EventBusRCFeedFormatter',
  * );
  *
@@ -35,20 +44,10 @@ class EventBusRCFeedEngine extends FormattedRCFeed {
 	 * @see RCFeedEngine::send
 	 */
 	public function send( array $feed, $line ) {
-		// $feed will contain the RCFeed config and eventServiceName
-		// should match an entry in the wgEventServices config.
-		if ( !array_key_exists( 'eventServiceName', $feed ) ) {
-			EventBus::logger()->error(
-				'Must set \'eventServiceName\' in RCFeeds configuration to ' .
-				'use EventBusRCFeedEngine.'
-			);
-			return false;
-		}
-
-		$eventServiceName = $feed['eventServiceName'];
+		$eventBus = EventBus::getInstanceForStream( EventBusRCFeedFormatter::STREAM );
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $eventServiceName, $line ) {
-				return EventBus::getInstance( $eventServiceName )->send( $line );
+			function () use ( $eventBus, $line ) {
+				return $eventBus->send( $line );
 			}
 		);
 		return true;

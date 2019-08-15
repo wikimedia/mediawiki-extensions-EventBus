@@ -1,6 +1,8 @@
 <?php
 
 /**
+ * @group medium
+ * @group Database
  * @covers EventBusRCFeedEngine
  * @covers EventBusRCFeedFormatter
  */
@@ -12,9 +14,19 @@ class EventBusRCFeedIntegrationTest extends MediaWikiTestCase {
 			'wgServerName' => 'example.org',
 			'wgScriptPath' => '/w',
 			'wgDBname' => 'example',
-			'wgDBprefix' => '',
+			'wgDBprefix' => $this->dbPrefix(),
 			'wgRCFeeds' => [],
 			'wgRCEngines' => [],
+			'wgEventServiceStreamConfig' => [
+				EventBusRCFeedFormatter::STREAM => [
+					'EventServiceName' => 'test_eventbus_instance'
+				]
+			],
+			'wgEventServices' => [
+				'test_eventbus_instance' => [
+					'url' => '/test_url'
+				]
+			]
 		] );
 	}
 
@@ -35,6 +47,7 @@ class EventBusRCFeedIntegrationTest extends MediaWikiTestCase {
 				// meta and $schema might change, only assert that a few values are correct.
 				$this->assertNotEmpty( $line['meta'] );
 				$this->assertEquals( $line['meta']['dt'], wfTimestamp( TS_ISO_8601, 1301644800 ) );
+				$this->assertEquals( $line['meta']['stream'], EventBusRCFeedFormatter::STREAM );
 
 				// Unset meta and $schema and verify assert that the rest of the event is correct.
 				unset( $line['meta'] );
@@ -62,7 +75,7 @@ class EventBusRCFeedIntegrationTest extends MediaWikiTestCase {
 						'server_url' => 'https://example.org',
 						'server_name' => 'example.org',
 						'server_script_path' => '/w',
-						'wiki' => 'example',
+						'wiki' => 'example-' . $this->dbPrefix()
 					],
 					$line
 				);

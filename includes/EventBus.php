@@ -356,7 +356,7 @@ class EventBus {
 		if ( !array_key_exists( $eventServiceName, $eventServices ) ||
 			!array_key_exists( 'url', $eventServices[$eventServiceName] )
 		) {
-			$error = "Could not get configuration of EventBus instance for '$eventServiceName'" .
+			$error = "Could not get configuration of EventBus instance for '$eventServiceName'. " .
 				'$eventServiceName must exist in EventServices with a url in main config.';
 			self::logger()->error( $error );
 			throw new ConfigException( $error );
