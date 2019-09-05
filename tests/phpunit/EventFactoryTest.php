@@ -60,10 +60,11 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertEquals( 0, $event['page_namespace'], "'page_namespace' incorrect value" );
 	}
 
-	private function assertTopic( $event, $expectedTopic ) {
+	private function assertStream( $event, $expectedStream ) {
 		$this->assertArrayHasKey( 'meta', $event, "'meta' key missing" );
-		$this->assertArrayHasKey( 'topic', $event['meta'], "'topic' key missing" );
-		$this->assertEquals( $event['meta']['topic'], $expectedTopic, "'topic' incorrect value" );
+		$this->assertArrayHasKey( 'stream', $event['meta'], "'.meta.stream' key missing" );
+		$this->assertEquals( $event['meta']['stream'], $expectedStream,
+			"'.meta.stream' incorrect value" );
 	}
 
 	private function assertRevisionProperties( $event, $rowOverrides = [] ) {
@@ -107,7 +108,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	// fixture setup
 	public static function setUpBeforeClass() {
-		self::$eventFactory = new LegacyEventFactory();
+		self::$eventFactory = new EventFactory();
 	}
 
 	// fixture tear-down
@@ -247,7 +248,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 				self::MOCK_PAGE_ID
 		);
 
-		$this->assertTopic( $event, 'mediawiki.page-links-change' );
+		$this->assertStream( $event, 'mediawiki.page-links-change' );
 		$this->assertPageProperties( $event );
 		if ( empty( $expectedAddedLinks ) ) {
 			$this->assertArrayNotHasKey( 'added_links', $event,
@@ -727,7 +728,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertEquals( 2, $event['rev_count'], "'rev_count' has incorrect value" );
 		$this->assertArrayHasKey( 'comment', $event, "'comment' key missing" );
 		$this->assertEquals( 'testreason', $event['comment'], "'comment' has incorrect value" );
-		$this->assertTopic( $event, 'mediawiki.page-delete' );
+		$this->assertStream( $event, 'mediawiki.page-delete' );
 	}
 
 	public function testPageUndeleteEvent() {
@@ -749,7 +750,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertArrayHasKey( 'comment', $event, "'comment' key missing" );
 		$this->assertEquals( $event['comment'], 'testreason',
 			"'comment' incorrect value" );
-		$this->assertTopic( $event, 'mediawiki.page-undelete' );
+		$this->assertStream( $event, 'mediawiki.page-undelete' );
 	}
 
 	public function testResourceChangeEvent() {
@@ -764,7 +765,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertArrayHasKey( '1', $event['tags'],  "'tags/1' key missing" );
 		$this->assertEquals( $event['tags']['0'], 'tag0', "'tags/0' incorrect value" );
 		$this->assertEquals( $event['tags']['1'], 'tag1', "'tags/1' incorrect value" );
-		$this->assertTopic( $event, 'resource_change' );
+		$this->assertStream( $event, 'resource_change' );
 	}
 
 	public function provideUserBlocks() {
@@ -799,7 +800,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
 		$this->assertArrayHasKey( 'blocks', $event, "'blocks' key missing" );
 		$this->assertArrayHasKey( 'prior_state', $event, "'prior_state' key missing" );
-		$this->assertTopic( $event, 'mediawiki.user-blocks-change' );
+		$this->assertStream( $event, 'mediawiki.user-blocks-change' );
 		$this->assertArrayHasKey( 'user_groups', $event, "'user_groups' should be present" );
 		$this->assertSame(
 			wfTimestamp( TS_ISO_8601, $newBlock->getExpiry() ),
@@ -819,7 +820,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
-		$this->assertTopic( $event, 'mediawiki.user-blocks-change' );
+		$this->assertStream( $event, 'mediawiki.user-blocks-change' );
 		$this->assertArrayNotHasKey( "user_groups", $event, "'user_groups' should not be present" );
 	}
 
@@ -837,7 +838,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
 		$this->assertArrayHasKey( 'blocks', $event, "'blocks' key missing" );
 		$this->assertArrayNotHasKey( 'prior_state', $event, "'prior_state' key must not be present" );
-		$this->assertTopic( $event, 'mediawiki.user-blocks-change' );
+		$this->assertStream( $event, 'mediawiki.user-blocks-change' );
 		$this->assertArrayHasKey( 'user_groups', $event, "'user_groups' should be present" );
 	}
 
@@ -868,7 +869,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertArrayHasKey( 'page_restrictions', $event, "'reason' key missing" );
 		$this->assertEquals( 'testprotection', $event['page_restrictions'],
 			"'page_restrictions' incorrect value" );
-		$this->assertTopic( $event, 'mediawiki.page-restrictions-change' );
+		$this->assertStream( $event, 'mediawiki.page-restrictions-change' );
 	}
 
 	public function testCreateRecentChangeEvent() {
@@ -885,7 +886,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertEquals( 'tag0', $event['comment'], "'comment' incorrect value" );
 		$this->assertEquals( 'tag0', $event['parsedcomment'], "'parsedcomment' incorrect value" );
 		$this->assertEquals( 'tag1', $event['1'], "'1' incorrect value" );
-		$this->assertTopic( $event, 'mediawiki.recentchange' );
+		$this->assertStream( $event, 'mediawiki.recentchange' );
 	}
 
 	public function testCreateJobEvent() {
@@ -904,7 +905,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
-		$this->assertTopic( $event, $stream );
+		$this->assertStream( $event, $stream );
 		$this->assertArrayHasKey( 'mediawiki_signature', $event, "'mediawiki_signature' key missing" );
 		$this->assertEquals( $event['meta']['domain'], $wgServerName );
 	}
@@ -926,7 +927,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
-		$this->assertTopic( $event, $stream );
+		$this->assertStream( $event, $stream );
 		$this->assertArrayHasKey( 'mediawiki_signature', $event, "'mediawiki_signature' key missing" );
 		$this->assertEquals( $event['meta']['domain'], $wgServerName );
 		$this->assertSame( $event['delay_until'], wfTimestamp( TS_ISO_8601, $releaseTimestamp ) );

@@ -365,10 +365,9 @@ class EventBus {
 		$eventService = $eventServices[$eventServiceName];
 		$url = $eventService['url'];
 		$timeout = array_key_exists( 'timeout', $eventService ) ? $eventService['timeout'] : null;
-		$eventFactory = $eventServiceName == 'eventbus' ? new LegacyEventFactory() : new EventFactory();
 
 		if ( !array_key_exists( $eventServiceName, self::$instances ) ) {
-			self::$instances[$eventServiceName] = new self( $url, $timeout, $eventFactory );
+			self::$instances[$eventServiceName] = new self( $url, $timeout, new EventFactory() );
 		}
 
 		return self::$instances[$eventServiceName];
