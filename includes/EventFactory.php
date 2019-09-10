@@ -280,7 +280,7 @@ class EventFactory {
 	 * @param array $settings
 	 * @return array
 	 */
-	private static function createCentralNoticeCampignSettingsAttrs( $settings ) {
+	private static function createCentralNoticeCampignSettingsAttrs( array $settings ) {
 		return [
 			'start_dt'       => self::createDTAttr( $settings[ 'start' ] ),
 			'end_dt'         => self::createDTAttr( $settings[ 'end' ] ),
@@ -1039,7 +1039,7 @@ class EventFactory {
 
 		$attrs += self::createCentralNoticeCampignSettingsAttrs( $settings );
 		$attrs[ 'prior_state' ] =
-					self::createCentralNoticeCampignSettingsAttrs( $priorState );
+			$priorState ? self::createCentralNoticeCampignSettingsAttrs( $priorState ) : [];
 
 		return $this->createEvent(
 			$campaignUrl,
@@ -1058,8 +1058,10 @@ class EventFactory {
 		$campaignUrl
 	) {
 		$attrs = self::createCommonCentralNoticeAttrs( $campaignName, $user, $summary );
+		// As of 2019-06-07 the $beginSettings are *never* set in \Campaign::removeCampaignByName()
+		// in the CentralNotice extension where the CentralNoticeCampaignChange hook is fired!
 		$attrs[ 'prior_state' ] =
-					self::createCentralNoticeCampignSettingsAttrs( $priorState );
+			$priorState ? self::createCentralNoticeCampignSettingsAttrs( $priorState ) : [];
 
 		return $this->createEvent(
 			$campaignUrl,

@@ -614,8 +614,8 @@ class EventBusHooks {
 		$time,
 		$campaignName,
 		User $user,
-		$beginSettings,
-		$endSettings,
+		array $beginSettings = null,
+		array $endSettings = null,
 		$summary
 	) {
 		// Since we're running this hook, we'll assume that CentralNotice is installed.
@@ -623,6 +623,10 @@ class EventBusHooks {
 
 		switch ( $changeType ) {
 			case 'created':
+				if ( !$endSettings ) {
+					return;
+				}
+
 				$stream = 'mediawiki.centralnotice.campaign-create';
 				$eventBus = EventBus::getInstanceForStream( $stream );
 				$eventFactory = $eventBus->getFactory();
@@ -637,6 +641,10 @@ class EventBusHooks {
 				break;
 
 			case 'modified':
+				if ( !$endSettings ) {
+					return;
+				}
+
 				$stream = 'mediawiki.centralnotice.campaign-change';
 				$eventBus = EventBus::getInstanceForStream( $stream );
 				$eventFactory = $eventBus->getFactory();
@@ -645,7 +653,7 @@ class EventBusHooks {
 					$campaignName,
 					$user,
 					$endSettings,
-					$beginSettings,
+					$beginSettings ?: [],
 					$summary,
 					$campaignUrl
 				);
@@ -659,7 +667,7 @@ class EventBusHooks {
 					$stream,
 					$campaignName,
 					$user,
-					$beginSettings,
+					$beginSettings ?: [],
 					$summary,
 					$campaignUrl
 				);
