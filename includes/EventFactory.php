@@ -203,7 +203,7 @@ class EventFactory {
 		$schema,
 		$stream,
 		array $attrs,
-		$wiki = null
+		string $wiki = null
 	) {
 		global $wgServerName;
 
@@ -350,7 +350,7 @@ class EventFactory {
 		LinkTarget $title,
 		$is_redirect,
 		$archivedRevisionCount,
-		RevisionRecord $headRevision = null,
+		?RevisionRecord $headRevision,
 		$reason
 	) {
 		global $wgDBname;
@@ -570,7 +570,7 @@ class EventFactory {
 		array $prevTags,
 		array $addedTags,
 		array $removedTags,
-		User $user = null
+		?User $user
 	) {
 		$attrs = self::createRevisionRecordAttrs( $revisionRecord );
 
@@ -603,7 +603,7 @@ class EventFactory {
 	public function createRevisionVisibilityChangeEvent(
 		$stream,
 		RevisionRecord $revisionRecord,
-		User $performer = null,
+		?User $performer,
 		array $visibilityChanges
 	) {
 		$attrs = self::createRevisionRecordAttrs(
@@ -669,9 +669,9 @@ class EventFactory {
 	public function createPagePropertiesChangeEvent(
 		$stream,
 		Title $title,
-		array $addedProps = null,
-		array $removedProps = null,
-		User $user = null,
+		?array $addedProps,
+		?array $removedProps,
+		?User $user,
 		$revId,
 		$pageId
 	) {
@@ -728,11 +728,11 @@ class EventFactory {
 	public function createPageLinksChangeEvent(
 		$stream,
 		Title $title,
-		array $addedLinks = null,
-		array $addedExternalLinks = null,
-		array $removedLinks = null,
-		array $removedExternalLinks = null,
-		User $user = null,
+		?array $addedLinks,
+		?array $addedExternalLinks,
+		?array $removedLinks,
+		?array $removedExternalLinks,
+		?User $user,
 		$revId,
 		$pageId
 	) {
@@ -811,7 +811,7 @@ class EventFactory {
 		$stream,
 		User $user,
 		DatabaseBlock $block,
-		DatabaseBlock $previousBlock = null
+		?DatabaseBlock $previousBlock
 	) {
 		global $wgDBname;
 
@@ -873,7 +873,7 @@ class EventFactory {
 	 * @param RevisionRecord|null $revision
 	 * @param bool $is_redirect
 	 * @param string $reason
-	 * @param array $protect
+	 * @param string[] $protect
 	 * @return array
 	 */
 	public function createPageRestrictionsChangeEvent(
@@ -881,10 +881,10 @@ class EventFactory {
 		User $user,
 		LinkTarget $title,
 		$pageId,
-		RevisionRecord $revision = null,
+		?RevisionRecord $revision,
 		$is_redirect,
 		$reason,
-		$protect
+		array $protect
 	) {
 		global $wgDBname;
 

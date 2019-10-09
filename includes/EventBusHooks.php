@@ -75,7 +75,7 @@ class EventBusHooks {
 		User $user,
 		$reason,
 		$id,
-		Content $content = null,
+		?Content $content,
 		ManualLogEntry $logEntry,
 		$archivedRevisionCount
 	) {
@@ -274,7 +274,7 @@ class EventBusHooks {
 	 * @param bool|null $isWatch
 	 * @param string|null $section Deprecated
 	 * @param int $flags
-	 * @param Revision|null $revision
+	 * @param Revision $revision
 	 * @throws ConfigException
 	 */
 	public static function onPageContentInsertComplete(
@@ -286,7 +286,7 @@ class EventBusHooks {
 		$isWatch,
 		$section,
 		$flags,
-		Revision $revision = null
+		Revision $revision
 	) {
 		if ( is_null( $revision ) ) {
 			wfDebug(
@@ -327,7 +327,7 @@ class EventBusHooks {
 	 * @param bool|null $isWatch
 	 * @param string|null $section Deprecated
 	 * @param int $flags
-	 * @param Revision|null $revision
+	 * @param Revision $revision
 	 * @param Status $status
 	 * @param int $baseRevId
 	 * @throws ConfigException
@@ -341,7 +341,7 @@ class EventBusHooks {
 		$isWatch,
 		$section,
 		$flags,
-		Revision $revision = null,
+		Revision $revision,
 		Status $status,
 		$baseRevId
 	) {
@@ -387,7 +387,7 @@ class EventBusHooks {
 	public static function onBlockIpComplete(
 		DatabaseBlock $block,
 		User $user,
-		DatabaseBlock $previousBlock = null
+		?DatabaseBlock $previousBlock
 	) {
 		$stream = 'mediawiki.user-blocks-change';
 		$eventBus = EventBus::getInstanceForStream( 'mediawiki.user-blocks-change' );
@@ -496,7 +496,7 @@ class EventBusHooks {
 	 *
 	 * @param WikiPage $wikiPage the article which restrictions were changed
 	 * @param User $user the user who have changed the article
-	 * @param array $protect set of new restrictions details
+	 * @param string[] $protect set of new restrictions details
 	 * @param string $reason the reason for page protection
 	 * @throws ConfigException
 	 */
@@ -553,8 +553,8 @@ class EventBusHooks {
 		$rev_id,
 		$log_id,
 		$params,
-		RecentChange $rc = null,
-		User $user = null
+		?RecentChange $rc,
+		?User $user
 	) {
 		if ( is_null( $rev_id ) ) {
 			// We're only interested for revision (edits) tags for now.
@@ -614,8 +614,8 @@ class EventBusHooks {
 		$time,
 		$campaignName,
 		User $user,
-		array $beginSettings = null,
-		array $endSettings = null,
+		?array $beginSettings,
+		?array $endSettings,
 		$summary
 	) {
 		// Since we're running this hook, we'll assume that CentralNotice is installed.

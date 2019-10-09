@@ -116,7 +116,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		self::$eventFactory = null;
 	}
 
-	protected function setUp() {
+	protected function setUp() : void {
 		parent::setUp();
 		$this->setMwGlobals( [ 'wgArticlePath' => '/wiki/$1' ] );
 	}
@@ -855,7 +855,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 			$rec,
 			true,
 			'testreason',
-			'testprotection'
+			[ 'testprotection' ]
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
@@ -867,7 +867,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertArrayHasKey( 'reason', $event, "'reason' key missing" );
 		$this->assertEquals( 'testreason', $event['reason'], "'rev_id' incorrect value" );
 		$this->assertArrayHasKey( 'page_restrictions', $event, "'reason' key missing" );
-		$this->assertEquals( 'testprotection', $event['page_restrictions'],
+		$this->assertSame( [ 'testprotection' ], $event['page_restrictions'],
 			"'page_restrictions' incorrect value" );
 		$this->assertStream( $event, 'mediawiki.page-restrictions-change' );
 	}
