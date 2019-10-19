@@ -824,9 +824,7 @@ class EventFactory {
 			'performer'          => self::createPerformerAttrs( $user ),
 		];
 
-		if ( !is_null( $block->mReason ) ) {
-			$attrs['comment'] = $block->mReason;
-		}
+		$attrs['comment'] = $block->getReasonComment()->text;
 
 		// user entity fields:
 
