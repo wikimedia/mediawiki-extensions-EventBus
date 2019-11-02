@@ -107,12 +107,12 @@ class EventFactoryTest extends MediaWikiTestCase {
 	}
 
 	// fixture setup
-	public static function setUpBeforeClass() {
+	public static function setUpBeforeClass() : void {
 		self::$eventFactory = new EventFactory();
 	}
 
 	// fixture tear-down
-	public static function tearDownAfterClass() {
+	public static function tearDownAfterClass() : void {
 		self::$eventFactory = null;
 	}
 
