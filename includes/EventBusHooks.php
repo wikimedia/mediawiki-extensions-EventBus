@@ -288,15 +288,6 @@ class EventBusHooks {
 		$flags,
 		Revision $revision
 	) {
-		if ( is_null( $revision ) ) {
-			wfDebug(
-				__METHOD__ . ' new revision during PageContentInsertComplete for page_id: ' .
-				$article->getId() . ' page_title: ' . $article->getTitle() .
-				' is null.  Cannot create mediawiki/revision/create event.'
-			);
-			return;
-		}
-
 		$stream = 'mediawiki.page-create';
 		$eventBus = EventBus::getInstanceForStream( $stream );
 		$event = $eventBus->getFactory()->createRevisionCreateEvent(
@@ -348,14 +339,6 @@ class EventBusHooks {
 		// In case of a null edit the status revision value will be null
 		if ( is_null( $status->getValue()['revision'] ) ) {
 			self::sendResourceChangedEvent( $wikiPage->getTitle(), [ 'null_edit' ] );
-			return;
-		}
-
-		if ( is_null( $revision ) ) {
-			wfDebug(
-				__METHOD__ . ' new revision during PageContentSaveComplete ' .
-				' is null.  Cannot create mediawiki/revision/create event.'
-			);
 			return;
 		}
 
