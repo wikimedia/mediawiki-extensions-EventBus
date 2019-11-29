@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"BaRaN6161 TURK"
+		]
+	},
+	"eventbus-desc": "Değişiklik bilgilerini RESTful bir etkinlik hizmetine yayar"
+}
