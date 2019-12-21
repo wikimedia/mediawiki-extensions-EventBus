@@ -42,6 +42,7 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 	 * EventBus serializeEvents().
 	 *
 	 * @inheritDoc
+	 * @suppress PhanTypeMismatchArgument
 	 */
 	public function getLine( array $feed, RecentChange $rc, $actionComment ) {
 		$attrs = parent::getLine( $feed, $rc, $actionComment );

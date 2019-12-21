@@ -662,7 +662,7 @@ class EventFactory {
 	 * @param array|null $addedProps
 	 * @param array|null $removedProps
 	 * @param User|null $user the user who made a tags change
-	 * @param int $revId
+	 * @param int|null $revId
 	 * @param int $pageId
 	 * @return array
 	 */
@@ -721,7 +721,7 @@ class EventFactory {
 	 * @param array|null $removedLinks
 	 * @param array|null $removedExternalLinks
 	 * @param User|null $user the user who made a tags change
-	 * @param int $revId
+	 * @param int|null $revId
 	 * @param int $pageId
 	 * @return array
 	 */
