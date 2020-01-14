@@ -57,7 +57,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertEquals( $row['page'],  $event['page_id'], "'page_id' incorrect value" );
 		$this->assertEquals( self::MOCK_PAGE_TITLE, $event['page_title'],
 			"'page_title' incorrect value" );
-		$this->assertEquals( 0, $event['page_namespace'], "'page_namespace' incorrect value" );
+		$this->assertSame( 0, $event['page_namespace'], "'page_namespace' incorrect value" );
 	}
 
 	private function assertStream( $event, $expectedStream ) {

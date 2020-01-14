@@ -77,7 +77,7 @@ class JobQueueEventBus extends JobQueue {
 				$job
 			);
 
-			if ( is_null( $item ) ) {
+			if ( $item === null ) {
 				continue;
 			}
 
@@ -119,7 +119,7 @@ class JobQueueEventBus extends JobQueue {
 
 	/**
 	 * @see JobQueue::ack()
-
+	 *
 	 * @param RunnableJob $job
 	 */
 	protected function doAck( RunnableJob $job ) {

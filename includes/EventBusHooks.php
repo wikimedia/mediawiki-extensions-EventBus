@@ -208,7 +208,7 @@ class EventBusHooks {
 			// If the page is deleted simultaneously (null $revision) or if
 			// this revId is not in the $visibilityChangeMap, then we can't
 			// send a meaningful event.
-			if ( is_null( $revision ) ) {
+			if ( $revision === null ) {
 				wfDebug(
 					__METHOD__ . ' revision ' . $revId .
 					' could not be found and may have been deleted. Cannot ' .
@@ -337,7 +337,7 @@ class EventBusHooks {
 		$baseRevId
 	) {
 		// In case of a null edit the status revision value will be null
-		if ( is_null( $status->getValue()['revision'] ) ) {
+		if ( $status->getValue()['revision'] === null ) {
 			self::sendResourceChangedEvent( $wikiPage->getTitle(), [ 'null_edit' ] );
 			return;
 		}
@@ -539,13 +539,13 @@ class EventBusHooks {
 		?RecentChange $rc,
 		?User $user
 	) {
-		if ( is_null( $rev_id ) ) {
+		if ( $rev_id === null ) {
 			// We're only interested for revision (edits) tags for now.
 			return;
 		}
 
 		$revisionRecord = self::getRevisionLookup()->getRevisionById( $rev_id );
-		if ( is_null( $revisionRecord ) ) {
+		if ( $revisionRecord === null ) {
 			// Revision might already have been deleted, so we're not interested in tagging those.
 			return;
 		}

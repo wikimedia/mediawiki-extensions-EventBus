@@ -6,12 +6,12 @@
  */
 
 use Liuggio\StatsdClient\Factory\StatsdDataFactoryInterface;
-use MediaWiki\MediaWikiServices;
 use MediaWiki\Logger\LoggerFactory;
+use MediaWiki\MediaWikiServices;
 use Psr\Log\LoggerInterface;
-use Wikimedia\ScopedCallback;
-use Wikimedia\Rdbms\ILBFactory;
 use Wikimedia\Rdbms\DBError;
+use Wikimedia\Rdbms\ILBFactory;
+use Wikimedia\ScopedCallback;
 
 class JobExecutor {
 
@@ -19,7 +19,8 @@ class JobExecutor {
 	private static $logger;
 
 	/** @var StatsdDataFactoryInterface instance
-	 * for all JobExecutor instances  */
+	 * for all JobExecutor instances
+	 */
 	private static $stats;
 
 	/**
@@ -183,7 +184,7 @@ class JobExecutor {
 			];
 		}
 
-		if ( is_null( $job ) ) {
+		if ( $job === null ) {
 			return [
 				'status'  => false,
 				'message' => 'Could not create a job from event'

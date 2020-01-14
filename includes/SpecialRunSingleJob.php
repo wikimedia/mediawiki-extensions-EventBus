@@ -21,9 +21,9 @@
  * @ingroup SpecialPage
  */
 
+use Firebase\JWT\JWT;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
-use Firebase\JWT\JWT;
 use Psr\Log\LoggerInterface;
 
 /**

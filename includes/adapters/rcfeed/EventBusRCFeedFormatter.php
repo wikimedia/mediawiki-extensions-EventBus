@@ -25,7 +25,7 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 			return $event;
 		}
 		foreach ( $event as $key => $value ) {
-			if ( is_null( $value ) ) {
+			if ( $value === null ) {
 				unset( $event[$key] );
 			} elseif ( is_array( $value ) ) {
 				$event[$key] = self::removeNulls( $value );

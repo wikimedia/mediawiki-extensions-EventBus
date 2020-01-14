@@ -107,7 +107,7 @@ class EventFactory {
 		$attrs['rev_content_model'] = $contentModel = $revision->getSlot( 'main' )->getModel();
 
 		$contentFormat = $revision->getSlot( 'main' )->getFormat();
-		if ( is_null( $contentFormat ) ) {
+		if ( $contentFormat === null ) {
 			try {
 				$contentFormat = ContentHandler::getForModelID( $contentModel )->getDefaultFormat();
 			}
@@ -115,13 +115,13 @@ class EventFactory {
 				// Ignore, the `rev_content_format` is not required.
 			}
 		}
-		if ( !is_null( $contentFormat ) ) {
+		if ( $contentFormat !== null ) {
 			$attrs['rev_content_format'] = $contentFormat;
 		}
 
-		if ( !is_null( $performer ) ) {
+		if ( $performer !== null ) {
 			$attrs['performer'] = self::createPerformerAttrs( $performer );
-		} elseif ( !is_null( $revision->getUser() ) ) {
+		} elseif ( $revision->getUser() !== null ) {
 			$performer = User::newFromId( $revision->getUser()->getId() );
 			$performer->loadFromId();
 			$attrs['performer'] = self::createPerformerAttrs( $performer );
@@ -134,7 +134,7 @@ class EventFactory {
 		// TODO: In MCR Content::isRedirect should not be used to derive a redirect directly.
 		try {
 			$content = $revision->getContent( 'main' );
-			if ( !is_null( $content ) ) {
+			if ( $content !== null ) {
 				$attrs['page_is_redirect'] = $content->isRedirect();
 			} else {
 				$attrs['page_is_redirect'] = false;
@@ -143,7 +143,7 @@ class EventFactory {
 			$attrs['page_is_redirect'] = false;
 		}
 
-		if ( !is_null( $revision->getComment() ) && strlen( $revision->getComment()->text ) ) {
+		if ( $revision->getComment() !== null && strlen( $revision->getComment()->text ) ) {
 			$attrs['comment'] = $revision->getComment()->text;
 			$attrs['parsedcomment'] = Linker::formatComment( $revision->getComment()->text );
 		}
@@ -151,7 +151,7 @@ class EventFactory {
 		// The rev_parent_id attribute is not required, but when supplied
 		// must have a minimum value of 1, so omit it entirely when there is no
 		// parent revision (i.e. page creation).
-		if ( !is_null( $revision->getParentId() ) && $revision->getParentId() > 0 ) {
+		if ( $revision->getParentId() !== null && $revision->getParentId() > 0 ) {
 			$attrs['rev_parent_id'] = $revision->getParentId();
 		}
 
@@ -205,9 +205,9 @@ class EventFactory {
 	) {
 		global $wgServerName;
 
-		if ( !is_null( $wiki ) ) {
+		if ( $wiki !== null ) {
 			$wikiRef = WikiMap::getWiki( $wiki );
-			if ( is_null( $wikiRef ) ) {
+			if ( $wikiRef === null ) {
 				$domain = $wgServerName;
 			} else {
 				$domain = $wikiRef->getDisplayName();
@@ -313,13 +313,13 @@ class EventFactory {
 	/**
 	 * Creates a cryptographic signature for the event
 	 *
-	 * @param array $event the serialized event to sign
+	 * @param array &$event the serialized event to sign
 	 * @throws ConfigException
 	 */
 	private static function signEvent( &$event ) {
 		// Sign the event with mediawiki secret key
 		$serialized_event = EventBus::serializeEvents( $event );
-		if ( is_null( $serialized_event ) ) {
+		if ( $serialized_event === null ) {
 			$event['mediawiki_signature'] = null;
 			return;
 		}
@@ -366,16 +366,16 @@ class EventFactory {
 			'page_is_redirect'   => $is_redirect,
 		];
 
-		if ( !is_null( $headRevision ) && !is_null( $headRevision->getId() ) ) {
+		if ( $headRevision !== null && $headRevision->getId() !== null ) {
 			$attrs['rev_id'] = $headRevision->getId();
 		}
 
 		// page delete specific fields:
-		if ( !is_null( $archivedRevisionCount ) ) {
+		if ( $archivedRevisionCount !== null ) {
 			$attrs['rev_count'] = $archivedRevisionCount;
 		}
 
-		if ( !is_null( $reason ) && strlen( $reason ) ) {
+		if ( $reason !== null && strlen( $reason ) ) {
 			$attrs['comment'] = $reason;
 			$attrs['parsedcomment'] = Linker::formatComment( $reason, $title );
 		}
@@ -434,7 +434,7 @@ class EventFactory {
 			];
 		}
 
-		if ( !is_null( $comment ) && strlen( $comment ) ) {
+		if ( $comment !== null && strlen( $comment ) ) {
 			$attrs['comment'] = $comment;
 			$attrs['parsedcomment'] = Linker::formatComment( $comment, $title );
 		}
@@ -473,7 +473,7 @@ class EventFactory {
 		$newPageIsRedirect = false;
 		try {
 			$content = $newRevision->getContent( 'main' );
-			if ( !is_null( $content ) ) {
+			if ( $content !== null ) {
 				$newPageIsRedirect = $content->isRedirect();
 			}
 		} catch ( SuppressedDataException $e ) {
@@ -503,7 +503,7 @@ class EventFactory {
 		// some information about it.
 		if ( $redirectPageId ) {
 			$redirectWikiPage = WikiPage::newFromID( $redirectPageId );
-			if ( !is_null( $redirectWikiPage ) ) {
+			if ( $redirectWikiPage !== null ) {
 				$attrs['new_redirect_page'] = [
 					'page_id' => $redirectPageId,
 					// Redirect pages created as part of a page move
@@ -516,7 +516,7 @@ class EventFactory {
 			}
 		}
 
-		if ( !is_null( $reason ) && strlen( $reason ) ) {
+		if ( $reason !== null && strlen( $reason ) ) {
 			$attrs['comment'] = $reason;
 			$attrs['parsedcomment'] = Linker::formatComment( $reason, $newTitle );
 		}
@@ -569,7 +569,7 @@ class EventFactory {
 		$attrs = self::createRevisionRecordAttrs( $revisionRecord );
 
 		// If the user changing the tags is provided, override the performer in the event
-		if ( !is_null( $user ) ) {
+		if ( $user !== null ) {
 			$attrs['performer'] = self::createPerformerAttrs( $user );
 		}
 
@@ -632,11 +632,11 @@ class EventFactory {
 		// must have a minimum value of 1, so omit it entirely when there is no
 		// parent revision (i.e. page creation).
 		$parentId = $revisionRecord->getParentId();
-		if ( !is_null( $parentId ) && $parentId !== 0 ) {
+		if ( $parentId !== null && $parentId !== 0 ) {
 			$parentRev = MediaWikiServices::getInstance()
 				->getRevisionLookup()
 				->getRevisionById( $parentId );
-			if ( !is_null( $parentRev ) ) {
+			if ( $parentRev !== null ) {
 				$attrs['rev_content_changed'] =
 					$parentRev->getSha1() !== $revisionRecord->getSha1();
 			}
@@ -684,7 +684,7 @@ class EventFactory {
 			'rev_id'			 => $revId
 		];
 
-		if ( !is_null( $user ) ) {
+		if ( $user !== null ) {
 			$attrs['performer'] = self::createPerformerAttrs( $user );
 		}
 
@@ -745,7 +745,7 @@ class EventFactory {
 			'rev_id'			 => $revId
 		];
 
-		if ( !is_null( $user ) ) {
+		if ( $user !== null ) {
 			$attrs['performer'] = self::createPerformerAttrs( $user );
 		}
 
@@ -765,8 +765,8 @@ class EventFactory {
 		};
 
 		if ( !empty( $addedLinks ) || !empty( $addedExternalLinks ) ) {
-			$addedLinks = is_null( $addedLinks ) ? [] : $addedLinks;
-			$addedExternalLinks = is_null( $addedExternalLinks ) ? [] : $addedExternalLinks;
+			$addedLinks = $addedLinks === null ? [] : $addedLinks;
+			$addedExternalLinks = $addedExternalLinks === null ? [] : $addedExternalLinks;
 
 			$addedLinks = array_map(
 				$getLinkData,
@@ -776,8 +776,8 @@ class EventFactory {
 		}
 
 		if ( !empty( $removedLinks ) || !empty( $removedExternalLinks ) ) {
-			$removedLinks = is_null( $removedLinks ) ? [] : $removedLinks;
-			$removedExternalLinks = is_null( $removedExternalLinks ) ? [] : $removedExternalLinks;
+			$removedLinks = $removedLinks === null ? [] : $removedLinks;
+			$removedExternalLinks = $removedExternalLinks === null ? [] : $removedExternalLinks;
 			$removedLinks = array_map(
 				$getLinkData,
 				array_merge( $removedLinks, $removedExternalLinks ) );
@@ -897,7 +897,7 @@ class EventFactory {
 			'page_restrictions'  => $protect
 		];
 
-		if ( !is_null( $revision ) && !is_null( $revision->getId() ) ) {
+		if ( $revision !== null && $revision->getId() !== null ) {
 			$attrs['rev_id'] = $revision->getId();
 		}
 
@@ -957,7 +957,7 @@ class EventFactory {
 			'type' => $job->getType(),
 		];
 
-		if ( !is_null( $job->getReleaseTimestamp() ) ) {
+		if ( $job->getReleaseTimestamp() !== null ) {
 			$attrs['delay_until'] = wfTimestamp( TS_ISO_8601, $job->getReleaseTimestamp() );
 		}
 

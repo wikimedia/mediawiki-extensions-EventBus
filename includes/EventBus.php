@@ -232,7 +232,7 @@ class EventBus {
 			$events = self::serializeEvents( $events );
 		}
 
-		if ( is_null( $events ) ) {
+		if ( $events === null ) {
 			return null;
 		}
 
