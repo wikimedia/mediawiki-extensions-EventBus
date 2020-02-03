@@ -45,42 +45,18 @@
 		"EventBusAliasNoTranslate": "EventBus.notranslate-alias.php"
 	},
 	"Hooks": {
-		"ArticleDeleteComplete": [
-			"EventBusHooks::onArticleDeleteComplete"
-		],
-		"ArticleUndelete": [
-			"EventBusHooks::onArticleUndelete"
-		],
-		"TitleMoveComplete": [
-			"EventBusHooks::onTitleMoveComplete"
-		],
-		"ArticleRevisionVisibilitySet": [
-			"EventBusHooks::onArticleRevisionVisibilitySet"
-		],
-		"PageContentInsertComplete": [
-			"EventBusHooks::onPageContentInsertComplete"
-		],
-		"PageContentSaveComplete": [
-			"EventBusHooks::onPageContentSaveComplete"
-		],
-		"ArticlePurge": [
-			"EventBusHooks::onArticlePurge"
-		],
-		"BlockIpComplete": [
-			"EventBusHooks::onBlockIpComplete"
-		],
-		"LinksUpdateComplete": [
-			"EventBusHooks::onLinksUpdateComplete"
-		],
-		"ArticleProtectComplete": [
-			"EventBusHooks::onArticleProtectComplete"
-		],
-		"ChangeTagsAfterUpdateTags": [
-			"EventBusHooks::onChangeTagsAfterUpdateTags"
-		],
-		"CentralNoticeCampaignChange": [
-			"EventBusHooks::onCentralNoticeCampaignChange"
-		]
+		"ArticleDeleteComplete": "EventBusHooks::onArticleDeleteComplete",
+		"ArticleUndelete": "EventBusHooks::onArticleUndelete",
+		"TitleMoveComplete": "EventBusHooks::onTitleMoveComplete",
+		"ArticleRevisionVisibilitySet": "EventBusHooks::onArticleRevisionVisibilitySet",
+		"PageContentInsertComplete": "EventBusHooks::onPageContentInsertComplete",
+		"PageContentSaveComplete": "EventBusHooks::onPageContentSaveComplete",
+		"ArticlePurge": "EventBusHooks::onArticlePurge",
+		"BlockIpComplete": "EventBusHooks::onBlockIpComplete",
+		"LinksUpdateComplete": "EventBusHooks::onLinksUpdateComplete",
+		"ArticleProtectComplete": "EventBusHooks::onArticleProtectComplete",
+		"ChangeTagsAfterUpdateTags": "EventBusHooks::onChangeTagsAfterUpdateTags",
+		"CentralNoticeCampaignChange": "EventBusHooks::onCentralNoticeCampaignChange"
 	},
 	"SpecialPages": {
 		"RunSingleJob": "SpecialRunSingleJob"
