@@ -1,6 +1,5 @@
 <?php
 
-use Firebase\JWT\JWT;
 use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\MediaWikiServices;
@@ -325,8 +324,18 @@ class EventFactory {
 		}
 
 		$signingSecret = MediaWikiServices::getInstance()->getMainConfig()->get( 'SecretKey' );
-		$signature = hash( 'sha256', JWT::sign( $serialized_event, $signingSecret ) );
+		$signature = self::getEventSignature( $serialized_event, $signingSecret );
+
 		$event['mediawiki_signature'] = $signature;
+	}
+
+	/**
+	 * @param string $serialized_event
+	 * @param string $secretKey
+	 * @return string
+	 */
+	public static function getEventSignature( $serialized_event, $secretKey ) {
+		return hash_hmac( 'sha1', $serialized_event, $secretKey );
 	}
 
 	/**

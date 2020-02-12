@@ -39,18 +39,18 @@ class JobExecutor {
 
 		if ( !$jobCreateResult['status'] ) {
 			$this->logger()->error( 'Failed creating job from description', [
-					'job_type' => $jobEvent['type'],
-					'message' => $jobCreateResult['message']
-				] );
+				'job_type' => $jobEvent['type'],
+				'message' => $jobCreateResult['message']
+			] );
 			$jobCreateResult['readonly'] = false;
 			return $jobCreateResult;
 		}
 
 		$job = $jobCreateResult['job'];
 		$this->logger()->debug( 'Beginning job execution', [
-				'job' => $job->toString(),
-				'job_type' => $job->getType()
-			] );
+			'job' => $job->toString(),
+			'job_type' => $job->getType()
+		] );
 
 		$lbFactory = MediaWikiServices::getInstance()->getDBLoadBalancerFactory();
 
@@ -75,9 +75,9 @@ class JobExecutor {
 			if ( $status === false ) {
 				$message = $job->getLastError();
 				$this->logger()->error( 'Failed executing job: ' . $job->toString(), [
-						'job_type' => $job->getType(),
-						'error' => $message
-					] );
+					'job_type' => $job->getType(),
+					'error' => $message
+				] );
 			} elseif ( !is_bool( $status ) ) {
 				$message = 'Success, but no status returned';
 				$this->logger()->warning( 'Non-boolean result returned by job: ' . $job->toString(),
@@ -103,8 +103,8 @@ class JobExecutor {
 			MWExceptionHandler::rollbackMasterChangesAndLog( $e );
 			$status = false;
 			$message = 'Exception executing job: '
-					   . $job->toString() . ' : '
-					   . get_class( $e ) . ': ' . $e->getMessage();
+				. $job->toString() . ' : '
+				. get_class( $e ) . ': ' . $e->getMessage();
 			$this->logger()->error( $message,
 				[
 					'job_type'  => $job->getType(),
@@ -118,8 +118,8 @@ class JobExecutor {
 			$job->teardown( $status );
 		} catch ( Exception $e ) {
 			$message = 'Exception tearing down job: '
-					   . $job->toString() . ' : '
-					   . get_class( $e ) . ': ' . $e->getMessage();
+				. $job->toString() . ' : '
+				. get_class( $e ) . ': ' . $e->getMessage();
 			$this->logger()->error( $message,
 				[
 					'job_type'  => $job->getType(),

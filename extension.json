@@ -23,7 +23,8 @@
 				"url": "http://localhost:8192/v1/events",
 				"timeout": 5
 			}
-		}
+		},
+		"EventBusEnableRunJobAPI": true
 	},
 	"AutoloadClasses": {
 		"EventBus": "includes/EventBus.php",
@@ -34,15 +35,13 @@
 		"EventBusRCFeedFormatter": "includes/adapters/rcfeed/EventBusRCFeedFormatter.php",
 		"JobQueueEventBus": "includes/JobQueueEventBus.php",
 		"JobExecutor": "includes/JobExecutor.php",
-		"SpecialRunSingleJob": "includes/SpecialRunSingleJob.php"
+		"MediaWiki\\Extension\\EventBus\\EventBodyValidator": "includes/Rest/EventBodyValidator.php",
+		"MediaWiki\\Extension\\EventBus\\RunSingleJobHandler": "includes/Rest/RunSingleJobHandler.php"
 	},
 	"MessagesDirs": {
 		"EventBus": [
 			"i18n"
 		]
-	},
-	"ExtensionMessagesFiles": {
-		"EventBusAliasNoTranslate": "EventBus.notranslate-alias.php"
 	},
 	"Hooks": {
 		"ArticleDeleteComplete": "EventBusHooks::onArticleDeleteComplete",
@@ -58,9 +57,18 @@
 		"ChangeTagsAfterUpdateTags": "EventBusHooks::onChangeTagsAfterUpdateTags",
 		"CentralNoticeCampaignChange": "EventBusHooks::onCentralNoticeCampaignChange"
 	},
-	"SpecialPages": {
-		"RunSingleJob": "SpecialRunSingleJob"
-	},
+	"RestRoutes": [
+		{
+			"path": "/eventbus/v0/internal/job/execute",
+			"method": "POST",
+			"class": "MediaWiki\\Extension\\EventBus\\RunSingleJobHandler",
+			"services": [
+				"ReadOnlyMode",
+				"MainConfig",
+				"JobRunner"
+			]
+		}
+	],
 	"manifest_version": 1,
 	"load_composer_autoloader": true
 }

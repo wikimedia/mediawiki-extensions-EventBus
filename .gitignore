@@ -8,3 +8,4 @@
 .idea/
 .vscode/
 .eslintcache
+.api-testing.config.json
