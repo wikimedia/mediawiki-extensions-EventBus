@@ -26,7 +26,8 @@ describe( 'Run Single Job', function () {
 				wikiPageId: editResults.pageid,
 				reason: 'testing delete job',
 				suppress: false,
-				tags: [],
+				userId: mindy.userid,
+				tags: JSON.stringify( [] ),
 				logsubtype: 'delete'
 			}
 		};
