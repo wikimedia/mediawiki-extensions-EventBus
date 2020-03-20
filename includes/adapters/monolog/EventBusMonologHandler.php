@@ -24,7 +24,7 @@ class EventBusMonologHandler extends AbstractProcessingHandler {
 	/**
 	 * EventBusHandler constructor.
 	 *
-	 * @param String $eventServiceName the name of the event service to use
+	 * @param string $eventServiceName the name of the event service to use
 	 * @param int $level The minimum logging level at which this handler will be triggered
 	 * @param Boolean $bubble Whether the messages that are handled can bubble up the stack or not
 	 * @throws ConfigException
