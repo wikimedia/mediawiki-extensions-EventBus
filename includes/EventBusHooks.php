@@ -306,7 +306,7 @@ class EventBusHooks {
 	 * Occurs after the save page request has been processed.
 	 *
 	 * It's used to detect null edits and create 'resource_change' events for purges.
-	 * Actual edits are detected by the RevisionInsertComplete hook.
+	 * Actual edits are detected by the RevisionRecordInserted hook.
 	 *
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/PageContentSaveComplete
 	 *

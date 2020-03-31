@@ -127,7 +127,7 @@ class EventFactory {
 		}
 
 		// It is possible that the $revision object does not have any content
-		// at the time of RevisionInsertComplete.  This might happen during
+		// at the time of RevisionRecordInserted.  This might happen during
 		// a page restore, if the revision 'created' during the restore
 		// has its content hidden.
 		// TODO: In MCR Content::isRedirect should not be used to derive a redirect directly.
