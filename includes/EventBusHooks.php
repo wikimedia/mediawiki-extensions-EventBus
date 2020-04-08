@@ -421,9 +421,9 @@ class EventBusHooks {
 		// If the LinksUpdate didn't have a triggering revision
 		// (probably because it was triggered by sysadmin maintenance).
 		// Use the page's latest revision.
-		$revision = $linksUpdate->getRevision();
-		if ( $revision ) {
-			$revId = $revision->getId();
+		$revRecord = $linksUpdate->getRevisionRecord();
+		if ( $revRecord ) {
+			$revId = $revRecord->getId();
 		} else {
 			$revId = $title->getLatestRevID();
 		}
