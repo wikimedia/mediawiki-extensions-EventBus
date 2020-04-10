@@ -79,7 +79,8 @@ class EventBusHooks {
 		ManualLogEntry $logEntry,
 		$archivedRevisionCount
 	) {
-		$stream = 'mediawiki.page-delete';
+		$stream = $logEntry->getType() === 'suppress' ?
+			'mediawiki.page-suppress' : 'mediawiki.page-delete';
 		$eventbus = EventBus::getInstanceForStream( $stream );
 
 		$event = $eventbus->getFactory()->createPageDeleteEvent(
