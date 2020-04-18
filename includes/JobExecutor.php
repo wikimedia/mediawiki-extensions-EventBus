@@ -5,10 +5,19 @@
  * executing a Job
  */
 
+namespace MediaWiki\Extension\EventBus;
+
+use Config;
+use ConfigException;
+use DeferredUpdates;
+use Exception;
+use Job;
 use Liuggio\StatsdClient\Factory\StatsdDataFactoryInterface;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
+use MWExceptionHandler;
 use Psr\Log\LoggerInterface;
+use WebRequest;
 use Wikimedia\Rdbms\DBError;
 use Wikimedia\Rdbms\ILBFactory;
 use Wikimedia\ScopedCallback;
@@ -307,3 +316,5 @@ class JobExecutor {
 	}
 
 }
+
+class_alias( JobExecutor::class, 'JobExecutor' );

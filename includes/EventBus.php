@@ -22,8 +22,14 @@
  * @author Eric Evans, Andrew Otto
  */
 
+namespace MediaWiki\Extension\EventBus;
+
+use ConfigException;
+use Exception;
+use FormatJson;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
+use MultiHttpClient;
 use Psr\Log\LoggerInterface;
 
 class EventBus {

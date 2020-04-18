@@ -1,5 +1,17 @@
 <?php
 
+namespace MediaWiki\Extension\EventBus\Adapters\JobQueue;
+
+use ArrayIterator;
+use ConfigException;
+use IJobSpecification;
+use Iterator;
+use Job;
+use JobQueue;
+use JobQueueError;
+use MediaWiki\Extension\EventBus\EventBus;
+use RunnableJob;
+
 class JobQueueEventBus extends JobQueue {
 	/**
 	 * Get the allowed queue orders for configuration validation
@@ -139,3 +151,5 @@ class JobQueueEventBus extends JobQueue {
 		return new ArrayIterator( [] );
 	}
 }
+
+class_alias( JobQueueEventBus::class, 'JobQueueEventBus' );

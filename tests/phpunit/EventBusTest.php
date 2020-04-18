@@ -1,7 +1,9 @@
 <?php
 
+use MediaWiki\Extension\EventBus\EventBus;
+
 /**
- * @covers EventBus
+ * @covers \MediaWiki\Extension\EventBus\EventBus
  * @group EventBus
  */
 class EventBusTest extends MediaWikiTestCase {

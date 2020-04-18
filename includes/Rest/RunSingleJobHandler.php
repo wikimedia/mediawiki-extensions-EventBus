@@ -18,7 +18,7 @@
  *
  */
 
-namespace MediaWiki\Extension\EventBus;
+namespace MediaWiki\Extension\EventBus\Rest;
 
 use Config;
 use Job;

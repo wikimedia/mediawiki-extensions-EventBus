@@ -1,7 +1,13 @@
 <?php
 
+namespace MediaWiki\Extension\EventBus\Adapters\RCFeed;
+
+use MachineReadableRCFeedFormatter;
+use MediaWiki\Extension\EventBus\EventBus;
+use RecentChange;
+
 /**
- * Augments the recentchanges object for use with the EventBus service, and then
+ * Augments the RecentChange object for use with the EventBus service, and then
  * formats it into a JSON string.
  *
  * @extends MachineReadableRCFeedFormatter
@@ -31,6 +37,7 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 				$event[$key] = self::removeNulls( $value );
 			}
 		}
+
 		return $event;
 	}
 
@@ -73,3 +80,5 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 		return $event;
 	}
 }
+
+class_alias( EventBusRCFeedFormatter::class, 'EventBusRCFeedFormatter' );

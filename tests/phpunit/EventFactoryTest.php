@@ -1,11 +1,12 @@
 <?php
 
 use MediaWiki\Block\DatabaseBlock;
+use MediaWiki\Extension\EventBus\EventFactory;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Revision\RevisionRecord;
 
 /**
- * @covers EventFactory
+ * @covers \MediaWiki\Extension\EventBus\EventFactory
  * @group EventBus
  */
 class EventFactoryTest extends MediaWikiTestCase {

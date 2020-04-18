@@ -1,10 +1,24 @@
 <?php
 
+namespace MediaWiki\Extension\EventBus;
+
+use ConfigException;
+use ContentHandler;
+use IJobSpecification;
+use Linker;
 use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\SuppressedDataException;
+use MWException;
+use Title;
+use TitleFormatter;
+use UIDGenerator;
+use User;
+use WebRequest;
+use WikiMap;
+use WikiPage;
 
 /**
  * Used to create events of particular types.
@@ -690,7 +704,7 @@ class EventFactory {
 			'page_title'         => self::getTitleFormatter()->getPrefixedDBkey( $title ),
 			'page_namespace'     => $title->getNamespace(),
 			'page_is_redirect'   => $title->isRedirect(),
-			'rev_id'			 => $revId
+			'rev_id'             => $revId
 		];
 
 		if ( $user !== null ) {
@@ -698,12 +712,15 @@ class EventFactory {
 		}
 
 		if ( !empty( $addedProps ) ) {
-			$attrs['added_properties'] = array_map( 'EventBus::replaceBinaryValues', $addedProps );
+			$attrs['added_properties'] = array_map(
+				[ EventBus::class, 'replaceBinaryValues' ],
+				$addedProps
+			);
 		}
 
 		if ( !empty( $removedProps ) ) {
 			$attrs['removed_properties'] = array_map(
-				'EventBus::replaceBinaryValues',
+				[ EventBus::class, 'replaceBinaryValues' ],
 				$removedProps
 			);
 		}
@@ -751,7 +768,7 @@ class EventFactory {
 			'page_title'         => self::getTitleFormatter()->getPrefixedDBkey( $title ),
 			'page_namespace'     => $title->getNamespace(),
 			'page_is_redirect'   => $title->isRedirect(),
-			'rev_id'			 => $revId
+			'rev_id'             => $revId
 		];
 
 		if ( $user !== null ) {

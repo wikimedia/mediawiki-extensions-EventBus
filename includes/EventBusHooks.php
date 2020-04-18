@@ -22,10 +22,26 @@
  * @author Eric Evans, Andrew Otto
  */
 
+namespace MediaWiki\Extension\EventBus;
+
+use Campaign;
+use ConfigException;
+use Content;
+use DeferredUpdates;
+use LinksUpdate;
+use ManualLogEntry;
 use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Revision\RevisionLookup;
+use RecentChange;
+use RequestContext;
+use Revision;
+use Status;
+use Title;
+use UnexpectedValueException;
+use User;
+use WikiPage;
 
 class EventBusHooks {
 

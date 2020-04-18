@@ -1,6 +1,6 @@
 {
 	"name": "EventBus",
-	"version": "0.3.2",
+	"version": "0.4.0",
 	"author": [
 		"Eric Evans",
 		"Petr Pchelko",
@@ -27,16 +27,19 @@
 		"EventBusEnableRunJobAPI": true
 	},
 	"AutoloadClasses": {
-		"EventBus": "includes/EventBus.php",
-		"EventBusHooks": "includes/EventBusHooks.php",
-		"EventFactory": "includes/EventFactory.php",
-		"EventBusMonologHandler": "includes/adapters/monolog/EventBusMonologHandler.php",
-		"EventBusRCFeedEngine": "includes/adapters/rcfeed/EventBusRCFeedEngine.php",
-		"EventBusRCFeedFormatter": "includes/adapters/rcfeed/EventBusRCFeedFormatter.php",
-		"JobQueueEventBus": "includes/JobQueueEventBus.php",
+		"EventBusRCFeedEngine": "includes/Adapters/RCFeed/EventBusRCFeedEngine.php",
+		"EventBusRCFeedFormatter": "includes/Adapters/RCFeed/EventBusRCFeedFormatter.php",
+		"JobQueueEventBus": "includes/Adapters/JobQueue/JobQueueEventBus.php",
 		"JobExecutor": "includes/JobExecutor.php",
-		"MediaWiki\\Extension\\EventBus\\EventBodyValidator": "includes/Rest/EventBodyValidator.php",
-		"MediaWiki\\Extension\\EventBus\\RunSingleJobHandler": "includes/Rest/RunSingleJobHandler.php"
+		"EventBusMonologHandler": "includes/Adapters/Monolog/EventBusMonologHandler.php",
+		"MediaWiki\\Extension\\EventBus\\Adapters\\RCFeed\\EventBusRCFeedEngine": "includes/Adapters/RCFeed/EventBusRCFeedEngine.php",
+		"MediaWiki\\Extension\\EventBus\\Adapters\\RCFeed\\EventBusRCFeedFormatter": "includes/Adapters/RCFeed/EventBusRCFeedFormatter.php",
+		"MediaWiki\\Extension\\EventBus\\Adapters\\JobQueue\\JobQueueEventBus": "includes/Adapters/JobQueue/JobQueueEventBus.php",
+		"MediaWiki\\Extension\\EventBus\\JobExecutor": "includes/JobExecutor.php",
+		"MediaWiki\\Extension\\EventBus\\Adapters\\Monolog\\EventBusMonologHandler": "includes/Adapters/Monolog/EventBusMonologHandler.php"
+	},
+	"AutoloadNamespaces": {
+		"MediaWiki\\Extension\\EventBus\\": "includes/"
 	},
 	"MessagesDirs": {
 		"EventBus": [
@@ -44,24 +47,24 @@
 		]
 	},
 	"Hooks": {
-		"ArticleDeleteComplete": "EventBusHooks::onArticleDeleteComplete",
-		"ArticleUndelete": "EventBusHooks::onArticleUndelete",
-		"TitleMoveComplete": "EventBusHooks::onTitleMoveComplete",
-		"ArticleRevisionVisibilitySet": "EventBusHooks::onArticleRevisionVisibilitySet",
-		"PageContentInsertComplete": "EventBusHooks::onPageContentInsertComplete",
-		"PageContentSaveComplete": "EventBusHooks::onPageContentSaveComplete",
-		"ArticlePurge": "EventBusHooks::onArticlePurge",
-		"BlockIpComplete": "EventBusHooks::onBlockIpComplete",
-		"LinksUpdateComplete": "EventBusHooks::onLinksUpdateComplete",
-		"ArticleProtectComplete": "EventBusHooks::onArticleProtectComplete",
-		"ChangeTagsAfterUpdateTags": "EventBusHooks::onChangeTagsAfterUpdateTags",
-		"CentralNoticeCampaignChange": "EventBusHooks::onCentralNoticeCampaignChange"
+		"ArticleDeleteComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticleDeleteComplete",
+		"ArticleUndelete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticleUndelete",
+		"TitleMoveComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onTitleMoveComplete",
+		"ArticleRevisionVisibilitySet": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticleRevisionVisibilitySet",
+		"PageContentInsertComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onPageContentInsertComplete",
+		"PageContentSaveComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onPageContentSaveComplete",
+		"ArticlePurge": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticlePurge",
+		"BlockIpComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onBlockIpComplete",
+		"LinksUpdateComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onLinksUpdateComplete",
+		"ArticleProtectComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticleProtectComplete",
+		"ChangeTagsAfterUpdateTags": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onChangeTagsAfterUpdateTags",
+		"CentralNoticeCampaignChange": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onCentralNoticeCampaignChange"
 	},
 	"RestRoutes": [
 		{
 			"path": "/eventbus/v0/internal/job/execute",
 			"method": "POST",
-			"class": "MediaWiki\\Extension\\EventBus\\RunSingleJobHandler",
+			"class": "MediaWiki\\Extension\\EventBus\\Rest\\RunSingleJobHandler",
 			"services": [
 				"ReadOnlyMode",
 				"MainConfig",
@@ -69,6 +72,5 @@
 			]
 		}
 	],
-	"manifest_version": 1,
-	"load_composer_autoloader": true
+	"manifest_version": 1
 }

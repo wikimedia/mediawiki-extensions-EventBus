@@ -1,5 +1,10 @@
 <?php
 
+namespace MediaWiki\Extension\EventBus\Adapters\Monolog;
+
+use ConfigException;
+use DeferredUpdates;
+use MediaWiki\Extension\EventBus\EventBus;
 use Monolog\Handler\AbstractProcessingHandler;
 use Monolog\Logger;
 
@@ -12,7 +17,6 @@ use Monolog\Logger;
  * @copyright © 2019 Wikimedia Foundation and contributors
  * @author Petr Pchelko <ppchelko@wikimedia.org>
  */
-
 class EventBusMonologHandler extends AbstractProcessingHandler {
 
 	/**
@@ -63,3 +67,5 @@ class EventBusMonologHandler extends AbstractProcessingHandler {
 		);
 	}
 }
+
+class_alias( EventBusMonologHandler::class, 'EventBusMonologHandler' );

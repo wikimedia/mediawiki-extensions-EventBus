@@ -1,10 +1,12 @@
 <?php
 
+use MediaWiki\Extension\EventBus\Adapters\RCFeed\EventBusRCFeedFormatter;
+
 /**
  * @group medium
  * @group Database
- * @covers EventBusRCFeedEngine
- * @covers EventBusRCFeedFormatter
+ * @covers \MediaWiki\Extension\EventBus\Adapters\RCFeed\EventBusRCFeedEngine
+ * @covers \MediaWiki\Extension\EventBus\Adapters\RCFeed\EventBusRCFeedFormatter
  */
 class EventBusRCFeedIntegrationTest extends MediaWikiTestCase {
 	protected function setUp() : void {

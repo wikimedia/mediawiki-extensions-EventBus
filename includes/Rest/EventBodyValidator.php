@@ -1,11 +1,11 @@
 <?php
 
-namespace MediaWiki\Extension\EventBus;
+namespace MediaWiki\Extension\EventBus\Rest;
 
-use EventBus;
-use EventFactory;
 use Exception;
 use Job;
+use MediaWiki\Extension\EventBus\EventBus;
+use MediaWiki\Extension\EventBus\EventFactory;
 use MediaWiki\Rest\HttpException;
 use MediaWiki\Rest\RequestInterface;
 use MediaWiki\Rest\Validator\BodyValidator;
