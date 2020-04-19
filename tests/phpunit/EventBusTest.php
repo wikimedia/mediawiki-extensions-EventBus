@@ -7,6 +7,7 @@ use MediaWiki\Extension\EventBus\EventBus;
  * @group EventBus
  */
 class EventBusTest extends MediaWikiTestCase {
+	use MediaWikiCoversValidator;
 
 	public function testReplaceBinaryValues() {
 		$stringVal = "hi there";

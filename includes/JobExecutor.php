@@ -314,7 +314,4 @@ class JobExecutor {
 		);
 		ScopedCallback::consume( $unlocker );
 	}
-
 }
-
-class_alias( JobExecutor::class, 'JobExecutor' );

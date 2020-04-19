@@ -10,6 +10,8 @@ use MediaWiki\Revision\RevisionRecord;
  * @group EventBus
  */
 class EventFactoryTest extends MediaWikiTestCase {
+	use MediaWikiCoversValidator;
+
 	/**
 	 * @var EventFactory
 	 */

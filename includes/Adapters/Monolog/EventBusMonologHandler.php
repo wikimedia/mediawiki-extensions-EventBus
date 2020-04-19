@@ -67,5 +67,3 @@ class EventBusMonologHandler extends AbstractProcessingHandler {
 		);
 	}
 }
-
-class_alias( EventBusMonologHandler::class, 'EventBusMonologHandler' );

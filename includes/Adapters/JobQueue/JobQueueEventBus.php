@@ -151,5 +151,3 @@ class JobQueueEventBus extends JobQueue {
 		return new ArrayIterator( [] );
 	}
 }
-
-class_alias( JobQueueEventBus::class, 'JobQueueEventBus' );

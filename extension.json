@@ -26,18 +26,6 @@
 		},
 		"EventBusEnableRunJobAPI": true
 	},
-	"AutoloadClasses": {
-		"EventBusRCFeedEngine": "includes/Adapters/RCFeed/EventBusRCFeedEngine.php",
-		"EventBusRCFeedFormatter": "includes/Adapters/RCFeed/EventBusRCFeedFormatter.php",
-		"JobQueueEventBus": "includes/Adapters/JobQueue/JobQueueEventBus.php",
-		"JobExecutor": "includes/JobExecutor.php",
-		"EventBusMonologHandler": "includes/Adapters/Monolog/EventBusMonologHandler.php",
-		"MediaWiki\\Extension\\EventBus\\Adapters\\RCFeed\\EventBusRCFeedEngine": "includes/Adapters/RCFeed/EventBusRCFeedEngine.php",
-		"MediaWiki\\Extension\\EventBus\\Adapters\\RCFeed\\EventBusRCFeedFormatter": "includes/Adapters/RCFeed/EventBusRCFeedFormatter.php",
-		"MediaWiki\\Extension\\EventBus\\Adapters\\JobQueue\\JobQueueEventBus": "includes/Adapters/JobQueue/JobQueueEventBus.php",
-		"MediaWiki\\Extension\\EventBus\\JobExecutor": "includes/JobExecutor.php",
-		"MediaWiki\\Extension\\EventBus\\Adapters\\Monolog\\EventBusMonologHandler": "includes/Adapters/Monolog/EventBusMonologHandler.php"
-	},
 	"AutoloadNamespaces": {
 		"MediaWiki\\Extension\\EventBus\\": "includes/"
 	},

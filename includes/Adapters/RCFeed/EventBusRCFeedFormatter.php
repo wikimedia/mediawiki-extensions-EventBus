@@ -80,5 +80,3 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 		return $event;
 	}
 }
-
-class_alias( EventBusRCFeedFormatter::class, 'EventBusRCFeedFormatter' );

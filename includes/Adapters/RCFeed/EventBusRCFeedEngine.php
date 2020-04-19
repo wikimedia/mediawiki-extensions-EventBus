@@ -60,5 +60,3 @@ class EventBusRCFeedEngine extends FormattedRCFeed {
 		return true;
 	}
 }
-
-class_alias( EventBusRCFeedEngine::class, 'EventBusRCFeedEngine' );
