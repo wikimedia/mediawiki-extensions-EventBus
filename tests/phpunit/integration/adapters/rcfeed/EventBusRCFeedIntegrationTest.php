@@ -19,7 +19,6 @@ class EventBusRCFeedIntegrationTest extends MediaWikiIntegrationTestCase {
 			'wgDBname' => 'example',
 			'wgDBprefix' => $this->dbPrefix(),
 			'wgRCFeeds' => [],
-			'wgRCEngines' => [],
 			'wgEventStreams' => [
 				EventBusRCFeedFormatter::STREAM => [
 					'stream' => EventBusRCFeedFormatter::STREAM,
@@ -89,12 +88,9 @@ class EventBusRCFeedIntegrationTest extends MediaWikiIntegrationTestCase {
 		$this->setMwGlobals( [
 			'wgRCFeeds' => [
 				'myfeed' => [
-					'uri' => 'test://localhost:1234',
+					'class' => $feed,
 					'formatter' => EventBusRCFeedFormatter::class,
 				],
-			],
-			'wgRCEngines' => [
-				'test' => $feed,
 			],
 		] );
 		$logpage = SpecialPage::getTitleFor( 'Log', 'move' );
