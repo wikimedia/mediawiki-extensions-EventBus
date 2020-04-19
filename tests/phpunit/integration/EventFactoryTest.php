@@ -111,7 +111,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 	// fixture setup
 	public static function setUpBeforeClass() : void {
-		self::$eventFactory = new EventFactory();
+		self::$eventFactory = MediaWikiServices::getInstance()->get( 'EventBus.EventFactory' );
 	}
 
 	// fixture tear-down
@@ -208,7 +208,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 				[ 'link' => 'remove_ext_link_2', 'external' => true ]
 			]
 		];
-		yield 'Add new links and external links' => [
+		yield 'Add/remove new links and external links' => [
 			[ Title::newFromText( 'added_link_1? =' ), Title::newFromText( 'added_link_2' ) ],
 			[ 'added_ext_link_1', 'added_ext_link_2' ],
 			[ Title::newFromText( 'removed_link_1? =' ), Title::newFromText( 'removed_link_2' ) ],

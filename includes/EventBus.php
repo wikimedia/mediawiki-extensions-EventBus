@@ -57,20 +57,17 @@ class EventBus {
 	/** @const int Default HTTP request timeout in seconds */
 	const DEFAULT_REQUEST_TIMEOUT = 10;
 
-	/** @var EventBus[] */
-	private static $instances = [];
-
 	/** @var LoggerInterface instance for all EventBus instances */
 	private static $logger;
 
 	/** @var MultiHttpClient */
-	protected $http;
+	private $http;
 
 	/** @var string EventServiceUrl for this EventBus instance */
-	protected $url;
+	private $url;
 
 	/** @var int HTTP request timeout for this EventBus instance */
-	protected $timeout;
+	private $timeout;
 
 	/** @var int which event types are allowed to be sent (TYPE_NONE|TYPE_EVENT|TYPE_JOB|TYPE_ALL) */
 	private $allowedEventTypes;
@@ -79,20 +76,25 @@ class EventBus {
 	private $eventFactory;
 
 	/**
+	 * @param MultiHttpClient $http
+	 * @param string $enableEventBus
+	 * @param EventFactory $eventFactory EventFactory to use for event construction.
 	 * @param string $url EventBus service endpoint URL. E.g. http://localhost:8085/v1/events
 	 * @param int|null $timeout HTTP request timeout in seconds, defaults to 5.
-	 * @param EventFactory|null $eventFactory an instance of
-	 * 							the EventFactory to use for event construction.
 	 */
-	public function __construct( $url, $timeout = null, $eventFactory = null ) {
-		global $wgEnableEventBus;
-
-		$this->http = new MultiHttpClient( [] );
+	public function __construct(
+		MultiHttpClient $http,
+		string $enableEventBus,
+		EventFactory $eventFactory,
+		string $url,
+		int $timeout = null
+	) {
+		$this->http = $http;
 		$this->url = $url;
 		$this->timeout = $timeout ?: self::DEFAULT_REQUEST_TIMEOUT;
 		$this->eventFactory = $eventFactory;
 
-		switch ( $wgEnableEventBus ) {
+		switch ( $enableEventBus ) {
 			case 'TYPE_NONE':
 				$this->allowedEventTypes = self::TYPE_NONE;
 				break;
@@ -107,7 +109,7 @@ class EventBus {
 				break;
 			default:
 				self::logger()->log( 'warn',
-					'Unknown $wgEnableEventBus config parameter value ' . $wgEnableEventBus );
+					'Unknown $wgEnableEventBus config parameter value ' . $enableEventBus );
 				$this->allowedEventTypes = self::TYPE_ALL;
 		}
 	}
@@ -350,57 +352,9 @@ class EventBus {
 	 * @return EventBus
 	 */
 	public static function getInstance( $eventServiceName ) {
-		if ( !$eventServiceName ) {
-			$error = 'EventBus::getInstance requires a configured $eventServiceName';
-			self::logger()->error( $error );
-			throw new ConfigException( $error );
-		}
-
-		$eventServices =
-			MediaWikiServices::getInstance()->getMainConfig()->get( 'EventServices' );
-
-		if ( !array_key_exists( $eventServiceName, $eventServices ) ||
-			!array_key_exists( 'url', $eventServices[$eventServiceName] )
-		) {
-			$error = "Could not get configuration of EventBus instance for '$eventServiceName'. " .
-				'$eventServiceName must exist in EventServices with a url in main config.';
-			self::logger()->error( $error );
-			throw new ConfigException( $error );
-		}
-
-		$eventService = $eventServices[$eventServiceName];
-		$url = $eventService['url'];
-		$timeout = array_key_exists( 'timeout', $eventService ) ? $eventService['timeout'] : null;
-
-		if ( !array_key_exists( $eventServiceName, self::$instances ) ) {
-			self::$instances[$eventServiceName] = new self( $url, $timeout, new EventFactory() );
-		}
-
-		return self::$instances[$eventServiceName];
-	}
-
-	/**
-	 * Gets the configured EventServiceStreamConfig, which keys
-	 * stream names to EventServiceNames, allowing for dynamic
-	 * configuration routing of event streams to different Event Services.
-	 * If EventServiceStreamConfig is not configured, this falls
-	 * back to routing all to an EventServiceName of 'eventbus'.
-	 *
-	 * @return array
-	 */
-	private static function getEventServiceStreamConfig() {
-		try {
-			return MediaWikiServices::getInstance()
-				->getMainConfig()
-				->get( 'EventServiceStreamConfig' );
-		}
-		catch ( ConfigException $e ) {
-			return [
-				'default' => [
-					'EventServiceName' => 'eventbus'
-				]
-			];
-		}
+		return MediaWikiServices::getInstance()
+			->get( 'EventBus.EventBusFactory' )
+			->getInstance( $eventServiceName );
 	}
 
 	/**
@@ -412,13 +366,8 @@ class EventBus {
 	 * @throws ConfigException
 	 */
 	public static function getInstanceForStream( $stream ) {
-		$streamConfig = self::getEventServiceStreamConfig();
-		if ( array_key_exists( $stream, $streamConfig ) ) {
-			return self::getInstance( $streamConfig[$stream]['EventServiceName'] );
-		}
-		if ( array_key_exists( 'default', $streamConfig ) ) {
-			return self::getInstance( $streamConfig['default']['EventServiceName'] );
-		}
-		throw new ConfigException( 'wgEventServiceStreamConfig has no default provided' );
+		return MediaWikiServices::getInstance()
+			->get( 'EventBus.EventBusFactory' )
+			->getInstanceForStream( $stream );
 	}
 }

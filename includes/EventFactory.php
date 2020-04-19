@@ -5,10 +5,12 @@ namespace MediaWiki\Extension\EventBus;
 use ConfigException;
 use ContentHandler;
 use IJobSpecification;
+use Language;
 use Linker;
 use MediaWiki\Block\DatabaseBlock;
+use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Linker\LinkTarget;
-use MediaWiki\MediaWikiServices;
+use MediaWiki\Revision\RevisionLookup;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\SuppressedDataException;
 use MWException;
@@ -24,12 +26,49 @@ use WikiPage;
  * Used to create events of particular types.
  */
 class EventFactory {
+
+	public const CONSTRUCTOR_OPTIONS = [
+		'ArticlePath',
+		'CanonicalServer',
+		'ServerName',
+		'SecretKey'
+	];
+
+	/** @var ServiceOptions */
+	private $options;
+
+	/** @var Language */
+	private $contentLanguage;
+
+	/** @var TitleFormatter */
+	private $titleFormatter;
+
+	/** @var RevisionLookup */
+	private $revisionLookup;
+
+	/** @var string */
+	private $dbDomain;
+
 	/**
-	 * Return a title formatter instance
-	 * @return TitleFormatter
+	 * @param ServiceOptions $serviceOptions
+	 * @param string $dbDomain
+	 * @param Language $contentLanguage
+	 * @param RevisionLookup $revisionLookup
+	 * @param TitleFormatter $titleFormatter
 	 */
-	private static function getTitleFormatter() {
-		return MediaWikiServices::getInstance()->getTitleFormatter();
+	public function __construct(
+		ServiceOptions $serviceOptions,
+		string $dbDomain,
+		Language $contentLanguage,
+		RevisionLookup $revisionLookup,
+		TitleFormatter $titleFormatter
+	) {
+		$serviceOptions->assertRequiredOptions( self::CONSTRUCTOR_OPTIONS );
+		$this->options = $serviceOptions;
+		$this->dbDomain = $dbDomain;
+		$this->contentLanguage = $contentLanguage;
+		$this->titleFormatter = $titleFormatter;
+		$this->revisionLookup = $revisionLookup;
 	}
 
 	/**
@@ -38,13 +77,12 @@ class EventFactory {
 	 * @param string $userName userName
 	 * @return string
 	 */
-	private static function getUserPageURL( $userName ) {
-		global $wgCanonicalServer, $wgArticlePath;
-		$contLang = MediaWikiServices::getInstance()->getContentLanguage();
-		$prefixedUserURL = $contLang->getNsText( NS_USER ) . ':' . $userName;
+	private function getUserPageURL( $userName ) {
+		$prefixedUserURL = $this->contentLanguage->getNsText( NS_USER ) . ':' . $userName;
 		$encodedUserURL = wfUrlencode( strtr( $prefixedUserURL, ' ', '_' ) );
-		// The $wgArticlePath contains '$1' string where the article title should appear.
-		return $wgCanonicalServer . str_replace( '$1', $encodedUserURL, $wgArticlePath );
+		// The ArticlePath contains '$1' string where the article title should appear.
+		return $this->options->get( 'CanonicalServer' ) .
+			str_replace( '$1', $encodedUserURL, $this->options->get( 'ArticlePath' ) );
 	}
 
 	/**
@@ -79,12 +117,11 @@ class EventFactory {
 	 * @param LinkTarget $target article title object
 	 * @return string
 	 */
-	private static function getArticleURL( $target ) {
-		global $wgCanonicalServer, $wgArticlePath;
-
-		$titleURL = wfUrlencode( self::getTitleFormatter()->getPrefixedDBkey( $target ) );
-		// The $wgArticlePath contains '$1' string where the article title should appear.
-		return $wgCanonicalServer . str_replace( '$1', $titleURL, $wgArticlePath );
+	private function getArticleURL( $target ) {
+		$titleURL = wfUrlencode( $this->titleFormatter->getPrefixedDBkey( $target ) );
+		// The ArticlePath contains '$1' string where the article title should appear.
+		return $this->options->get( 'CanonicalServer' ) .
+			str_replace( '$1', $titleURL, $this->options->get( 'ArticlePath' ) );
 	}
 
 	/**
@@ -95,20 +132,18 @@ class EventFactory {
 	 * @param User|null $performer
 	 * @return array
 	 */
-	private static function createRevisionRecordAttrs(
+	private function createRevisionRecordAttrs(
 		RevisionRecord $revision,
 		User $performer = null
 	) {
-		global $wgDBname;
-
 		$linkTarget = $revision->getPageAsLinkTarget();
 		$attrs = [
 			// Common Mediawiki entity fields
-			'database'           => $wgDBname,
+			'database'           => $this->dbDomain,
 
 			// revision entity fields
 			'page_id'            => $revision->getPageId(),
-			'page_title'         => self::getTitleFormatter()->getPrefixedDBkey( $linkTarget ),
+			'page_title'         => $this->titleFormatter->getPrefixedDBkey( $linkTarget ),
 			'page_namespace'     => $linkTarget->getNamespace(),
 			'rev_id'             => $revision->getId(),
 			'rev_timestamp'      => self::createDTAttr( $revision->getTimestamp() ),
@@ -216,17 +251,15 @@ class EventFactory {
 		array $attrs,
 		string $wiki = null
 	) {
-		global $wgServerName;
-
 		if ( $wiki !== null ) {
 			$wikiRef = WikiMap::getWiki( $wiki );
 			if ( $wikiRef === null ) {
-				$domain = $wgServerName;
+				$domain = $this->options->get( 'ServerName' );
 			} else {
 				$domain = $wikiRef->getDisplayName();
 			}
 		} else {
-			$domain = $wgServerName;
+			$domain = $this->options->get( 'ServerName' );
 		}
 
 		$event = [
@@ -263,15 +296,13 @@ class EventFactory {
 	 *   was provided.
 	 * @return array
 	 */
-	private static function createCommonCentralNoticeAttrs(
+	private function createCommonCentralNoticeAttrs(
 		$campaignName,
 		User $user,
 		$summary
 	) {
-		global $wgDBname;
-
 		$attrs = [
-			'database'           => $wgDBname,
+			'database'           => $this->dbDomain,
 			'performer'          => self::createPerformerAttrs( $user ),
 			'campaign_name'      => $campaignName
 		];
@@ -329,7 +360,7 @@ class EventFactory {
 	 * @param array &$event the serialized event to sign
 	 * @throws ConfigException
 	 */
-	private static function signEvent( &$event ) {
+	private function signEvent( &$event ) {
 		// Sign the event with mediawiki secret key
 		$serialized_event = EventBus::serializeEvents( $event );
 		if ( $serialized_event === null ) {
@@ -337,8 +368,10 @@ class EventFactory {
 			return;
 		}
 
-		$signingSecret = MediaWikiServices::getInstance()->getMainConfig()->get( 'SecretKey' );
-		$signature = self::getEventSignature( $serialized_event, $signingSecret );
+		$signature = self::getEventSignature(
+			$serialized_event,
+			$this->options->get( 'SecretKey' )
+		);
 
 		$event['mediawiki_signature'] = $signature;
 	}
@@ -374,17 +407,15 @@ class EventFactory {
 		?RevisionRecord $headRevision,
 		$reason
 	) {
-		global $wgDBname;
-
 		// Create a mediawiki page delete event.
 		$attrs = [
 			// Common Mediawiki entity fields
-			'database'           => $wgDBname,
+			'database'           => $this->dbDomain,
 			'performer'          => self::createPerformerAttrs( $user ),
 
 			// page entity fields
 			'page_id'            => $id,
-			'page_title'         => self::getTitleFormatter()->getPrefixedDBkey( $title ),
+			'page_title'         => $this->titleFormatter->getPrefixedDBkey( $title ),
 			'page_namespace'     => $title->getNamespace(),
 			'page_is_redirect'   => $is_redirect,
 		];
@@ -404,7 +435,7 @@ class EventFactory {
 		}
 
 		return $this->createEvent(
-			self::getArticleURL( $title ),
+			$this->getArticleURL( $title ),
 			'/mediawiki/page/delete/1.0.0',
 			$stream,
 			$attrs
@@ -427,17 +458,15 @@ class EventFactory {
 		$comment,
 		$oldPageId
 	) {
-		global $wgDBname;
-
 		// Create a mediawiki page undelete event.
 		$attrs = [
 			// Common Mediawiki entity fields
-			'database'           => $wgDBname,
+			'database'           => $this->dbDomain,
 			'performer'          => self::createPerformerAttrs( $performer ),
 
 			// page entity fields
 			'page_id'            => $title->getArticleID(),
-			'page_title'         => self::getTitleFormatter()->getPrefixedDBkey( $title ),
+			'page_title'         => $this->titleFormatter->getPrefixedDBkey( $title ),
 			'page_namespace'     => $title->getNamespace(),
 			'page_is_redirect'   => $title->isRedirect(),
 			'rev_id'             => $title->getLatestRevID(),
@@ -463,7 +492,7 @@ class EventFactory {
 		}
 
 		return $this->createEvent(
-			self::getArticleURL( $title ),
+			$this->getArticleURL( $title ),
 			'/mediawiki/page/undelete/1.0.0',
 			$stream,
 			$attrs
@@ -489,9 +518,6 @@ class EventFactory {
 		$reason,
 		$redirectPageId = 0
 	) {
-		global $wgDBname;
-		$titleFormatter = MediaWikiServices::getInstance()->getTitleFormatter();
-
 		// TODO: In MCR Content::isRedirect should not be used to derive a redirect directly.
 		$newPageIsRedirect = false;
 		try {
@@ -504,19 +530,19 @@ class EventFactory {
 
 		$attrs = [
 			// Common Mediawiki entity fields
-			'database'           => $wgDBname,
+			'database'           => $this->dbDomain,
 			'performer'          => self::createPerformerAttrs( $user ),
 
 			// page entity fields
 			'page_id'            => $newRevision->getPageId(),
-			'page_title'         => $titleFormatter->getPrefixedDBkey( $newTitle ),
+			'page_title'         => $this->titleFormatter->getPrefixedDBkey( $newTitle ),
 			'page_namespace'     => $newTitle->getNamespace(),
 			'page_is_redirect'   => $newPageIsRedirect,
 			'rev_id'             => $newRevision->getId(),
 
 			// page move specific fields:
 			'prior_state'        => [
-				'page_title'     => $titleFormatter->getPrefixedDBkey( $oldTitle ),
+				'page_title'     => $this->titleFormatter->getPrefixedDBkey( $oldTitle ),
 				'page_namespace' => $oldTitle->getNamespace(),
 				'rev_id'         => $newRevision->getParentId(),
 			],
@@ -545,7 +571,7 @@ class EventFactory {
 		}
 
 		return $this->createEvent(
-			self::getArticleURL( $newTitle ),
+			$this->getArticleURL( $newTitle ),
 			'/mediawiki/page/move/1.0.0',
 			$stream,
 			$attrs
@@ -565,7 +591,7 @@ class EventFactory {
 		array $tags
 	) {
 		return $this->createEvent(
-			self::getArticleURL( $title ),
+			$this->getArticleURL( $title ),
 			'/resource_change/1.0.0',
 			$stream,
 			[ 'tags' => $tags ]
@@ -589,7 +615,7 @@ class EventFactory {
 		array $removedTags,
 		?User $user
 	) {
-		$attrs = self::createRevisionRecordAttrs( $revisionRecord );
+		$attrs = $this->createRevisionRecordAttrs( $revisionRecord );
 
 		// If the user changing the tags is provided, override the performer in the event
 		if ( $user !== null ) {
@@ -603,7 +629,7 @@ class EventFactory {
 		$attrs['prior_state'] = [ 'tags' => $prevTags ];
 
 		return $this->createEvent(
-			self::getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
+			$this->getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
 			'/mediawiki/revision/tags-change/1.0.0',
 			$stream,
 			$attrs
@@ -623,7 +649,7 @@ class EventFactory {
 		?User $performer,
 		array $visibilityChanges
 	) {
-		$attrs = self::createRevisionRecordAttrs(
+		$attrs = $this->createRevisionRecordAttrs(
 			$revisionRecord,
 			$performer
 		);
@@ -633,7 +659,7 @@ class EventFactory {
 		];
 
 		return $this->createEvent(
-			self::getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
+			$this->getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
 			'/mediawiki/revision/visibility-change/1.0.0',
 			$stream,
 			$attrs
@@ -649,16 +675,14 @@ class EventFactory {
 		$stream,
 		RevisionRecord $revisionRecord
 	) {
-		$attrs = self::createRevisionRecordAttrs( $revisionRecord );
+		$attrs = $this->createRevisionRecordAttrs( $revisionRecord );
 
 		// The parent_revision_id attribute is not required, but when supplied
 		// must have a minimum value of 1, so omit it entirely when there is no
 		// parent revision (i.e. page creation).
 		$parentId = $revisionRecord->getParentId();
 		if ( $parentId !== null && $parentId !== 0 ) {
-			$parentRev = MediaWikiServices::getInstance()
-				->getRevisionLookup()
-				->getRevisionById( $parentId );
+			$parentRev = $this->revisionLookup->getRevisionById( $parentId );
 			if ( $parentRev !== null ) {
 				$attrs['rev_content_changed'] =
 					$parentRev->getSha1() !== $revisionRecord->getSha1();
@@ -666,7 +690,7 @@ class EventFactory {
 		}
 
 		return $this->createEvent(
-			self::getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
+			$this->getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
 			'/mediawiki/revision/create/1.0.0',
 			$stream,
 			$attrs
@@ -692,16 +716,14 @@ class EventFactory {
 		$revId,
 		$pageId
 	) {
-		global $wgDBname;
-
 		// Create a mediawiki page delete event.
 		$attrs = [
 			// Common Mediawiki entity fields
-			'database'           => $wgDBname,
+			'database'           => $this->dbDomain,
 
 			// page entity fields
 			'page_id'            => $pageId,
-			'page_title'         => self::getTitleFormatter()->getPrefixedDBkey( $title ),
+			'page_title'         => $this->titleFormatter->getPrefixedDBkey( $title ),
 			'page_namespace'     => $title->getNamespace(),
 			'page_is_redirect'   => $title->isRedirect(),
 			'rev_id'             => $revId
@@ -726,7 +748,7 @@ class EventFactory {
 		}
 
 		return $this->createEvent(
-			self::getArticleURL( $title ),
+			$this->getArticleURL( $title ),
 			'/mediawiki/page/properties-change/1.0.0',
 			$stream,
 			$attrs
@@ -756,16 +778,14 @@ class EventFactory {
 		$revId,
 		$pageId
 	) {
-		global $wgDBname;
-
 		// Create a mediawiki page delete event.
 		$attrs = [
 			// Common Mediawiki entity fields
-			'database'           => $wgDBname,
+			'database'           => $this->dbDomain,
 
 			// page entity fields
 			'page_id'            => $pageId,
-			'page_title'         => self::getTitleFormatter()->getPrefixedDBkey( $title ),
+			'page_title'         => $this->titleFormatter->getPrefixedDBkey( $title ),
 			'page_namespace'     => $title->getNamespace(),
 			'page_is_redirect'   => $title->isRedirect(),
 			'rev_id'             => $revId
@@ -812,7 +832,7 @@ class EventFactory {
 		}
 
 		return $this->createEvent(
-			self::getArticleURL( $title ),
+			$this->getArticleURL( $title ),
 			'/mediawiki/page/links-change/1.0.0',
 			$stream,
 			$attrs
@@ -833,14 +853,12 @@ class EventFactory {
 		DatabaseBlock $block,
 		?DatabaseBlock $previousBlock
 	) {
-		global $wgDBname;
-
 		// This could be a User, a user_id, or a string (IP, etc.)
 		$blockTarget = $block->getTarget();
 
 		$attrs = [
 			// Common Mediawiki entity fields:
-			'database'           => $wgDBname,
+			'database'           => $this->dbDomain,
 			'performer'          => self::createPerformerAttrs( $user ),
 		];
 
@@ -875,7 +893,7 @@ class EventFactory {
 		}
 
 		return $this->createEvent(
-			self::getUserPageURL( $block->getTarget() ),
+			$this->getUserPageURL( $block->getTarget() ),
 			'/mediawiki/user/blocks-change/1.0.0',
 			$stream,
 			$attrs
@@ -904,17 +922,15 @@ class EventFactory {
 		$reason,
 		array $protect
 	) {
-		global $wgDBname;
-
 		// Create a mediawiki page restrictions change event.
 		$attrs = [
 			// Common Mediawiki entity fields
-			'database'           => $wgDBname,
+			'database'           => $this->dbDomain,
 			'performer'          => self::createPerformerAttrs( $user ),
 
 			// page entity fields
 			'page_id'            => $pageId,
-			'page_title'         => self::getTitleFormatter()->getPrefixedDBkey( $title ),
+			'page_title'         => $this->titleFormatter->getPrefixedDBkey( $title ),
 			'page_namespace'     => $title->getNamespace(),
 			'page_is_redirect'   => $is_redirect,
 
@@ -928,7 +944,7 @@ class EventFactory {
 		}
 
 		return $this->createEvent(
-			self::getArticleURL( $title ),
+			$this->getArticleURL( $title ),
 			'/mediawiki/page/restrictions-change/1.0.0',
 			$stream,
 			$attrs
@@ -948,7 +964,7 @@ class EventFactory {
 		}
 
 		$event = $this->createEvent(
-			self::getArticleURL( $title ),
+			$this->getArticleURL( $title ),
 			'/mediawiki/recentchange/1.0.0',
 			$stream,
 			$attrs
@@ -976,10 +992,8 @@ class EventFactory {
 		$wiki,
 		IJobSpecification $job
 	) {
-		global $wgDBname;
-
 		$attrs = [
-			'database' => $wiki ?: $wgDBname,
+			'database' => $wiki ?: $this->dbDomain,
 			'type' => $job->getType(),
 		];
 
@@ -1020,7 +1034,7 @@ class EventFactory {
 			$event['meta']['request_id'] = WebRequest::getRequestId();
 		}
 
-		self::signEvent( $event );
+		$this->signEvent( $event );
 
 		return $event;
 	}
@@ -1033,7 +1047,7 @@ class EventFactory {
 		$summary,
 		$campaignUrl
 	) {
-		$attrs = self::createCommonCentralNoticeAttrs( $campaignName, $user, $summary );
+		$attrs = $this->createCommonCentralNoticeAttrs( $campaignName, $user, $summary );
 		$attrs += self::createCentralNoticeCampignSettingsAttrs( $settings );
 
 		return $this->createEvent(
@@ -1053,7 +1067,7 @@ class EventFactory {
 		$summary,
 		$campaignUrl
 	) {
-		$attrs = self::createCommonCentralNoticeAttrs( $campaignName, $user, $summary );
+		$attrs = $this->createCommonCentralNoticeAttrs( $campaignName, $user, $summary );
 
 		$attrs += self::createCentralNoticeCampignSettingsAttrs( $settings );
 		$attrs[ 'prior_state' ] =
@@ -1075,7 +1089,7 @@ class EventFactory {
 		$summary,
 		$campaignUrl
 	) {
-		$attrs = self::createCommonCentralNoticeAttrs( $campaignName, $user, $summary );
+		$attrs = $this->createCommonCentralNoticeAttrs( $campaignName, $user, $summary );
 		// As of 2019-06-07 the $beginSettings are *never* set in \Campaign::removeCampaignByName()
 		// in the CentralNotice extension where the CentralNoticeCampaignChange hook is fired!
 		$attrs[ 'prior_state' ] =

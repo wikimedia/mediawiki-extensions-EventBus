@@ -6,7 +6,7 @@ use MediaWiki\Extension\EventBus\EventBus;
  * @covers \MediaWiki\Extension\EventBus\EventBus
  * @group EventBus
  */
-class EventBusTest extends MediaWikiTestCase {
+class EventBusTest extends MediaWikiUnitTestCase {
 	use MediaWikiCoversValidator;
 
 	public function testReplaceBinaryValues() {
