@@ -13,18 +13,24 @@
 		"MediaWiki": ">= 1.35.0"
 	},
 	"config": {
-		"EnableEventBus": "TYPE_ALL",
+		"EnableEventBus": {
+			"value": "TYPE_ALL"
+		},
 		"EventServices": {
-			"eventbus": {
-				"url": "http://localhost:3000/v1/events",
-				"timeout": 5
-			},
-			"eventgate": {
-				"url": "http://localhost:8192/v1/events",
-				"timeout": 5
+			"value": {
+				"eventbus": {
+					"url": "http://localhost:3000/v1/events",
+					"timeout": 5
+				},
+				"eventgate": {
+					"url": "http://localhost:8192/v1/events",
+					"timeout": 5
+				}
 			}
 		},
-		"EventBusEnableRunJobAPI": true
+		"EventBusEnableRunJobAPI": {
+			"value": true
+		}
 	},
 	"AutoloadNamespaces": {
 		"MediaWiki\\Extension\\EventBus\\": "includes/"
@@ -60,5 +66,5 @@
 			]
 		}
 	],
-	"manifest_version": 1
+	"manifest_version": 2
 }
