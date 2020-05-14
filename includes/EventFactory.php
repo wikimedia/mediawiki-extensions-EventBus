@@ -241,15 +241,16 @@ class EventFactory {
 	 * @param string $stream
 	 * @param array $attrs
 	 * @param string|null $wiki wikiId if provided
-	 *
+	 * @param string|null $dt
 	 * @return array $attrs + meta sub object
 	 */
-	protected function createEvent(
+	public function createEvent(
 		$uri,
 		$schema,
 		$stream,
 		array $attrs,
-		string $wiki = null
+		string $wiki = null,
+		string $dt = null
 	) {
 		if ( $wiki !== null ) {
 			$wikiRef = WikiMap::getWiki( $wiki );
@@ -268,7 +269,7 @@ class EventFactory {
 				'uri'        => $uri,
 				'request_id' => WebRequest::getRequestId(),
 				'id'         => UIDGenerator::newUUIDv4(),
-				'dt'         => wfTimestamp( TS_ISO_8601 ),
+				'dt'         => $dt ?? wfTimestamp( TS_ISO_8601 ),
 				'domain'     => $domain,
 				'stream'     => $stream,
 			],
