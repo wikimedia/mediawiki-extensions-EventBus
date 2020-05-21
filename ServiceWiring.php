@@ -14,7 +14,7 @@ return [
 				$services->getMainConfig()
 			),
 			$services->get( 'EventBus.EventFactory' ),
-			new MultiHttpClient( [] ),
+			$services->getHttpRequestFactory()->createMultiClient(),
 			LoggerFactory::getInstance( 'EventBus' )
 		);
 	},
