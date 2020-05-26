@@ -341,7 +341,7 @@ class EventBusHooks {
 	 * @throws ConfigException
 	 */
 	public static function onPageContentSaveComplete(
-		Wikipage $wikiPage,
+		WikiPage $wikiPage,
 		User $user,
 		Content $content,
 		$summary,
@@ -501,7 +501,7 @@ class EventBusHooks {
 	 * @throws ConfigException
 	 */
 	public static function onArticleProtectComplete(
-		Wikipage $wikiPage,
+		WikiPage $wikiPage,
 		User $user,
 		array $protect,
 		$reason
