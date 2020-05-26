@@ -33,9 +33,12 @@ That will allow RCFeed configuration to post to the EventBus service in the
 add the following to your `LocalSettings.php`:
 
 ```php
+use MediaWiki\Extension\EventBus\Adapters\RCFeed\EventBusRCFeedEngine;
+use MediaWiki\Extension\EventBus\Adapters\RCFeed\EventBusRCFeedFormatter;
+
 $wgRCFeeds['eventgate-main'] = array(
-    'class'            => 'EventBusRCFeedEngine',
-    'formatter'        => 'EventBusRCFeedFormatter',
+    'class'            => EventBusRCFeedEngine::class,
+    'formatter'        => EventBusRCFeedFormatter::class,
     // This should be the name of an event service entry
     // defined in $wgEventServices.
     'eventServiceName' => 'eventgate-main',
