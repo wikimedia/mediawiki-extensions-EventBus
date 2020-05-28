@@ -2,7 +2,6 @@
 
 namespace MediaWiki\Extension\EventBus;
 
-use ConfigException;
 use ContentHandler;
 use IJobSpecification;
 use Language;
@@ -359,7 +358,6 @@ class EventFactory {
 	 * Creates a cryptographic signature for the event
 	 *
 	 * @param array &$event the serialized event to sign
-	 * @throws ConfigException
 	 */
 	private function signEvent( &$event ) {
 		// Sign the event with mediawiki secret key
@@ -986,7 +984,6 @@ class EventFactory {
 	 * @param string $wiki wikiId
 	 * @param IJobSpecification $job the job specification
 	 * @return array
-	 * @throws ConfigException
 	 */
 	public function createJobEvent(
 		$stream,

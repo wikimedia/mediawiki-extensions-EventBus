@@ -22,7 +22,7 @@
 
 namespace MediaWiki\Extension\EventBus;
 
-use ConfigException;
+use InvalidArgumentException;
 use MediaWiki\Config\ServiceOptions;
 use MultiHttpClient;
 use Psr\Log\LoggerInterface;
@@ -98,7 +98,7 @@ class EventBusFactory {
 	 * event service name.  This is a backwards compatible change, but because
 	 * there are no other users of this extension, we can do this safely.
 	 *
-	 * @throws ConfigException if EventServices or $eventServiceName is misconfigured.
+	 * @throws InvalidArgumentException if EventServices or $eventServiceName is misconfigured.
 	 * @return EventBus
 	 */
 	public function getInstance( string $eventServiceName ) : EventBus {
@@ -108,7 +108,7 @@ class EventBusFactory {
 			$error = "Could not get configuration of EventBus instance for '$eventServiceName'. " .
 				'$eventServiceName must exist in EventServices with a url in main config.';
 			$this->logger->error( $error );
-			throw new ConfigException( $error );
+			throw new InvalidArgumentException( $error );
 		}
 
 		$eventService = $this->eventServiceConfig[$eventServiceName];
@@ -134,7 +134,7 @@ class EventBusFactory {
 	 *
 	 * @param string $stream the stream to send an event to
 	 * @return EventBus
-	 * @throws ConfigException
+	 * @throws InvalidArgumentException if EventServices or $eventServiceName is misconfigured.
 	 */
 	public function getInstanceForStream( string $stream ) : EventBus {
 		if ( array_key_exists( $stream, $this->eventStreamConfig ) ) {
@@ -143,6 +143,6 @@ class EventBusFactory {
 		if ( array_key_exists( 'default', $this->eventStreamConfig ) ) {
 			return self::getInstance( $this->eventStreamConfig['default']['EventServiceName'] );
 		}
-		throw new ConfigException( 'wgEventServiceStreamConfig has no default provided' );
+		throw new InvalidArgumentException( 'wgEventServiceStreamConfig has no default provided' );
 	}
 }

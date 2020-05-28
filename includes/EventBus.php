@@ -24,9 +24,9 @@
 
 namespace MediaWiki\Extension\EventBus;
 
-use ConfigException;
 use Exception;
 use FormatJson;
+use InvalidArgumentException;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
 use MultiHttpClient;
@@ -348,7 +348,7 @@ class EventBus {
 	 * 		event service name.  This is a backwards compatible change, but because
 	 * 		there are no other users of this extension, we can do this safely.
 	 *
-	 * @throws ConfigException if EventServices or $eventServiceName is misconfigured.
+	 * @throws InvalidArgumentException if EventServices or $eventServiceName is misconfigured.
 	 * @return EventBus
 	 */
 	public static function getInstance( $eventServiceName ) {
@@ -363,7 +363,7 @@ class EventBus {
 	 *
 	 * @param string $stream the stream to send an event to
 	 * @return EventBus
-	 * @throws ConfigException
+	 * @throws InvalidArgumentException if EventServices or $eventServiceName is misconfigured.
 	 */
 	public static function getInstanceForStream( $stream ) {
 		return MediaWikiServices::getInstance()

@@ -2,8 +2,8 @@
 
 namespace MediaWiki\Extension\EventBus\Adapters\EventRelayer;
 
-use ConfigException;
 use EventRelayer;
+use InvalidArgumentException;
 use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\MediaWikiServices;
 use MWTimestamp;
@@ -25,11 +25,12 @@ class CdnPurgeEventRelayer extends EventRelayer {
 	 * @param array $params
 	 *  - string 'stream' - the name of the stream the CDN purge events
 	 *  will be produced to. Required.
+	 * @throws InvalidArgumentException if $params are misconfigured
 	 */
 	public function __construct( array $params ) {
 		parent::__construct( $params );
 		if ( !isset( $params['stream'] ) ) {
-			throw new ConfigException( 'purge_stream must be configured' );
+			throw new InvalidArgumentException( 'purge_stream must be configured' );
 		}
 
 		$this->purgeStream = $params['stream'];

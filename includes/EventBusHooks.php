@@ -25,7 +25,6 @@
 namespace MediaWiki\Extension\EventBus;
 
 use Campaign;
-use ConfigException;
 use Content;
 use DeferredUpdates;
 use LinksUpdate;
@@ -57,7 +56,6 @@ class EventBusHooks {
 	 *
 	 * @param LinkTarget $title article title object
 	 * @param array $tags the array of tags to use in the event
-	 * @throws ConfigException
 	 */
 	private static function sendResourceChangedEvent(
 		LinkTarget $title,
@@ -84,7 +82,6 @@ class EventBusHooks {
 	 * @param Content|null $content the content of the deleted article, or null in case of error
 	 * @param ManualLogEntry $logEntry the log entry used to record the deletion
 	 * @param int $archivedRevisionCount the number of revisions archived during the page delete
-	 * @throws ConfigException
 	 */
 	public static function onArticleDeleteComplete(
 		WikiPage $wikiPage,
@@ -126,7 +123,6 @@ class EventBusHooks {
 	 * @param bool $create whether the restoration caused the page to be created
 	 * @param string $comment comment explaining the undeletion
 	 * @param int $oldPageId ID of page previously deleted (from archive table)
-	 * @throws ConfigException
 	 */
 	public static function onArticleUndelete(
 		Title $title,
@@ -163,7 +159,6 @@ class EventBusHooks {
 	 * @param int $redirid database page_id of the created redirect, or 0 if suppressed
 	 * @param string $reason reason for the move
 	 * @param Revision $newRevision revision created by the move
-	 * @throws ConfigException
 	 */
 	public static function onTitleMoveComplete(
 		Title $oldTitle,
@@ -203,7 +198,6 @@ class EventBusHooks {
 	 *              This array can be examined to determine exactly what visibility
 	 *              bits have changed for each revision.  This array is of the form
 	 *              [id => ['oldBits' => $oldBits, 'newBits' => $newBits], ... ]
-	 * @throws ConfigException
 	 */
 	public static function onArticleRevisionVisibilitySet(
 		Title $title,
@@ -270,7 +264,6 @@ class EventBusHooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ArticlePurge
 	 *
 	 * @param WikiPage $wikiPage
-	 * @throws ConfigException
 	 */
 	public static function onArticlePurge( WikiPage $wikiPage ) {
 		self::sendResourceChangedEvent( $wikiPage->getTitle(), [ 'purge' ] );
@@ -292,7 +285,6 @@ class EventBusHooks {
 	 * @param string|null $section Deprecated
 	 * @param int $flags
 	 * @param Revision $revision
-	 * @throws ConfigException
 	 */
 	public static function onPageContentInsertComplete(
 		WikiPage $article,
@@ -338,7 +330,6 @@ class EventBusHooks {
 	 * @param Revision $revision
 	 * @param Status $status
 	 * @param int $baseRevId
-	 * @throws ConfigException
 	 */
 	public static function onPageContentSaveComplete(
 		WikiPage $wikiPage,
@@ -382,7 +373,6 @@ class EventBusHooks {
 	 * @param User $user the user who did the block (not the one being blocked)
 	 * @param DatabaseBlock|null $previousBlock the previous block state for the block target.
 	 *        null if this is a new block target.
-	 * @throws ConfigException
 	 */
 	public static function onBlockIpComplete(
 		DatabaseBlock $block,
@@ -411,7 +401,6 @@ class EventBusHooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/LinksUpdateComplete
 	 *
 	 * @param LinksUpdate $linksUpdate the update object
-	 * @throws ConfigException
 	 */
 	public static function onLinksUpdateComplete(
 		LinksUpdate $linksUpdate
@@ -498,7 +487,6 @@ class EventBusHooks {
 	 * @param User $user the user who have changed the article
 	 * @param string[] $protect set of new restrictions details
 	 * @param string $reason the reason for page protection
-	 * @throws ConfigException
 	 */
 	public static function onArticleProtectComplete(
 		WikiPage $wikiPage,
@@ -543,7 +531,6 @@ class EventBusHooks {
 	 * the action, or null
 	 * @param User|null $user User who performed the tagging when the tagging is subsequent
 	 * to the action, or null
-	 * @throws ConfigException
 	 */
 	public static function onChangeTagsAfterUpdateTags(
 		array $addedTags,
@@ -607,7 +594,6 @@ class EventBusHooks {
 	 *   this parameter will be null.
 	 * @param string $summary Change summary provided by the user, or empty string if none
 	 *   was provided.
-	 * @throws ConfigException
 	 */
 	public static function onCentralNoticeCampaignChange(
 		$changeType,

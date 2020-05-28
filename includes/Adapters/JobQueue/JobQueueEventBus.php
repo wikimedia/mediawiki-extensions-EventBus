@@ -3,7 +3,6 @@
 namespace MediaWiki\Extension\EventBus\Adapters\JobQueue;
 
 use ArrayIterator;
-use ConfigException;
 use IJobSpecification;
 use Iterator;
 use Job;
@@ -70,7 +69,7 @@ class JobQueueEventBus extends JobQueue {
 	/**
 	 * @param IJobSpecification[] $jobs
 	 * @param int $flags
-	 * @throws ConfigException
+	 * @throws JobQueueError
 	 * @see JobQueue::batchPush()
 	 */
 	protected function doBatchPush( array $jobs, $flags ) {

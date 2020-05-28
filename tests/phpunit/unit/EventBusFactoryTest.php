@@ -65,7 +65,7 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 	 * @param string $serviceName
 	 * @param array $serviceConfig
 	 * @param string|null $expectedUrl - expected EventBus instance url.
-	 *   If null - expect ConfigException
+	 *   If null - expect InvalidArgumentException
 	 */
 	public function testGetInstance(
 		string $serviceName,
@@ -73,7 +73,7 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 		?string $expectedUrl
 	) {
 		if ( !$expectedUrl ) {
-			$this->expectException( ConfigException::class );
+			$this->expectException( InvalidArgumentException::class );
 		}
 		$factory = $this->getEventBusFactory(
 			$serviceConfig,
@@ -121,7 +121,7 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 	 * @param array $serviceConfig
 	 * @param array $streamConfig
 	 * @param string|null $expectedUrl - expected EventBus instance url.
-	 *   If null - expect ConfigException
+	 *   If null - expect InvalidArgumentException
 	 */
 	public function testGetInstanceForStream(
 		string $streamName,
@@ -130,7 +130,7 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 		?string $expectedUrl
 	) {
 		if ( !$expectedUrl ) {
-			$this->expectException( ConfigException::class );
+			$this->expectException( InvalidArgumentException::class );
 		}
 		$factory = $this->getEventBusFactory( $serviceConfig, $streamConfig );
 		$instance = $factory->getInstanceForStream( $streamName );

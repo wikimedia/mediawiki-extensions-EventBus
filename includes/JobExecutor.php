@@ -8,7 +8,6 @@
 namespace MediaWiki\Extension\EventBus;
 
 use Config;
-use ConfigException;
 use DeferredUpdates;
 use Exception;
 use Job;
@@ -257,7 +256,6 @@ class JobExecutor {
 	 * @param ILBFactory $lbFactory
 	 * @param string $fnameTrxOwner
 	 * @throws DBError
-	 * @throws ConfigException
 	 */
 	private function commitMasterChanges( ILBFactory $lbFactory, $fnameTrxOwner ) {
 		$syncThreshold = $this->config()->get( 'JobSerialCommitThreshold' );
