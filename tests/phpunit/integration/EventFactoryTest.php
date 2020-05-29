@@ -460,7 +460,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
 		$this->assertPageProperties( $event );
-		$this->assertEquals( 1, $event['rev_id'], "'rev_id' incorrect value" );
+		$this->assertSame( 1, $event['rev_id'], "'rev_id' incorrect value" );
 	}
 
 	public function testPagePropertiesChangeEventAddedAndRemovedProperties() {
@@ -510,7 +510,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
 		$this->assertPageProperties( $event );
-		$this->assertEquals( 1, $event['rev_id'], "'rev_id' incorrect value" );
+		$this->assertSame( 1, $event['rev_id'], "'rev_id' incorrect value" );
 	}
 
 	public function testPageLinksChangeEventAddedAndRemovedProperties() {
