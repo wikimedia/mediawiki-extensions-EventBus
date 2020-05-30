@@ -17,8 +17,8 @@ class EventFactoryTest extends MediaWikiTestCase {
 	 */
 	protected static $eventFactory;
 
-	const MOCK_PAGE_TITLE = 'Test';
-	const MOCK_PAGE_ID = 23;
+	private const MOCK_PAGE_TITLE = 'Test';
+	private const MOCK_PAGE_ID = 23;
 
 	private static function revisionProperties( $rowOverrides = [] ) {
 		$row = [

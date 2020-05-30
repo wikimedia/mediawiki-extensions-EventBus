@@ -17,7 +17,7 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 	 * Stream name to which this event belongs.
 	 * @var string
 	 */
-	const STREAM = 'mediawiki.recentchange';
+	public const STREAM = 'mediawiki.recentchange';
 
 	/**
 	 * Removes properties which values are 'null' from the event.

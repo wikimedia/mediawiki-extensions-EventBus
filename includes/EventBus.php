@@ -37,25 +37,25 @@ class EventBus {
 	/**
 	 * @const int the special event type indicating no events should be accepted.
 	 */
-	const TYPE_NONE = 0;
+	public const TYPE_NONE = 0;
 
 	/**
 	 * @const int the event type indicating that the event is a regular mediawiki event.
 	 */
-	const TYPE_EVENT = 1;
+	public const TYPE_EVENT = 1;
 
 	/**
 	 * @const int the event type indicating that the event is a serialized job.
 	 */
-	const TYPE_JOB = 2;
+	public const TYPE_JOB = 2;
 
 	/**
 	 * @const int the event type indicating any event type. (TYPE_EVENT ^ TYPE_EVENT)
 	 */
-	const TYPE_ALL = 3;
+	public const TYPE_ALL = 3;
 
 	/** @const int Default HTTP request timeout in seconds */
-	const DEFAULT_REQUEST_TIMEOUT = 10;
+	private const DEFAULT_REQUEST_TIMEOUT = 10;
 
 	/** @var LoggerInterface instance for all EventBus instances */
 	private static $logger;
