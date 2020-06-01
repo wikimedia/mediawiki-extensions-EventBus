@@ -34,12 +34,8 @@
 		"EventBusEnableRunJobAPI": {
 			"value": true
 		},
-		"EventServiceStreamConfig": {
-			"value": {
-				"default": {
-					"EventServiceName": "eventbus"
-				}
-			}
+		"EventServiceDefault": {
+			"value": "eventbus"
 		}
 	},
 	"MessagesDirs": {

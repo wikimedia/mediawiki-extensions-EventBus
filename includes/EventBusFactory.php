@@ -24,6 +24,7 @@ namespace MediaWiki\Extension\EventBus;
 
 use InvalidArgumentException;
 use MediaWiki\Config\ServiceOptions;
+use Mediawiki\Extension\EventStreamConfig\StreamConfigs;
 use MultiHttpClient;
 use Psr\Log\LoggerInterface;
 
@@ -37,15 +38,25 @@ class EventBusFactory {
 
 	public const CONSTRUCTOR_OPTIONS = [
 		'EventServices',
-		'EventServiceStreamConfig',
+		'EventServiceDefault',
 		'EnableEventBus'
 	];
+
+	/**
+	 * Key in wgEventStreams that specifies
+	 * the event service name that should be used for a specific stream.
+	 * If not found via StreamConfigs, EventServiceDefault will be used.
+	 */
+	private const EVENT_STREAM_CONFIG_SERVICE_SETTING = 'destination_event_service';
 
 	/** @var array */
 	private $eventServiceConfig;
 
-	/** @var array */
-	private $eventStreamConfig;
+	/** @var string */
+	private $eventServiceDefault;
+
+	/** @var StreamConfigs|null */
+	private $streamConfigs;
 
 	/** @var string */
 	private $enableEventBus;
@@ -64,12 +75,14 @@ class EventBusFactory {
 
 	/**
 	 * @param ServiceOptions $options
+	 * @param StreamConfigs|null $streamConfigs
 	 * @param EventFactory $eventFactory
 	 * @param MultiHttpClient $http
 	 * @param LoggerInterface $logger
 	 */
 	public function __construct(
 		ServiceOptions $options,
+		?StreamConfigs $streamConfigs,
 		EventFactory $eventFactory,
 		MultiHttpClient $http,
 		LoggerInterface $logger
@@ -77,8 +90,9 @@ class EventBusFactory {
 		$options->assertRequiredOptions( self::CONSTRUCTOR_OPTIONS );
 
 		$this->eventServiceConfig = $options->get( 'EventServices' );
-		$this->eventStreamConfig = $options->get( 'EventServiceStreamConfig' );
+		$this->eventServiceDefault = $options->get( 'EventServiceDefault' );
 		$this->enableEventBus = $options->get( 'EnableEventBus' );
+		$this->streamConfigs = $streamConfigs;
 		$this->eventFactory = $eventFactory;
 		$this->http = $http;
 		$this->logger = $logger;
@@ -105,8 +119,8 @@ class EventBusFactory {
 		if ( !array_key_exists( $eventServiceName, $this->eventServiceConfig ) ||
 			!array_key_exists( 'url', $this->eventServiceConfig[$eventServiceName] )
 		) {
-			$error = "Could not get configuration of EventBus instance for '$eventServiceName'. " .
-				'$eventServiceName must exist in EventServices with a url in main config.';
+			$error = "Could not get EventBus instance for event service '$eventServiceName'. " .
+				'This event service name must exist in EventServices config with a url setting.';
 			$this->logger->error( $error );
 			throw new InvalidArgumentException( $error );
 		}
@@ -129,20 +143,42 @@ class EventBusFactory {
 	}
 
 	/**
-	 * Looks in EventServiceStreamConfig for an EventServiceName for $stream.
-	 * If none is found, falls back to a 'default' entry.
+	 * Gets an EventBus instance for a $stream.
+	 * If none is configured specifically for $stream, EventServiceDefault will be used.
 	 *
 	 * @param string $stream the stream to send an event to
 	 * @return EventBus
-	 * @throws InvalidArgumentException if EventServices or $eventServiceName is misconfigured.
+	 * @throws InvalidArgumentException
 	 */
 	public function getInstanceForStream( string $stream ) : EventBus {
-		if ( array_key_exists( $stream, $this->eventStreamConfig ) ) {
-			return self::getInstance( $this->eventStreamConfig[$stream]['EventServiceName'] );
+		// Use eventServiceDefault if no streamConfigs were provided.
+		if ( $this->streamConfigs === null ) {
+			$this->logger->debug(
+				'Using EventServiceDefault ' . $this->eventServiceDefault .
+				" for stream $stream. EventStreamConfig is not enabled."
+			);
+			return self::getInstance( $this->eventServiceDefault );
 		}
-		if ( array_key_exists( 'default', $this->eventStreamConfig ) ) {
-			return self::getInstance( $this->eventStreamConfig['default']['EventServiceName'] );
+
+		// Else attempt to lookup EVENT_STREAM_CONFIG_SERVICE_SETTING for this stream.
+		$streamConfigEntries = $this->streamConfigs->get( [ $stream ], true );
+		if ( array_key_exists( $stream, $streamConfigEntries ) &&
+			array_key_exists(
+				self::EVENT_STREAM_CONFIG_SERVICE_SETTING, $streamConfigEntries[$stream]
+			)
+		) {
+			$eventService = $streamConfigEntries[$stream][self::EVENT_STREAM_CONFIG_SERVICE_SETTING];
+			$this->logger->debug(
+				'Using ' . self::EVENT_STREAM_CONFIG_SERVICE_SETTING .
+				" $eventService for stream $stream."
+			);
+			return self::getInstance( $eventService );
+		} else {
+			$this->logger->debug(
+				'Using EventServiceDefault ' . $this->eventServiceDefault .
+				" for stream $stream. " . self::EVENT_STREAM_CONFIG_SERVICE_SETTING . ' is not configured.'
+			);
+			return self::getInstance( $this->eventServiceDefault );
 		}
-		throw new InvalidArgumentException( 'wgEventServiceStreamConfig has no default provided' );
 	}
 }

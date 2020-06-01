@@ -377,8 +377,9 @@ class EventBus {
 	}
 
 	/**
-	 * Looks in EventServiceStreamConfig for an EventServiceName for $stream.
-	 * If none is found, falls back to a 'default' entry.
+	 * Uses EventStreamConfig.StreamConfigs to look up the
+	 * destination_event_service name for a $stream.
+	 * If none is found, falls back to using wgEventServiceDefault.
 	 *
 	 * @param string $stream the stream to send an event to
 	 * @return EventBus
