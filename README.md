@@ -23,7 +23,11 @@ event service config.  E.g.
     }
 
 EventBus instances should be created via the static `getInstance` method.  This method
-takes one of the configued event service names from the `EventServices` main config.
+takes one of the configured event service names from the `EventServices` main config.
+
+`EnableEventBus` config parameter specifies which types of events the extension will produce.
+Possible options are `TYPE_NONE`, `TYPE_EVENT`, `TYPE_JOB`, `TYPE_PURGE` or `TYPE_ALL`.
+Specifying multiple types using `|` as a delimiter is supported. Example: `TYPE_JOB|TYPE_PURGE`
 
 ## EventBus RCFeed
 

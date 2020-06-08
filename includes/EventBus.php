@@ -31,6 +31,7 @@ use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
 use MultiHttpClient;
 use Psr\Log\LoggerInterface;
+use Wikimedia\Assert\Assert;
 
 class EventBus {
 
@@ -50,9 +51,25 @@ class EventBus {
 	public const TYPE_JOB = 2;
 
 	/**
+	 * @const int the event type indicating that the event is a CDN purge.
+	 */
+	public const TYPE_PURGE = 4;
+
+	/**
 	 * @const int the event type indicating any event type. (TYPE_EVENT ^ TYPE_EVENT)
 	 */
-	public const TYPE_ALL = 3;
+	public const TYPE_ALL = self::TYPE_EVENT | self::TYPE_JOB | self::TYPE_PURGE;
+
+	/**
+	 * @const array names of the event type constants defined above
+	 */
+	private const EVENT_TYPE_NAMES = [
+		'TYPE_NONE' => self::TYPE_NONE,
+		'TYPE_EVENT' => self::TYPE_EVENT,
+		'TYPE_JOB' => self::TYPE_JOB,
+		'TYPE_PURGE' => self::TYPE_PURGE,
+		'TYPE_ALL' => self::TYPE_ALL,
+	];
 
 	/** @const int Default HTTP request timeout in seconds */
 	private const DEFAULT_REQUEST_TIMEOUT = 10;
@@ -69,7 +86,7 @@ class EventBus {
 	/** @var int HTTP request timeout for this EventBus instance */
 	private $timeout;
 
-	/** @var int which event types are allowed to be sent (TYPE_NONE|TYPE_EVENT|TYPE_JOB|TYPE_ALL) */
+	/** @var int which event types are allowed to be sent (TYPE_NONE|TYPE_EVENT|TYPE_JOB|TYPE_PURGE|TYPE_ALL) */
 	private $allowedEventTypes;
 
 	/** @var EventFactory|null event creator */
@@ -77,14 +94,15 @@ class EventBus {
 
 	/**
 	 * @param MultiHttpClient $http
-	 * @param string $enableEventBus
+	 * @param string|int $enableEventBus A value of the wgEnableEventBus config, or a bitmask
+	 * of TYPE_* constants
 	 * @param EventFactory $eventFactory EventFactory to use for event construction.
 	 * @param string $url EventBus service endpoint URL. E.g. http://localhost:8085/v1/events
 	 * @param int|null $timeout HTTP request timeout in seconds, defaults to 5.
 	 */
 	public function __construct(
 		MultiHttpClient $http,
-		string $enableEventBus,
+		$enableEventBus,
 		EventFactory $eventFactory,
 		string $url,
 		int $timeout = null
@@ -94,23 +112,24 @@ class EventBus {
 		$this->timeout = $timeout ?: self::DEFAULT_REQUEST_TIMEOUT;
 		$this->eventFactory = $eventFactory;
 
-		switch ( $enableEventBus ) {
-			case 'TYPE_NONE':
-				$this->allowedEventTypes = self::TYPE_NONE;
-				break;
-			case 'TYPE_EVENT':
-				$this->allowedEventTypes = self::TYPE_EVENT;
-				break;
-			case 'TYPE_JOB':
-				$this->allowedEventTypes = self::TYPE_JOB;
-				break;
-			case 'TYPE_ALL':
-				$this->allowedEventTypes = self::TYPE_ALL;
-				break;
-			default:
-				self::logger()->log( 'warn',
-					'Unknown $wgEnableEventBus config parameter value ' . $enableEventBus );
-				$this->allowedEventTypes = self::TYPE_ALL;
+		if ( is_int( $enableEventBus ) ) {
+			Assert::precondition(
+				(int)( $enableEventBus & self::TYPE_ALL ) === $enableEventBus,
+				'Invalid $enableEventBus parameter: ' . $enableEventBus
+			);
+			$this->allowedEventTypes = $enableEventBus;
+		} elseif ( is_string( $enableEventBus ) && $enableEventBus ) {
+			$this->allowedEventTypes = self::TYPE_NONE;
+			$allowedTypes = explode( '|', $enableEventBus );
+			foreach ( $allowedTypes as $allowedType ) {
+				Assert::precondition(
+					array_key_exists( $allowedType, self::EVENT_TYPE_NAMES ),
+					"EnableEventBus: $allowedType not recognized"
+				);
+				$this->allowedEventTypes |= self::EVENT_TYPE_NAMES[$allowedType];
+			}
+		} else {
+			$this->allowedEventTypes = self::TYPE_ALL;
 		}
 	}
 

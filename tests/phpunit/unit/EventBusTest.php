@@ -1,13 +1,13 @@
 <?php
 
 use MediaWiki\Extension\EventBus\EventBus;
+use MediaWiki\Extension\EventBus\EventFactory;
 
 /**
  * @covers \MediaWiki\Extension\EventBus\EventBus
  * @group EventBus
  */
 class EventBusTest extends MediaWikiUnitTestCase {
-	use MediaWikiCoversValidator;
 
 	public function testReplaceBinaryValues() {
 		$stringVal = "hi there";
@@ -35,5 +35,48 @@ class EventBusTest extends MediaWikiUnitTestCase {
 
 		EventBus::replaceBinaryValuesRecursive( $events );
 		$this->assertEquals( $expected, $events );
+	}
+
+	public function provideAllowedTypes() {
+		yield 'Nothing provided, defaults to TYPE_ALL' => [ '', EventBus::TYPE_ALL ];
+		yield 'TYPE_ALL allows everything' => [ 'TYPE_ALL', EventBus::TYPE_ALL ];
+		yield 'TYPE_NONE allows nothing' => [ 'TYPE_NONE', EventBus::TYPE_NONE ];
+		yield 'TYPE_JOB allows only jobs' => [ 'TYPE_JOB', EventBus::TYPE_JOB ];
+		yield 'Union types' => [ 'TYPE_EVENT|TYPE_PURGE', EventBus::TYPE_EVENT | EventBus::TYPE_PURGE ];
+		yield 'Integer support' =>
+			[ EventBus::TYPE_EVENT | EventBus::TYPE_PURGE, EventBus::TYPE_EVENT | EventBus::TYPE_PURGE ];
+	}
+
+	/**
+	 * @dataProvider provideAllowedTypes
+	 * @param string|int $enableEventBus
+	 * @param int $expectedProducedTypes
+	 */
+	public function testAllowedTypes(
+		$enableEventBus,
+		int $expectedProducedTypes
+	) {
+		foreach ( [ EventBus::TYPE_EVENT, EventBus::TYPE_JOB, EventBus::TYPE_PURGE ] as $type ) {
+			if ( $expectedProducedTypes & $type ) {
+				$httpClient = $this->createNoOpMock( MultiHttpClient::class, [ 'run' ] );
+				$httpClient
+					->expects( $this->once() )
+					->method( 'run' )
+					->willReturn( [
+						'code' => 201
+					] );
+			} else {
+				$httpClient = $this->createNoOpMock( MultiHttpClient::class, [ 'run' ] );
+				$httpClient->expects( $this->never() )
+					->method( 'run' );
+			}
+			$eventBus = new EventBus(
+				$httpClient,
+				$enableEventBus,
+				$this->createNoOpMock( EventFactory::class ),
+				'test.org'
+			);
+			$eventBus->send( 'BODY', $type );
+		}
 	}
 }
