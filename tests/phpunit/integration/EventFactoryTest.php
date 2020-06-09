@@ -1,6 +1,8 @@
 <?php
 
 use MediaWiki\Block\DatabaseBlock;
+use MediaWiki\Block\Restriction\NamespaceRestriction;
+use MediaWiki\Block\Restriction\PageRestriction;
 use MediaWiki\Extension\EventBus\EventFactory;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Revision\RevisionRecord;
@@ -771,12 +773,6 @@ class EventFactoryTest extends MediaWikiTestCase {
 		$this->assertStream( $event, 'resource_change' );
 	}
 
-	public function provideUserBlocks() {
-		return [ [ new DatabaseBlock( self::blockProperties( [ "address" => 'Test_User1' ] ) ),
-				   new DatabaseBlock( self::blockProperties( [ "address" => 'Test_User2' ] ) ) ]
-			   ];
-	}
-
 	public function provideNonUserBlocks() {
 		return [ [ new DatabaseBlock( self::blockProperties( [ 'address' => "127.0.0.0/24" ] ) ),
 				   new DatabaseBlock( self::blockProperties( [ 'address' => "128.0.0.0/24" ] ) ) ]
@@ -789,10 +785,13 @@ class EventFactoryTest extends MediaWikiTestCase {
 		];
 	}
 
-	/**
-	 * @dataProvider provideUserBlocks
-	 */
-	public function testUserBlockChangeEvent( $oldBlock, $newBlock ) {
+	public function testUserBlockChangeEvent() {
+		$oldBlock = new DatabaseBlock( self::blockProperties( [ "address" => 'Test_User1' ] ) );
+		$oldBlock->setRestrictions( [
+			new NamespaceRestriction( 0, NS_USER ),
+			new PageRestriction( 0, 1 )
+		] );
+		$newBlock = new DatabaseBlock( self::blockProperties( [ "address" => 'Test_User2' ] ) );
 		$event = self::$eventFactory->createUserBlockChangeEvent(
 			'mediawiki.user-blocks-change',
 			User::newFromName( "Test_User" ),
@@ -802,6 +801,7 @@ class EventFactoryTest extends MediaWikiTestCase {
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
 		$this->assertArrayHasKey( 'blocks', $event, "'blocks' key missing" );
+		$this->assertArrayHasKey( 'sitewide', $event['blocks'] );
 		$this->assertArrayHasKey( 'prior_state', $event, "'prior_state' key missing" );
 		$this->assertStream( $event, 'mediawiki.user-blocks-change' );
 		$this->assertArrayHasKey( 'user_groups', $event, "'user_groups' should be present" );
@@ -809,6 +809,13 @@ class EventFactoryTest extends MediaWikiTestCase {
 			wfTimestamp( TS_ISO_8601, $newBlock->getExpiry() ),
 			$event['blocks']['expiry_dt']
 		);
+		$this->assertArrayHasKey( 'blocks', $event['prior_state'] );
+		$this->assertArrayHasKey( 'restrictions', $event['prior_state']['blocks'] );
+		$this->assertArrayHasKey( 'sitewide', $event['prior_state']['blocks'] );
+		$this->assertArrayEquals( [
+			[ 'type' => 'ns', 'value' => NS_USER ],
+			[ 'type' => 'page', 'value' => 1 ],
+		], $event['prior_state']['blocks']['restrictions'] );
 	}
 
 	/**
