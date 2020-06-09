@@ -7,6 +7,7 @@ use IJobSpecification;
 use Language;
 use Linker;
 use MediaWiki\Block\DatabaseBlock;
+use MediaWiki\Block\Restriction\Restriction;
 use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Revision\RevisionLookup;
@@ -347,7 +348,14 @@ class EventFactory {
 			'email'          => (bool)(int)$block->isEmailBlocked(),
 			'user_talk'      => !(bool)(int)$block->isUsertalkEditAllowed(),
 			'account_create' => (bool)(int)$block->isCreateAccountBlocked(),
+			'sitewide'       => $block->isSitewide(),
 		];
+		$blockAttrs['restrictions'] = array_map( function ( Restriction $restriction ) {
+			return [
+				'type'  => $restriction::getType(),
+				'value' => $restriction->getValue()
+			];
+		}, $block->getRestrictions() );
 		if ( $block->getExpiry() != 'infinity' ) {
 			$blockAttrs['expiry_dt'] = self::createDTAttr( $block->getExpiry() );
 		}
@@ -893,7 +901,7 @@ class EventFactory {
 
 		return $this->createEvent(
 			$this->getUserPageURL( $block->getTarget() ),
-			'/mediawiki/user/blocks-change/1.0.0',
+			'/mediawiki/user/blocks-change/1.1.0',
 			$stream,
 			$attrs
 		);
