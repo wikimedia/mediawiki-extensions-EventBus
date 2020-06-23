@@ -59,7 +59,8 @@ class CdnPurgeEventRelayer extends EventRelayer {
 					null,
 					MWTimestamp::convert( TS_ISO_8601, $event['timestamp'] )
 				);
-			}, $events )
+			}, $events ),
+			EventBus::TYPE_PURGE
 		) === true;
 	}
 }
