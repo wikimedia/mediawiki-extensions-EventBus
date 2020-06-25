@@ -33,10 +33,12 @@ use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Revision\RevisionLookup;
+use MediaWiki\Revision\RevisionRecord;
+use MediaWiki\Storage\EditResult;
+use MediaWiki\User\UserIdentity;
 use RecentChange;
 use RequestContext;
 use Revision;
-use Status;
 use Title;
 use UnexpectedValueException;
 use User;
@@ -270,91 +272,52 @@ class EventBusHooks {
 	}
 
 	/**
-	 * Occurs after the insert page request has been processed.  This is a page creation event.
-	 * Since page creation is really just a special case of revision create, this event
-	 * re-uses the mediawiki/revision/create schema.
-	 *
-	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/PageContentInsertComplete
-	 *
-	 * @param WikiPage $article
-	 * @param User $user
-	 * @param Content $content
-	 * @param string $summary
-	 * @param bool $isMinor
-	 * @param bool|null $isWatch
-	 * @param string|null $section Deprecated
-	 * @param int $flags
-	 * @param Revision $revision
-	 */
-	public static function onPageContentInsertComplete(
-		WikiPage $article,
-		User $user,
-		Content $content,
-		$summary,
-		$isMinor,
-		$isWatch,
-		$section,
-		$flags,
-		Revision $revision
-	) {
-		$stream = 'mediawiki.page-create';
-		$eventBus = EventBus::getInstanceForStream( $stream );
-		$event = $eventBus->getFactory()->createRevisionCreateEvent(
-			$stream,
-			$revision->getRevisionRecord()
-		);
-
-		DeferredUpdates::addCallableUpdate(
-			function () use ( $eventBus, $event ) {
-				$eventBus->send( [ $event ] );
-			}
-		);
-	}
-
-	/**
 	 * Occurs after the save page request has been processed.
 	 *
-	 * It's used to detect null edits and create 'resource_change' events for purges.
-	 * Actual edits are detected by the RevisionRecordInserted hook.
+	 * Sends two events if the new revision was also a page creation
 	 *
-	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/PageContentSaveComplete
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/PageSaveComplete
 	 *
 	 * @param WikiPage $wikiPage
-	 * @param User $user
-	 * @param Content $content
+	 * @param UserIdentity $userIdentity
 	 * @param string $summary
-	 * @param bool $isMinor
-	 * @param bool|null $isWatch
-	 * @param string|null $section Deprecated
 	 * @param int $flags
-	 * @param Revision $revision
-	 * @param Status $status
-	 * @param int $baseRevId
+	 * @param RevisionRecord $revisionRecord
+	 * @param EditResult $editResult
 	 */
-	public static function onPageContentSaveComplete(
+	public static function onPageSaveComplete(
 		WikiPage $wikiPage,
-		User $user,
-		Content $content,
-		$summary,
-		$isMinor,
-		$isWatch,
-		$section,
-		$flags,
-		Revision $revision,
-		Status $status,
-		$baseRevId
+		UserIdentity $userIdentity,
+		string $summary,
+		int $flags,
+		RevisionRecord $revisionRecord,
+		EditResult $editResult
 	) {
-		// In case of a null edit the status revision value will be null
-		if ( $status->getValue()['revision'] === null ) {
+		if ( $editResult->isNullEdit() ) {
 			self::sendResourceChangedEvent( $wikiPage->getTitle(), [ 'null_edit' ] );
 			return;
 		}
 
-		$stream = 'mediawiki.revision-create';
+		self::sendRevisionCreateEvent( 'mediawiki.revision-create', $revisionRecord );
+
+		if ( $flags & EDIT_NEW ) {
+			// Not just a new revision, but a new page
+			self::sendRevisionCreateEvent( 'mediawiki.page-create', $revisionRecord );
+		}
+	}
+
+	/**
+	 * @param string $stream
+	 * @param RevisionRecord $revisionRecord
+	 */
+	private static function sendRevisionCreateEvent(
+		string $stream,
+		RevisionRecord $revisionRecord
+	) {
 		$eventBus = EventBus::getInstanceForStream( $stream );
 		$event = $eventBus->getFactory()->createRevisionCreateEvent(
 			$stream,
-			$revision->getRevisionRecord()
+			$revisionRecord
 		);
 
 		DeferredUpdates::addCallableUpdate(
