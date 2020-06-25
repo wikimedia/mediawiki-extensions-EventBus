@@ -38,7 +38,6 @@ use MediaWiki\Storage\EditResult;
 use MediaWiki\User\UserIdentity;
 use RecentChange;
 use RequestContext;
-use Revision;
 use Title;
 use UnexpectedValueException;
 use User;
@@ -152,24 +151,24 @@ class EventBusHooks {
 	/**
 	 * Occurs whenever a request to move an article is completed.
 	 *
-	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/TitleMoveComplete
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/PageMoveComplete
 	 *
-	 * @param Title $oldTitle the old title
-	 * @param Title $newTitle the new title
-	 * @param User $user User who did the move
+	 * @param LinkTarget $oldTitle the old title
+	 * @param LinkTarget $newTitle the new title
+	 * @param UserIdentity $userIdentity User who did the move
 	 * @param int $pageid database page_id of the page that's been moved
 	 * @param int $redirid database page_id of the created redirect, or 0 if suppressed
 	 * @param string $reason reason for the move
-	 * @param Revision $newRevision revision created by the move
+	 * @param RevisionRecord $newRevisionRecord revision created by the move
 	 */
-	public static function onTitleMoveComplete(
-		Title $oldTitle,
-		Title $newTitle,
-		User $user,
-		$pageid,
-		$redirid,
-		$reason,
-		Revision $newRevision
+	public static function onPageMoveComplete(
+		LinkTarget $oldTitle,
+		LinkTarget $newTitle,
+		UserIdentity $userIdentity,
+		int $pageid,
+		int $redirid,
+		string $reason,
+		RevisionRecord $newRevisionRecord
 	) {
 		$stream = 'mediawiki.page-move';
 		$eventBus = EventBus::getInstanceForStream( $stream );
@@ -177,8 +176,8 @@ class EventBusHooks {
 			$stream,
 			$oldTitle,
 			$newTitle,
-			$newRevision->getRevisionRecord(),
-			$user,
+			$newRevisionRecord,
+			User::newFromIdentity( $userIdentity ),
 			$reason
 		);
 

@@ -50,7 +50,7 @@
 	"Hooks": {
 		"ArticleDeleteComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticleDeleteComplete",
 		"ArticleUndelete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticleUndelete",
-		"TitleMoveComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onTitleMoveComplete",
+		"PageMoveComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onPageMoveComplete",
 		"ArticleRevisionVisibilitySet": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticleRevisionVisibilitySet",
 		"PageSaveComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onPageSaveComplete",
 		"ArticlePurge": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticlePurge",
