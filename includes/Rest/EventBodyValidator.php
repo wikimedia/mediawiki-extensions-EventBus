@@ -94,9 +94,13 @@ class EventBodyValidator implements BodyValidator {
 				if ( $value === false ) {
 
 					throw new HttpException(
-						'Internal Server Error',
+						'Parameter base64_decode() failed',
 						500,
-						"base64_decode() failed for parameter {$key} ({$match[1]})" );
+						[
+							'param_name'  => $key,
+							'param_value' => $match[1]
+						]
+					);
 				}
 			}
 		}
