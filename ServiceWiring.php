@@ -8,11 +8,21 @@ use MediaWiki\MediaWikiServices;
 
 return [
 	'EventBus.EventBusFactory' => function ( MediaWikiServices $services ) : EventBusFactory {
+		if ( ExtensionRegistry::getInstance()->isLoaded( 'EventStreamConfig' ) ) {
+			// Mediawiki\Extension\EventStreamConfig\StreamConfigs instance.
+			$streamConfigs = $services->get( 'EventStreamConfig.StreamConfigs' );
+		} else {
+			// If null, EventBus will always use EventServiceDefault
+			// to produce all streams.
+			$streamConfigs = null;
+		}
+
 		return new EventBusFactory(
 			new ServiceOptions(
 				EventBusFactory::CONSTRUCTOR_OPTIONS,
 				$services->getMainConfig()
 			),
+			$streamConfigs,
 			$services->get( 'EventBus.EventFactory' ),
 			$services->getHttpRequestFactory()->createMultiClient(),
 			LoggerFactory::getInstance( 'EventBus' )

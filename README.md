@@ -12,15 +12,15 @@ EventBus supports configuration of multiple event service endpoints via the `Eve
 main config array.  It expects entries keyed by event service name pointing at arrays of
 event service config.  E.g.
 
-    $wgEventServices = {
-        'eventbus-main' => {
+    $wgEventServices = [
+        'eventbus-main' => [
             'url' => 'http://locahost:8085/v1/topics',
             'timeout' => 5,
-        },
-        'eventgate-main' => {
+        ],
+        'eventgate-main' => [
             'url' => 'http://localhost:8192/v1/topics',
-        }
-    }
+        ],
+    ];
 
 EventBus instances should be created via the static `getInstance` method.  This method
 takes one of the configured event service names from the `EventServices` main config.
@@ -28,6 +28,26 @@ takes one of the configured event service names from the `EventServices` main co
 `EnableEventBus` config parameter specifies which types of events the extension will produce.
 Possible options are `TYPE_NONE`, `TYPE_EVENT`, `TYPE_JOB`, `TYPE_PURGE` or `TYPE_ALL`.
 Specifying multiple types using `|` as a delimiter is supported. Example: `TYPE_JOB|TYPE_PURGE`
+
+EventBus also supports per stream event service configuration, meaning you can configure
+specifically which event service should be used for a particular stream name.  This
+is handled via the EventStreamConfig extension.  See docs there on how to configure
+`$wgEventStreams`.  To use $wgEventStreams to specify an event service, add
+the 'destination_event_service' setting to your stream's config entry.  E.g.
+
+    $wgEventStreams = [
+        [
+            'stream' => 'mediawiki.my-event',
+            'destination_event_service' => 'eventgate-main'
+        ]
+    ];
+
+Per stream configuration via EventStreamConfig is optional.  The default behavior is to
+produce all streams to the service specified by `$wgEventServiceDefault`.
+You must set `$wgEventServiceDefault` to the an entry in `$wgEventServices` to be
+used in case a stream's `destination_event_service` setting is not provided.
+
+    $wgEventServiceDefault = 'eventgate-main';
 
 ## EventBus RCFeed
 

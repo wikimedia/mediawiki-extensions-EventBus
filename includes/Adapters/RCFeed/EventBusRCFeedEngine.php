@@ -15,22 +15,23 @@ use MediaWiki\Extension\EventBus\EventBus;
  *
  * @example
  *
- * // Event Service config (for EventBus instances):
+ * // Event Service MediaWiki config
  * $wgEventServices = array(
- * 	'eventbus-main' => array(
- * 		'url'     => 'http://eventbus.svc.eqiad.wmnet:8085/v1/events',
+ * 	'eventgate-example' => array(
+ * 		'url'     => 'http://eventgate-example.svc.example.org:4492/v1/events',
  * 		'timeout' => 60
  * 	)
  * );
  *
- * // Event service per event stream configuration:
- * $wgEventServiceStreamConfig = array(
- * 	'default' => array(
- * 		'mediawiki.recentchange' => array(
- * 			'EventServiceName' => 'eventgate-main'
- * 		)
- * 	)
- * );
+ * // Event Stream Config managed by EventStreamConfig extension
+ * // per event stream configuration:
+ * $wgEventStreams = [
+ * 		[
+ * 			'stream' => mediawiki.recentchange',
+ * 			'destination_event_service' => 'eventgate-main'
+ *    	],
+ *    	...
+ * ];
  *
  * // RCFeed configuration to use a defined Event Service instance.
  * $wgRCFeeds['eventbus'] = array(
