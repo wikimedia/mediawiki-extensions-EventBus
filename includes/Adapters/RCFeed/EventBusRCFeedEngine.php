@@ -10,7 +10,7 @@ use MediaWiki\Extension\EventBus\EventBus;
  * Emit a recent change notification via EventBus.
  *
  * The event's stream will be 'mediawiki.recentchange' as set
- * in EventBusRCFeedFormatter::STREAM. wgEventServiceStreamConfig
+ * in EventBusRCFeedFormatter::STREAM. wgEventStreams or wgEventServiceDefault
  * specifies the destination event service for recentchange events.
  *
  * @example
