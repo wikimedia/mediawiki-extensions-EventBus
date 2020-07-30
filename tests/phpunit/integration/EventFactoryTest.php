@@ -3,15 +3,19 @@
 use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\Block\Restriction\NamespaceRestriction;
 use MediaWiki\Block\Restriction\PageRestriction;
+use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Extension\EventBus\EventFactory;
+use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Revision\RevisionRecord;
+use MediaWiki\Revision\RevisionStore;
+use MediaWiki\Storage\EditResult;
 
 /**
  * @covers \MediaWiki\Extension\EventBus\EventFactory
  * @group EventBus
  */
-class EventFactoryTest extends MediaWikiTestCase {
+class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	use MediaWikiCoversValidator;
 
 	/**
@@ -138,6 +142,23 @@ class EventFactoryTest extends MediaWikiTestCase {
 		return MediaWikiServices::getInstance()->
 			getRevisionStore()->
 			newMutableRevisionFromArray( $row, 0, Title::newFromText( self::MOCK_PAGE_TITLE ) );
+	}
+
+	/**
+	 * Creates a mock of EditResult that will return values specified in the parameter.
+	 * This also avoids using EditResult's constructor that is for internal use only.
+	 *
+	 * @param array $values array mapping method names in EditResult to the values they
+	 *        should return.
+	 * @return EditResult
+	 */
+	private function createEditResultMockFromArray( array $values ) : EditResult {
+		$editResult = $this->createMock( EditResult::class );
+		foreach ( $values as $method => $value ) {
+			$editResult->method( $method )->willReturn( $value );
+		}
+
+		return $editResult;
 	}
 
 	public function providePageLinks() {
@@ -554,7 +575,8 @@ class EventFactoryTest extends MediaWikiTestCase {
 	public function testRevisionCreationEvent() {
 		$event = self::$eventFactory->createRevisionCreateEvent(
 			'mediawiki.revision-create',
-			$this->createMutableRevisionFromArray()
+			$this->createMutableRevisionFromArray(),
+			$this->createMock( EditResult::class )
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
@@ -566,7 +588,8 @@ class EventFactoryTest extends MediaWikiTestCase {
 			'mediawiki.revision-create',
 			$this->createMutableRevisionFromArray( [
 				'parent_id' => null
-			] )
+			] ),
+			$this->createMock( EditResult::class )
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
@@ -577,7 +600,8 @@ class EventFactoryTest extends MediaWikiTestCase {
 	public function testRevisionCreationEventContainsRevParentId() {
 		$event = self::$eventFactory->createRevisionCreateEvent(
 			'mediawiki.revision-create',
-			$this->createMutableRevisionFromArray()
+			$this->createMutableRevisionFromArray(),
+			$this->createMock( EditResult::class )
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
@@ -587,7 +611,8 @@ class EventFactoryTest extends MediaWikiTestCase {
 	public function testRevisionCreationEventContentChangeExists() {
 		$event = self::$eventFactory->createRevisionCreateEvent(
 			'mediawiki.revision-create',
-			$this->createMutableRevisionFromArray()
+			$this->createMutableRevisionFromArray(),
+			$this->createMock( EditResult::class )
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
@@ -596,6 +621,201 @@ class EventFactoryTest extends MediaWikiTestCase {
 			'rev_content_changed should be present'
 		);
 		$this->assertTrue( $event['rev_content_changed'], "'rev_content_changed' incorrect value" );
+	}
+
+	public function testRevisionCreationEventIsRevertExists() {
+		$event = self::$eventFactory->createRevisionCreateEvent(
+			'mediawiki.revision-create',
+			$this->createMutableRevisionFromArray(),
+			$this->createMock( EditResult::class )
+		);
+
+		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
+		$this->assertArrayHasKey( 'rev_is_revert', $event, 'rev_is_revert should be present' );
+		$this->assertFalse( $event['rev_is_revert'], "'rev_is_revert' incorrect value" );
+	}
+
+	public function provideReverts() {
+		yield 'one edit rollback' => [
+			EditResult::REVERT_ROLLBACK,
+			'rollback',
+			true,
+			[ 101 ],
+			100
+		];
+		yield 'multiple edit undo' => [
+			EditResult::REVERT_UNDO,
+			'undo',
+			false,
+			[ 101, 102, 103 ],
+			false
+		];
+		yield 'multiple edit manual revert' => [
+			EditResult::REVERT_MANUAL,
+			'manual',
+			true,
+			[ 101, 122, 102, 136, 103 ],
+			100
+		];
+	}
+
+	/**
+	 * @dataProvider provideReverts
+	 *
+	 * @param int $revertMethod
+	 * @param string|null $expectedRevertMethod
+	 * @param bool $isExactRevert
+	 * @param array $revertedRevisions
+	 * @param int|false $originalRevisionId
+	 */
+	public function testRevisionCreationEventSetsRevertFields(
+		int $revertMethod,
+		?string $expectedRevertMethod,
+		bool $isExactRevert,
+		array $revertedRevisions,
+		$originalRevisionId
+	) {
+		$oldestRevertedRevisionId = $revertedRevisions[0];
+		$newestRevertedRevisionId = $revertedRevisions[count( $revertedRevisions ) - 1];
+
+		// set up a mocked RevisionStore
+		$revisionStore = $this->createMock( RevisionStore::class );
+		$revisionStore->method( 'getRevisionById' )
+			->willReturnMap( [
+				[
+					$oldestRevertedRevisionId,
+					0,
+					$this->createMutableRevisionFromArray( [
+						'id' => $oldestRevertedRevisionId
+					] )
+				],
+				[
+					$newestRevertedRevisionId,
+					0,
+					$this->createMutableRevisionFromArray( [
+						'id' => $newestRevertedRevisionId
+					] )
+				]
+			] );
+
+		$revisionStore->expects( $this->once() )
+			->method( 'getRevisionIdsBetween' )
+			->willReturnCallback( function (
+				int $pageId, RevisionRecord $old, RevisionRecord $new
+			) use (
+				$oldestRevertedRevisionId, $newestRevertedRevisionId, $revertedRevisions
+			) {
+				$this->assertSame(
+					self::MOCK_PAGE_ID,
+					$pageId,
+					'Correct page ID is passed to getRevisionIdsBetween'
+				);
+				$this->assertSame(
+					$oldestRevertedRevisionId,
+					$old->getId(),
+					'Correct revision is passed as "old" to getRevisionIdsBetween'
+				);
+				$this->assertSame(
+					$newestRevertedRevisionId,
+					$new->getId(),
+					'Correct revision is passed as "new" to getRevisionIdsBetween'
+				);
+				return $revertedRevisions;
+			} );
+
+		$services = MediaWikiServices::getInstance();
+		// we need a new instance of EventFactory to inject mocked RevisionStore
+		$eventFactory = new EventFactory(
+			new ServiceOptions(
+				EventFactory::CONSTRUCTOR_OPTIONS,
+				$services->getMainConfig()
+			),
+			$services->getMainConfig()->get( 'DBname' ),
+			$services->getContentLanguage(),
+			$revisionStore,
+			$services->getTitleFormatter(),
+			LoggerFactory::getInstance( 'EventBus' )
+		);
+
+		$event = $eventFactory->createRevisionCreateEvent(
+			'mediawiki.revision-create',
+			$this->createMutableRevisionFromArray(),
+			$this->createEditResultMockFromArray( [
+				'isNew' => false,
+				'isRevert' => true,
+				'getRevertMethod' => $revertMethod,
+				'isExactRevert' => $isExactRevert,
+				'getOldestRevertedRevisionId' => $oldestRevertedRevisionId,
+				'getNewestRevertedRevisionId' => $newestRevertedRevisionId,
+				'getOriginalRevisionId' => $originalRevisionId
+			] )
+		);
+
+		$this->assertIsArray( $event, 'Returned event should be an array' );
+		$this->assertArrayHasKey( 'rev_is_revert', $event, 'is_revert should be present' );
+		$this->assertTrue( $event['rev_is_revert'], 'is_revert has correct value' );
+
+		$this->assertArrayHasKey(
+			'rev_revert_details',
+			$event,
+			'rev_revert_details is present'
+		);
+		$details = $event['rev_revert_details'];
+		$this->assertIsArray( $event, 'Revert details should be an array' );
+
+		$this->assertArrayHasKey(
+			'rev_revert_method',
+			$details,
+			'rev_revert_method should be present'
+		);
+		$this->assertSame(
+			$expectedRevertMethod,
+			$details['rev_revert_method'],
+			'rev_revert_method has correct value'
+		);
+
+		$this->assertArrayHasKey(
+			'rev_is_exact_revert',
+			$details,
+			'rev_is_exact_revert should be present'
+		);
+		$this->assertSame(
+			$isExactRevert,
+			$details['rev_is_exact_revert'],
+			'rev_is_exact_revert has correct value'
+		);
+
+		$this->assertArrayHasKey(
+			'rev_reverted_revs',
+			$details,
+			'rev_reverted_revs should be present'
+		);
+		$this->assertArrayEquals(
+			$revertedRevisions,
+			$details['rev_reverted_revs'],
+			true,
+			false,
+			'rev_reverted_revs has correct value'
+		);
+
+		if ( $originalRevisionId ) {
+			$this->assertArrayHasKey(
+				'rev_original_rev_id',
+				$details,
+				'rev_original_rev_id should be present'
+			);
+			$this->assertSame(
+				$originalRevisionId,
+				$details['rev_original_rev_id'],
+				'rev_original_rev_id has correct value'
+			);
+		} else {
+			$this->assertArrayNotHasKey(
+				'rev_original_rev_id',
+				$details,
+				'rev_original_rev_id should not be present'
+			);
+		}
 	}
 
 	public function provideCentralNoticeCampaignEvents() {
