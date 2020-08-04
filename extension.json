@@ -36,6 +36,9 @@
 		},
 		"EventServiceDefault": {
 			"value": "eventbus"
+		},
+		"EventBusMaxBatchByteSize": {
+			"value": 4194304
 		}
 	},
 	"MessagesDirs": {

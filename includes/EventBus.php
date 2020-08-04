@@ -91,6 +91,10 @@ class EventBus {
 
 	/** @var EventFactory|null event creator */
 	private $eventFactory;
+	/**
+	 * @var int Maximum byte size of a batch
+	 */
+	private $maxBatchByteSize;
 
 	/**
 	 * @param MultiHttpClient $http
@@ -98,6 +102,7 @@ class EventBus {
 	 * of TYPE_* constants
 	 * @param EventFactory $eventFactory EventFactory to use for event construction.
 	 * @param string $url EventBus service endpoint URL. E.g. http://localhost:8085/v1/events
+	 * @param int $maxBatchByteSize Maximum byte size of a batch
 	 * @param int|null $timeout HTTP request timeout in seconds, defaults to 5.
 	 */
 	public function __construct(
@@ -105,10 +110,12 @@ class EventBus {
 		$enableEventBus,
 		EventFactory $eventFactory,
 		string $url,
+		int $maxBatchByteSize,
 		int $timeout = null
 	) {
 		$this->http = $http;
 		$this->url = $url;
+		$this->maxBatchByteSize = $maxBatchByteSize;
 		$this->timeout = $timeout ?: self::DEFAULT_REQUEST_TIMEOUT;
 		$this->eventFactory = $eventFactory;
 
@@ -134,11 +141,46 @@ class EventBus {
 	}
 
 	/**
+	 * @param array $events
+	 * @param int $serializedSize
+	 * @return array
+	 */
+	private function partitionEvents( array $events, int $serializedSize ) : array {
+		$results = [];
+
+		if ( count( $events ) > 1 ) {
+			$numOfChunks = ceil( $serializedSize / $this->maxBatchByteSize );
+			$partitions = array_chunk( $events, (int)floor( count( $events ) / $numOfChunks ) );
+			foreach ( $partitions as $partition ) {
+				$serializedPartition = self::serializeEvents( $partition );
+				if ( strlen( $serializedPartition ) > $this->maxBatchByteSize ) {
+					$results = array_merge(
+						$results,
+						$this->partitionEvents( $partition, strlen( $serializedPartition ) )
+					);
+				} else {
+					$results[] = $serializedPartition;
+				}
+			}
+		} else {
+			self::logger()->warning(
+				"Event is larger than the maxBatchByteSize set.",
+				[
+					'raw_event' => self::prepareEventsForLogging( $events )
+				]
+			);
+			$results = array_merge( $results, $events );
+		}
+		return $results;
+	}
+
+	/**
 	 * Deliver an array of events to the remote service.
 	 *
 	 * @param array|string $events the events to send.
 	 * @param int $type the type of the event being sent.
-	 * @return bool|string True on success or an error string on failure
+	 * @return array|bool|string True on success or an error string or array on failure
+	 * @throws Exception
 	 */
 	public function send( $events, $type = self::TYPE_EVENT ) {
 		if ( !$this->shouldSendEvent( $type ) ) {
@@ -153,29 +195,53 @@ class EventBus {
 
 		// If we already have a JSON string of events, just use it as the body.
 		if ( is_string( $events ) ) {
-			$body = $events;
+			if ( strlen( $events ) > $this->maxBatchByteSize ) {
+				$decodeEvents = FormatJson::decode( $events, true );
+				$body = $this->partitionEvents( $decodeEvents, strlen( $events ) );
+			} else {
+				$body = $events;
+			}
 		} else {
 			self::validateJSONSerializable( $events );
 			// Else serialize the array of events to a JSON string.
-			$body = self::serializeEvents( $events );
+			$serializedEvents = self::serializeEvents( $events );
 			// If not $body, then something when wrong.
 			// serializeEvents has already logged, so we can just return.
-			if ( !$body ) {
+			if ( !$serializedEvents ) {
 				return "Unable to serialize events";
+			}
+
+			if ( strlen( $serializedEvents ) > $this->maxBatchByteSize ) {
+				$body = $this->partitionEvents( $events,  strlen( $serializedEvents ) );
+			} else {
+				$body = $serializedEvents;
 			}
 		}
 
-		$req = [
-			'url'		=> $this->url,
-			'method'	=> 'POST',
-			'body'		=> $body,
-			'headers'	=> [ 'content-type' => 'application/json' ]
-		];
+		if ( is_array( $body ) ) {
+			$reqs = array_map( function ( $body ) {
+				return [
+					'url'		=> $this->url,
+					'method'	=> 'POST',
+					'body'		=> $body,
+					'headers'	=> [ 'content-type' => 'application/json' ]
+				];
+			}, $body );
+		} else {
+			$reqs = [
+				[
+					'url'		=> $this->url,
+					'method'	=> 'POST',
+					'body'		=> $body,
+					'headers'	=> [ 'content-type' => 'application/json' ]
+				]
+			];
+		}
 
-		$res = $this->http->run(
-			$req,
+		$responses = $this->http->runMulti(
+			$reqs,
 			[
-				'reqTimeout' => $this->timeout,
+				'reqTimeout' => $this->timeout
 			]
 		);
 
@@ -184,17 +250,26 @@ class EventBus {
 		// 207: some but not all events accepted: either due to validation failure or error.
 		// 400: no events accepted: all failed schema validation.
 		// 500: no events accepted: at least one caused an error, but some might have been invalid.
-		if ( $res['code'] == 207 || $res['code'] >= 300 ) {
-			$message = empty( $res['error'] ) ? $res['code'] . ': ' . $res['reason'] : $res['error'];
-			// Limit the maximum size of the logged context to 8 kilobytes as that's where logstash
-			// truncates the JSON anyway
-			$context = [
-				'raw_events'       => self::prepareEventsForLogging( $body ),
-				'service_response' => $res
-			];
-			self::logger()->error( "Unable to deliver all events: ${message}", $context );
+		$results = [];
+		foreach ( $responses as $response ) {
+			$res = $response['response'];
+			if ( $res['code'] == 207 || $res['code'] >= 300 ) {
+				$message = empty( $res['error'] ) ?
+					(string)$res['code'] . ': ' . (string)$res['reason'] : $res['error'];
+				// Limit the maximum size of the logged context to 8 kilobytes as that's where logstash
+				// truncates the JSON anyway
+				$context = [
+					'raw_events'       => self::prepareEventsForLogging( $body ),
+					'service_response' => $res
+				];
+				self::logger()->error( "Unable to deliver all events: ${message}", $context );
 
-			return "Unable to deliver all events: $message";
+				$results[] = "Unable to deliver all events: $message";
+			}
+		}
+
+		if ( $results !== [] ) {
+			return $results;
 		}
 
 		return true;

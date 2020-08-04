@@ -39,7 +39,8 @@ class EventBusFactory {
 	public const CONSTRUCTOR_OPTIONS = [
 		'EventServices',
 		'EventServiceDefault',
-		'EnableEventBus'
+		'EnableEventBus',
+		'EventBusMaxBatchByteSize'
 	];
 
 	/**
@@ -60,6 +61,11 @@ class EventBusFactory {
 
 	/** @var string */
 	private $enableEventBus;
+
+	/**
+	 * @var int
+	 */
+	private $maxBatchByteSize;
 
 	/** @var EventFactory */
 	private $eventFactory;
@@ -92,6 +98,7 @@ class EventBusFactory {
 		$this->eventServiceConfig = $options->get( 'EventServices' );
 		$this->eventServiceDefault = $options->get( 'EventServiceDefault' );
 		$this->enableEventBus = $options->get( 'EnableEventBus' );
+		$this->maxBatchByteSize = $options->get( 'EventBusMaxBatchByteSize' );
 		$this->streamConfigs = $streamConfigs;
 		$this->eventFactory = $eventFactory;
 		$this->http = $http;
@@ -135,6 +142,7 @@ class EventBusFactory {
 				$this->enableEventBus,
 				$this->eventFactory,
 				$url,
+				$this->maxBatchByteSize,
 				$timeout
 			);
 		}

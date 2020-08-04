@@ -113,8 +113,8 @@ class JobQueueEventBus extends JobQueue {
 			);
 
 			// This means sending jobs to the $stream has failed.
-			if ( is_string( $result ) ) {
-				throw new JobQueueError( "Could not enqueue jobs: $result" );
+			if ( is_array( $result ) || is_string( $result ) ) {
+				throw new JobQueueError( "Could not enqueue jobs from stream ${stream}" );
 			}
 		}
 	}

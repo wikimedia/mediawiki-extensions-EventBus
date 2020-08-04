@@ -58,25 +58,188 @@ class EventBusTest extends MediaWikiUnitTestCase {
 	) {
 		foreach ( [ EventBus::TYPE_EVENT, EventBus::TYPE_JOB, EventBus::TYPE_PURGE ] as $type ) {
 			if ( $expectedProducedTypes & $type ) {
-				$httpClient = $this->createNoOpMock( MultiHttpClient::class, [ 'run' ] );
+				$httpClient = $this->createNoOpMock( MultiHttpClient::class, [ 'runMulti' ] );
 				$httpClient
 					->expects( $this->once() )
-					->method( 'run' )
+					->method( 'runMulti' )
 					->willReturn( [
-						'code' => 201
+						[
+							'response' => [
+								'code' => 201
+							]
+						]
 					] );
 			} else {
-				$httpClient = $this->createNoOpMock( MultiHttpClient::class, [ 'run' ] );
+				$httpClient = $this->createNoOpMock( MultiHttpClient::class, [ 'runMulti' ] );
 				$httpClient->expects( $this->never() )
-					->method( 'run' );
+					->method( 'runMulti' );
 			}
 			$eventBus = new EventBus(
 				$httpClient,
 				$enableEventBus,
 				$this->createNoOpMock( EventFactory::class ),
-				'test.org'
+				'test.org',
+				1000000
 			);
 			$eventBus->send( 'BODY', $type );
 		}
+	}
+
+	public function provideBody() {
+		yield 'Single event, under maxBatchByteSize' => [
+			json_encode(
+				[
+					"schema" => "/mediawiki/job/1.0.0",
+					"meta" => [
+						"uri" => "https://placeholder.invalid/wiki/Special:Badtitle",
+						"request_id" => "fc3a8587259ca5fc085ca830"
+
+					],
+					"type" => "deletePage",
+					"database" => "default",
+					"params" => [
+						"namespace" => 0,
+						"title" => "test",
+						"request_id" => "fc3a8587259ca5fc085ca830"
+					]
+				]
+			)
+			,
+			[
+				[
+					'response' => [
+						'code' => 201
+					]
+				]
+			],
+			true
+		];
+
+		yield "Multiple events that require partition" => [
+			json_encode(
+				[
+					[
+						"schema" => "/mediawiki/job/1.0.0",
+						"meta" => [
+							"uri" => "https://placeholder.invalid/wiki/Special:Badtitle",
+							"request_id" => "fc3a8587259ca5fc085ca830"
+
+						],
+						"type" => "deletePage",
+						"database" => "default",
+						"params" => [
+							"namespace" => 0,
+							"title" => "test",
+							"request_id" => "fc3a8587259ca5fc085ca830"
+						]
+					],
+					[
+						"schema" => "/mediawiki/job/2.0.0",
+						"meta" => [
+							"uri" => "https://placeholder.invalid/wiki/Special:Badtitle",
+							"request_id" => "2fc3a8587259ca5fc085ca830"
+
+						],
+						"type" => "deletePage",
+						"database" => "default",
+						"params" => [
+							"namespace" => 0,
+							"title" => "test2",
+							"request_id" => "2fc3a8587259ca5fc085ca830"
+						]
+					],
+					[
+						"schema" => "/mediawiki/job/3.0.0",
+						"meta" => [
+							"uri" => "https://placeholder.invalid/wiki/Special:Badtitle",
+							"request_id" => "3fc3a8587259ca5fc085ca830"
+
+						],
+						"type" => "deletePage",
+						"database" => "default",
+						"params" => [
+							"namespace" => 0,
+							"title" => "test3",
+							"request_id" => "3fc3a8587259ca5fc085ca830"
+						]
+					],
+				]
+			),
+			[
+				[
+					'response' => [
+						'code' => 201
+					]
+				],
+				[
+					'response' => [
+						'code' => 201
+					]
+				],
+				[
+					'response' => [
+						'code' => 201
+					]
+				]
+			],
+			true
+		];
+
+		yield 'Single event, 400 response' => [
+			[
+				[
+					"schema" => "/mediawiki/job/111.0.0",
+					"meta" => [
+						"uri" => "https://placeholder.invalid/wiki/Special:Badtitle",
+						"request_id" => "fc3a8587259ca5fc085ca830"
+
+					],
+					"type" => "deletePage",
+					"database" => "default",
+					"params" => [
+						"namespace" => 0,
+						"title" => "test",
+						"request_id" => "fc3a8587259ca5fc085ca830"
+					]
+				]
+			],
+			[
+				[
+					'response' => [
+						'code' => 400,
+						'reason' => 'Incorrect schema'
+					]
+				]
+			],
+			[ "Unable to deliver all events: 400: Incorrect schema" ]
+		];
+	}
+
+	/**
+	 * @dataProvider provideBody
+	 * @param string|array $body
+	 * @param array $httpResponse
+	 * @param boolean|string $expectedResponse
+	 * @throws Exception
+	 */
+	public function testSend(
+		$body,
+		$httpResponse,
+		$expectedResponse
+	) {
+		$httpClient = $this->createNoOpMock( MultiHttpClient::class, [ 'runMulti' ] );
+		$httpClient
+			->expects( $this->once() )
+			->method( 'runMulti' )
+			->willReturn( $httpResponse );
+
+		$eventBus = new EventBus(
+			$httpClient,
+			EventBus::TYPE_ALL,
+			$this->createNoOpMock( EventFactory::class ),
+			'test.org',
+			300
+		);
+		$this->assertSame( $expectedResponse, $eventBus->send( $body, EventBus::TYPE_ALL ) );
 	}
 }

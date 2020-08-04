@@ -20,7 +20,8 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 			'intake-main' => [ 'url' => 'http://intake.main' ],
 			'intake-other' => [ 'url' => 'http://intake.other' ],
 		],
-		'EventStreamsDefaultSettings' => []
+		'EventStreamsDefaultSettings' => [],
+		'EventBusMaxBatchByteSize' => 1000000
 	];
 
 	private function getEventBusFactory( array $mwConfig ) : EventBusFactory {
