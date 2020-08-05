@@ -297,26 +297,37 @@ class EventBusHooks {
 			return;
 		}
 
-		self::sendRevisionCreateEvent( 'mediawiki.revision-create', $revisionRecord );
+		self::sendRevisionCreateEvent(
+			'mediawiki.revision-create',
+			$revisionRecord,
+			$editResult
+		);
 
 		if ( $flags & EDIT_NEW ) {
 			// Not just a new revision, but a new page
-			self::sendRevisionCreateEvent( 'mediawiki.page-create', $revisionRecord );
+			self::sendRevisionCreateEvent(
+				'mediawiki.page-create',
+				$revisionRecord,
+				$editResult
+			);
 		}
 	}
 
 	/**
 	 * @param string $stream
 	 * @param RevisionRecord $revisionRecord
+	 * @param EditResult $editResult
 	 */
 	private static function sendRevisionCreateEvent(
 		string $stream,
-		RevisionRecord $revisionRecord
+		RevisionRecord $revisionRecord,
+		EditResult $editResult
 	) {
 		$eventBus = EventBus::getInstanceForStream( $stream );
 		$event = $eventBus->getFactory()->createRevisionCreateEvent(
 			$stream,
-			$revisionRecord
+			$revisionRecord,
+			$editResult
 		);
 
 		DeferredUpdates::addCallableUpdate(

@@ -37,8 +37,9 @@ return [
 			),
 			$services->getMainConfig()->get( 'DBname' ),
 			$services->getContentLanguage(),
-			$services->getRevisionLookup(),
-			$services->getTitleFormatter()
+			$services->getRevisionStore(),
+			$services->getTitleFormatter(),
+			LoggerFactory::getInstance( 'EventBus' )
 		);
 	}
 

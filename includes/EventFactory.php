@@ -10,10 +10,12 @@ use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\Block\Restriction\Restriction;
 use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Linker\LinkTarget;
-use MediaWiki\Revision\RevisionLookup;
 use MediaWiki\Revision\RevisionRecord;
+use MediaWiki\Revision\RevisionStore;
 use MediaWiki\Revision\SuppressedDataException;
+use MediaWiki\Storage\EditResult;
 use MWException;
+use Psr\Log\LoggerInterface;
 use Title;
 use TitleFormatter;
 use UIDGenerator;
@@ -43,32 +45,38 @@ class EventFactory {
 	/** @var TitleFormatter */
 	private $titleFormatter;
 
-	/** @var RevisionLookup */
-	private $revisionLookup;
+	/** @var RevisionStore */
+	private $revisionStore;
 
 	/** @var string */
 	private $dbDomain;
+
+	/** @var LoggerInterface */
+	private $logger;
 
 	/**
 	 * @param ServiceOptions $serviceOptions
 	 * @param string $dbDomain
 	 * @param Language $contentLanguage
-	 * @param RevisionLookup $revisionLookup
+	 * @param RevisionStore $revisionStore
 	 * @param TitleFormatter $titleFormatter
+	 * @param LoggerInterface $logger
 	 */
 	public function __construct(
 		ServiceOptions $serviceOptions,
 		string $dbDomain,
 		Language $contentLanguage,
-		RevisionLookup $revisionLookup,
-		TitleFormatter $titleFormatter
+		RevisionStore $revisionStore,
+		TitleFormatter $titleFormatter,
+		LoggerInterface $logger
 	) {
 		$serviceOptions->assertRequiredOptions( self::CONSTRUCTOR_OPTIONS );
 		$this->options = $serviceOptions;
 		$this->dbDomain = $dbDomain;
 		$this->contentLanguage = $contentLanguage;
 		$this->titleFormatter = $titleFormatter;
-		$this->revisionLookup = $revisionLookup;
+		$this->revisionStore = $revisionStore;
+		$this->logger = $logger;
 	}
 
 	/**
@@ -676,11 +684,13 @@ class EventFactory {
 	/**
 	 * @param string $stream the stream to send an event to
 	 * @param RevisionRecord $revisionRecord the revision record affected by the change.
+	 * @param EditResult $editResult EditResult object for this edit.
 	 * @return array
 	 */
 	public function createRevisionCreateEvent(
 		$stream,
-		RevisionRecord $revisionRecord
+		RevisionRecord $revisionRecord,
+		EditResult $editResult
 	) {
 		$attrs = $this->createRevisionRecordAttrs( $revisionRecord );
 
@@ -689,19 +699,98 @@ class EventFactory {
 		// parent revision (i.e. page creation).
 		$parentId = $revisionRecord->getParentId();
 		if ( $parentId !== null && $parentId !== 0 ) {
-			$parentRev = $this->revisionLookup->getRevisionById( $parentId );
-			if ( $parentRev !== null ) {
-				$attrs['rev_content_changed'] =
-					$parentRev->getSha1() !== $revisionRecord->getSha1();
+			$attrs['rev_content_changed'] = !$editResult->isNullEdit();
+		}
+
+		if ( $editResult->isRevert() ) {
+			$details = $this->getRevertDetails( $editResult );
+			if ( $details !== null ) {
+				$attrs['rev_is_revert'] = true;
+				$attrs['rev_revert_details'] = $details;
+			} else {
+				$attrs['rev_is_revert'] = false;
+				$this->logger->warning(
+					"Could not find the newest or oldest reverted revision in the database "
+					. "for revision {$revisionRecord->getId()}. Marking this as a non-revert."
+				);
 			}
+		} else {
+			$attrs['rev_is_revert'] = false;
 		}
 
 		return $this->createEvent(
 			$this->getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
-			'/mediawiki/revision/create/1.0.0',
+			'/mediawiki/revision/create/1.1.0',
 			$stream,
 			$attrs
 		);
+	}
+
+	/**
+	 * Constructs an array of properties for use in `rev_revert_details` field of revision
+	 * creation event.
+	 * @param EditResult $editResult
+	 * @return array|null Associative array of properties or null in case of failure.
+	 */
+	private function getRevertDetails( EditResult $editResult ) : ?array {
+		$oldestRevertedRevId = $editResult->getOldestRevertedRevisionId();
+		$newestRevertedRevId = $editResult->getNewestRevertedRevisionId();
+
+		// sanity check
+		if ( !$editResult->isRevert() ||
+			$oldestRevertedRevId === null ||
+			$newestRevertedRevId === null
+		) {
+			return null;
+		}
+
+		$newestRevertedRev = $this->revisionStore->getRevisionById(
+			$newestRevertedRevId
+		);
+		if ( $editResult->getNewestRevertedRevisionId() ===
+			$oldestRevertedRevId
+		) {
+			$oldestRevertedRev = $newestRevertedRev;
+		} else {
+			$oldestRevertedRev = $this->revisionStore->getRevisionById(
+				$oldestRevertedRevId
+			);
+		}
+		if ( $newestRevertedRev === null || $oldestRevertedRev === null ) {
+			// Couldn't find reverted revisions
+			return null;
+		}
+
+		$details = [];
+		$details['rev_reverted_revs'] = $this->revisionStore->getRevisionIdsBetween(
+			$newestRevertedRev->getPageId(),
+			$oldestRevertedRev,
+			$newestRevertedRev,
+			null,
+			'include_both',
+			RevisionStore::ORDER_OLDEST_TO_NEWEST
+		);
+
+		// Map the revert method to keys used in event schema
+		switch ( $editResult->getRevertMethod() ) {
+			case EditResult::REVERT_UNDO:
+				$details['rev_revert_method'] = 'undo';
+				break;
+			case EditResult::REVERT_ROLLBACK:
+				$details['rev_revert_method'] = 'rollback';
+				break;
+			case EditResult::REVERT_MANUAL:
+				$details['rev_revert_method'] = 'manual';
+				break;
+		}
+
+		$details['rev_is_exact_revert'] = $editResult->isExactRevert();
+
+		if ( $editResult->getOriginalRevisionId() ) {
+			$details['rev_original_rev_id'] = $editResult->getOriginalRevisionId();
+		}
+
+		return $details;
 	}
 
 	/**
