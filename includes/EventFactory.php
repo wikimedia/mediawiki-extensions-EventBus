@@ -767,7 +767,7 @@ class EventFactory {
 			$oldestRevertedRev,
 			$newestRevertedRev,
 			null,
-			'include_both',
+			RevisionStore::INCLUDE_BOTH,
 			RevisionStore::ORDER_OLDEST_TO_NEWEST
 		);
 
