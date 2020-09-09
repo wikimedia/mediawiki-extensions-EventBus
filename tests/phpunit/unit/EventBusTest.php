@@ -103,8 +103,36 @@ class EventBusTest extends MediaWikiUnitTestCase {
 						"request_id" => "fc3a8587259ca5fc085ca830"
 					]
 				]
-			)
-			,
+			),
+			[
+				[
+					'response' => [
+						'code' => 201
+					]
+				]
+			],
+			true
+		];
+
+		yield 'Single event, over maxBatchByteSize' => [
+			json_encode(
+				[
+					"schema" => "/mediawiki/job/1.0.0",
+					"meta" => [
+						"uri" => "https://placeholder.invalid/wiki/Special:Badtitle",
+						"request_id" => "fc3a8587259ca5fc085ca830"
+
+					],
+					"type" => "deletePage",
+					"database" => "default",
+					"params" => [
+						"namespace" => 0,
+						"title" => "test",
+						"request_id" => "fc3a8587259ca5fc085ca830",
+						"large_string" => str_repeat( "a", 1000 )
+					]
+				]
+			),
 			[
 				[
 					'response' => [
@@ -231,7 +259,12 @@ class EventBusTest extends MediaWikiUnitTestCase {
 		$httpClient
 			->expects( $this->once() )
 			->method( 'runMulti' )
-			->willReturn( $httpResponse );
+			->willReturnCallback( function ( $reqs ) use ( $httpResponse ) {
+				foreach ( $reqs as $req ) {
+					$this->assertIsString( $req['body'] );
+				}
+				return $httpResponse;
+			} );
 
 		$eventBus = new EventBus(
 			$httpClient,

@@ -169,7 +169,7 @@ class EventBus {
 					'raw_event' => self::prepareEventsForLogging( $events )
 				]
 			);
-			$results = array_merge( $results, $events );
+			$results = [ self::serializeEvents( $events ) ];
 		}
 		return $results;
 	}
