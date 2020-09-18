@@ -1,3 +1,4 @@
+'use strict';
 const { action, assert, REST, utils, wiki } = require( 'api-testing' );
 const crypto = require( 'crypto' );
 const uuidv4 = require( 'uuid/v4' );
