@@ -214,8 +214,11 @@ class EventBusHooks {
 		// Create a  event
 		// for each revId that was changed.
 		foreach ( $revIds as $revId ) {
-			// Create the mediawiki/revision/visibility-change event
-			$revision = self::getRevisionLookup()->getRevisionById( $revId );
+			// Read from master since due to replication lag the updated field visibility
+			// might still not be available on a replica and we are at risk of leaking
+			// just suppressed data.
+			$revision = self::getRevisionLookup()
+				->getRevisionById( $revId, RevisionLookup::READ_LATEST );
 
 			// If the page is deleted simultaneously (null $revision) or if
 			// this revId is not in the $visibilityChangeMap, then we can't
