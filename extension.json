@@ -17,7 +17,7 @@
 	},
 	"config": {
 		"EnableEventBus": {
-			"value": "TYPE_ALL"
+			"value": "TYPE_NONE"
 		},
 		"EventServices": {
 			"value": {
