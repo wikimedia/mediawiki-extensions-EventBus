@@ -114,7 +114,15 @@ class JobQueueEventBus extends JobQueue {
 
 			// This means sending jobs to the $stream has failed.
 			if ( is_array( $result ) || is_string( $result ) ) {
-				throw new JobQueueError( "Could not enqueue jobs from stream ${stream}" );
+				// Details of backend failure are logged by EventBus::send().
+				// Details of which job failed is logged here.
+				EventBus::logger()->error( 'Could not enqueue jobs for stream {stream}', [
+					'stream' => $stream,
+					'exception' => new JobQueueError( "Could not enqueue jobs" ),
+				] );
+				// Avoid fragmenting exception by job or stream name, since backend
+				// issues are generally unrelated to the job (T249745).
+				throw new JobQueueError( "Could not enqueue jobs" );
 			}
 		}
 	}
