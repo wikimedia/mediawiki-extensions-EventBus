@@ -107,6 +107,7 @@ class JobExecutor {
 			$status = false;
 			$isReadonly = true;
 			$message = 'Database is in read-only mode';
+			MWExceptionHandler::rollbackMasterChangesAndLog( $e );
 		} catch ( Exception $e ) {
 			MWExceptionHandler::rollbackMasterChangesAndLog( $e );
 			$status = false;
