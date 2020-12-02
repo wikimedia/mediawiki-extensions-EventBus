@@ -1162,4 +1162,16 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$this->assertEquals( $event['meta']['domain'], $wgServerName );
 		$this->assertSame( $event['delay_until'], wfTimestamp( TS_ISO_8601, $releaseTimestamp ) );
 	}
+
+	public function testRecommendationCreateEvent() {
+		$event = self::$eventFactory->createRecommendationCreateEvent(
+			'mediawiki.revision-recommendation-create',
+			'link',
+			$this->createMutableRevisionFromArray()
+		);
+
+		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
+		$this->assertPageProperties( $event );
+		$this->assertSame( 'link', $event['recommendation_type'] ?? 'recommendation type missing' );
+	}
 }

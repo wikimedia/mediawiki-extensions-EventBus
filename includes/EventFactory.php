@@ -1197,4 +1197,29 @@ class EventFactory {
 			$attrs
 		);
 	}
+
+	/**
+	 * Creates a mediawiki/revision/recommendation-create event. Called by other extensions (for
+	 * now, just GrowthExperiments) whenever they generate recommendations; the event will be used
+	 * to keep the search infrastructure informed about available recommendations.
+	 * @param string $stream
+	 * @param string $recommendationType A type, such as 'link' or 'image'.
+	 * @param RevisionRecord $revisionRecord The revision which the recommendation is based on.
+	 * @return array
+	 */
+	public function createRecommendationCreateEvent(
+		$stream,
+		$recommendationType,
+		RevisionRecord $revisionRecord
+	) {
+		$attrs = $this->createRevisionRecordAttrs( $revisionRecord );
+		$attrs['recommendation_type'] = $recommendationType;
+
+		return $this->createEvent(
+			$this->getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
+			'/mediawiki/revision/recommendation-create/1.0.0',
+			$stream,
+			$attrs
+		);
+	}
 }
