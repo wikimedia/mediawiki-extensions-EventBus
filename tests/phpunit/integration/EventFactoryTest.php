@@ -7,8 +7,10 @@ use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Extension\EventBus\EventFactory;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
+use MediaWiki\Revision\MutableRevisionRecord;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\RevisionStore;
+use MediaWiki\Revision\SlotRecord;
 use MediaWiki\Storage\EditResult;
 
 /**
@@ -137,11 +139,54 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	 * @throws MWException
 	 */
 	public function createMutableRevisionFromArray( $rowOverrides = [] ) {
-		$row = self::revisionProperties( $rowOverrides );
+		// $row = self::revisionProperties( $rowOverrides );
 
-		return MediaWikiServices::getInstance()->
-			getRevisionStore()->
-			newMutableRevisionFromArray( $row, 0, Title::newFromText( self::MOCK_PAGE_TITLE ) );
+		// $row = [
+		// 	'id' => 42,
+		// 	'page' => self::MOCK_PAGE_ID,
+		// 	'timestamp' => '20171017114835',
+		// 	'user_text' => '111.0.1.2',
+		// 	'user' => 0,
+		// 	'minor_edit' => false,
+		// 	'deleted' => 0,
+		// 	'len' => 46,
+		// 	'parent_id' => 1,
+		// 	'sha1' => 'rdqbbzs3pkhihgbs8qf2q9jsvheag5z',
+		// 	'comment' => 'testing',
+		// 	'content' => new WikitextContent( 'Some Content' ),
+		// ];
+		// return array_merge( $row, $rowOverrides );
+
+		$revision = new MutableRevisionRecord( Title::newFromText( self::MOCK_PAGE_TITLE ) );
+
+		$revision->setContent( SlotRecord::MAIN, new WikitextContent( 'Some Content' ) );
+
+		$revision->setSha1( 'rdqbbzs3pkhihgbs8qf2q9jsvheag5z' );
+		$revision->setTimestamp( '20171017114835' );
+		$revision->setPageId( self::MOCK_PAGE_ID );
+		$revision->setId(
+			isset( $rowOverrides['id'] ) ? $rowOverrides['id'] : 42
+		);
+		$revision->setSize( 46 );
+		$revision->setUser(
+			User::newFromAnyId( 0, '111.0.1.2', null )
+		);
+
+		if ( array_key_exists( 'parent_id', $rowOverrides ) ) {
+			if ( $rowOverrides['parent_id'] !== null ) {
+				$revision->setParentId( $rowOverrides['parent_id'] );
+			}
+		} else {
+			$revision->setParentId( 1 );
+		}
+
+		$comment = CommentStoreComment::newUnsavedComment(
+			'testing',
+			null
+		);
+		$revision->setComment( $comment );
+
+		return $revision;
 	}
 
 	/**
