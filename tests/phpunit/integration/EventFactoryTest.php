@@ -514,7 +514,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
-		$this->assertFalse( array_key_exists( 'performer', $event ),
+		$this->assertArrayNotHasKey( 'performer', $event,
 			"'performer' key should not be present" );
 	}
 
@@ -568,7 +568,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
-		$this->assertFalse( array_key_exists( 'performer', $event ),
+		$this->assertArrayNotHasKey( 'performer', $event,
 			"'performer' key should not be present" );
 	}
 
@@ -593,7 +593,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
-		$this->assertFalse( array_key_exists( 'rev_parent_id', $event ),
+		$this->assertArrayNotHasKey( 'rev_parent_id', $event,
 			"'rev_parent_id' should not be present" );
 	}
 
@@ -616,8 +616,8 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
-		$this->assertTrue(
-			array_key_exists( 'rev_content_changed', $event ),
+		$this->assertArrayHasKey(
+			'rev_content_changed', $event,
 			'rev_content_changed should be present'
 		);
 		$this->assertTrue( $event['rev_content_changed'], "'rev_content_changed' incorrect value" );

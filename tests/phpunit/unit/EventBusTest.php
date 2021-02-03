@@ -247,7 +247,7 @@ class EventBusTest extends MediaWikiUnitTestCase {
 	 * @dataProvider provideBody
 	 * @param string|array $body
 	 * @param array $httpResponse
-	 * @param boolean|string $expectedResponse
+	 * @param bool|string $expectedResponse
 	 * @throws Exception
 	 */
 	public function testSend(

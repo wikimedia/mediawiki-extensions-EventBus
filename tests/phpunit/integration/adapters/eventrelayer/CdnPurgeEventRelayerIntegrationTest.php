@@ -45,7 +45,7 @@ class CdnPurgeEventRelayerIntegrationTest extends MediaWikiIntegrationTestCase {
 			->expects( $this->once() )
 			->method( 'send' )
 			->with( $this->callback( function ( array $events ) use ( $fakeUrl ) {
-				$this->assertSame( 1, count( $events ) );
+				$this->assertCount( 1, $events );
 				$this->assertSame( 'test-resource-purge', $events[0]['meta']['stream'] );
 				$this->assertSame( $fakeUrl, $events[0]['meta']['uri'] );
 				$this->assertArrayEquals( [ 'mediawiki' ], $events[0]['tags'] );
