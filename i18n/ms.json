@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Tofeiku"
+		]
+	},
+	"eventbus-desc": "Menyebarluaskan maklumat perubahan ke khidmat acara RESTful"
+}
