@@ -726,22 +726,24 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		// set up a mocked RevisionStore
 		$revisionStore = $this->createMock( RevisionStore::class );
 		$revisionStore->method( 'getRevisionById' )
-			->willReturnMap( [
-				[
-					$oldestRevertedRevisionId,
-					0,
-					$this->createMutableRevisionFromArray( [
-						'id' => $oldestRevertedRevisionId
-					] )
-				],
-				[
-					$newestRevertedRevisionId,
-					0,
-					$this->createMutableRevisionFromArray( [
-						'id' => $newestRevertedRevisionId
-					] )
-				]
-			] );
+			->willReturnCallback(
+				function ( $revId ) use ( $newestRevertedRevisionId, $oldestRevertedRevisionId ) {
+					switch ( $revId ) {
+						case $oldestRevertedRevisionId:
+							return $this->createMutableRevisionFromArray( [
+								'id' => $oldestRevertedRevisionId
+							] );
+
+						case $newestRevertedRevisionId:
+							return $this->createMutableRevisionFromArray( [
+								'id' => $newestRevertedRevisionId
+							] );
+
+						default:
+							return null;
+					}
+				}
+			);
 
 		$revisionStore->expects( $this->once() )
 			->method( 'getRevisionIdsBetween' )
