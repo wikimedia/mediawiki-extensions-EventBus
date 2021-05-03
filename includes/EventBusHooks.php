@@ -66,7 +66,7 @@ class EventBusHooks {
 		$eventbus = EventBus::getInstanceForStream( $stream );
 		$event = $eventbus->getFactory()->createResourceChangeEvent( $stream, $title, $tags );
 
-		DeferredUpdates::addCallableUpdate( function () use ( $eventbus, $event ) {
+		DeferredUpdates::addCallableUpdate( static function () use ( $eventbus, $event ) {
 			$eventbus->send( [ $event ] );
 		} );
 	}
@@ -109,7 +109,7 @@ class EventBusHooks {
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $eventbus, $event ) {
+			static function () use ( $eventbus, $event ) {
 				$eventbus->send( [ $event ] );
 			}
 		);
@@ -143,7 +143,7 @@ class EventBusHooks {
 			$oldPageId
 		);
 
-		DeferredUpdates::addCallableUpdate( function () use ( $eventBus, $event ) {
+		DeferredUpdates::addCallableUpdate( static function () use ( $eventBus, $event ) {
 			$eventBus->send( [ $event ] );
 		} );
 	}
@@ -182,7 +182,7 @@ class EventBusHooks {
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $eventBus, $event ) {
+			static function () use ( $eventBus, $event ) {
 				$eventBus->send( [ $event ] );
 			}
 		);
@@ -256,7 +256,7 @@ class EventBusHooks {
 		}
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $eventBus, $events ) {
+			static function () use ( $eventBus, $events ) {
 				$eventBus->send( $events );
 			}
 		);
@@ -334,7 +334,7 @@ class EventBusHooks {
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $eventBus, $event ) {
+			static function () use ( $eventBus, $event ) {
 				$eventBus->send( [ $event ] );
 			}
 		);
@@ -362,7 +362,7 @@ class EventBusHooks {
 			$stream, $user, $block, $previousBlock );
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $eventBus, $event ) {
+			static function () use ( $eventBus, $event ) {
 				$eventBus->send( [ $event ] );
 			}
 		);
@@ -426,7 +426,7 @@ class EventBusHooks {
 			);
 
 			DeferredUpdates::addCallableUpdate(
-				function () use ( $eventBus, $propEvent ) {
+				static function () use ( $eventBus, $propEvent ) {
 					$eventBus->send( [ $propEvent ] );
 				}
 			);
@@ -449,7 +449,7 @@ class EventBusHooks {
 			);
 
 			DeferredUpdates::addCallableUpdate(
-				function () use ( $eventBus, $linkEvent ) {
+				static function () use ( $eventBus, $linkEvent ) {
 					$eventBus->send( [ $linkEvent ] );
 				}
 			);
@@ -486,7 +486,7 @@ class EventBusHooks {
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $eventBus, $event ) {
+			static function () use ( $eventBus, $event ) {
 				$eventBus->send( [ $event ] );
 			}
 		);
@@ -542,7 +542,7 @@ class EventBusHooks {
 		);
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $eventBus, $event ) {
+			static function () use ( $eventBus, $event ) {
 				$eventBus->send( [ $event ] );
 			}
 		);
@@ -641,7 +641,7 @@ class EventBusHooks {
 		}
 
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $eventBus, $event ) {
+			static function () use ( $eventBus, $event ) {
 				$eventBus->send( [ $event ] );
 			}
 		);

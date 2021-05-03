@@ -358,7 +358,7 @@ class EventFactory {
 			'account_create' => (bool)(int)$block->isCreateAccountBlocked(),
 			'sitewide'       => $block->isSitewide(),
 		];
-		$blockAttrs['restrictions'] = array_map( function ( Restriction $restriction ) {
+		$blockAttrs['restrictions'] = array_map( static function ( Restriction $restriction ) {
 			return [
 				'type'  => $restriction::getType(),
 				'value' => $restriction->getValue()
@@ -897,7 +897,7 @@ class EventFactory {
 		 *   links are Titles
 		 * @return array
 		 */
-		$getLinkData = function ( $t ) {
+		$getLinkData = static function ( $t ) {
 			$isExternal = is_string( $t );
 			$link = $isExternal ? $t : $t->getLinkURL();
 			return [

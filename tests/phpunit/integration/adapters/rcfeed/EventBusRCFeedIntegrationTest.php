@@ -38,7 +38,7 @@ class EventBusRCFeedIntegrationTest extends MediaWikiTestCase {
 	public function testNotify() {
 		$feed = $this->getMockBuilder( FormattedRCFeed::class )
 			->setConstructorArgs( [ [ 'formatter' => EventBusRCFeedFormatter::class ] ] )
-			->setMethods( [ 'send' ] )
+			->onlyMethods( [ 'send' ] )
 			->getMock();
 
 		$feed->method( 'send' )

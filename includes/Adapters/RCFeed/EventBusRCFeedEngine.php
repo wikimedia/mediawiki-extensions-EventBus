@@ -53,7 +53,7 @@ class EventBusRCFeedEngine extends FormattedRCFeed {
 	public function send( array $feed, $line ) {
 		$eventBus = EventBus::getInstanceForStream( EventBusRCFeedFormatter::STREAM );
 		DeferredUpdates::addCallableUpdate(
-			function () use ( $eventBus, $line ) {
+			static function () use ( $eventBus, $line ) {
 				return $eventBus->send( $line );
 			}
 		);
