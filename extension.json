@@ -57,7 +57,8 @@
 		"LinksUpdateComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onLinksUpdateComplete",
 		"ArticleProtectComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticleProtectComplete",
 		"ChangeTagsAfterUpdateTags": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onChangeTagsAfterUpdateTags",
-		"CentralNoticeCampaignChange": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onCentralNoticeCampaignChange"
+		"CentralNoticeCampaignChange": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onCentralNoticeCampaignChange",
+		"RevisionRecordInserted": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onRevisionRecordInserted"
 	},
 	"RestRoutes": [
 		{

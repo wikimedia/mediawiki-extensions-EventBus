@@ -13,7 +13,6 @@ use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\RevisionStore;
 use MediaWiki\Revision\SuppressedDataException;
-use MediaWiki\Storage\EditResult;
 use MWException;
 use Psr\Log\LoggerInterface;
 use Title;
@@ -684,13 +683,11 @@ class EventFactory {
 	/**
 	 * @param string $stream the stream to send an event to
 	 * @param RevisionRecord $revisionRecord the revision record affected by the change.
-	 * @param EditResult $editResult EditResult object for this edit.
 	 * @return array
 	 */
 	public function createRevisionCreateEvent(
 		$stream,
-		RevisionRecord $revisionRecord,
-		EditResult $editResult
+		RevisionRecord $revisionRecord
 	) {
 		$attrs = $this->createRevisionRecordAttrs( $revisionRecord );
 
@@ -699,23 +696,11 @@ class EventFactory {
 		// parent revision (i.e. page creation).
 		$parentId = $revisionRecord->getParentId();
 		if ( $parentId !== null && $parentId !== 0 ) {
-			$attrs['rev_content_changed'] = !$editResult->isNullEdit();
-		}
-
-		if ( $editResult->isRevert() ) {
-			$details = $this->getRevertDetails( $editResult );
-			if ( $details !== null ) {
-				$attrs['rev_is_revert'] = true;
-				$attrs['rev_revert_details'] = $details;
-			} else {
-				$attrs['rev_is_revert'] = false;
-				$this->logger->warning(
-					"Could not find the newest or oldest reverted revision in the database "
-					. "for revision {$revisionRecord->getId()}. Marking this as a non-revert."
-				);
+			$parentRev = $this->revisionStore->getRevisionById( $parentId );
+			if ( $parentRev !== null ) {
+				$attrs['rev_content_changed'] =
+					$parentRev->getSha1() !== $revisionRecord->getSha1();
 			}
-		} else {
-			$attrs['rev_is_revert'] = false;
 		}
 
 		return $this->createEvent(
@@ -724,73 +709,6 @@ class EventFactory {
 			$stream,
 			$attrs
 		);
-	}
-
-	/**
-	 * Constructs an array of properties for use in `rev_revert_details` field of revision
-	 * creation event.
-	 * @param EditResult $editResult
-	 * @return array|null Associative array of properties or null in case of failure.
-	 */
-	private function getRevertDetails( EditResult $editResult ) : ?array {
-		$oldestRevertedRevId = $editResult->getOldestRevertedRevisionId();
-		$newestRevertedRevId = $editResult->getNewestRevertedRevisionId();
-
-		// sanity check
-		if ( !$editResult->isRevert() ||
-			$oldestRevertedRevId === null ||
-			$newestRevertedRevId === null
-		) {
-			return null;
-		}
-
-		$newestRevertedRev = $this->revisionStore->getRevisionById(
-			$newestRevertedRevId
-		);
-		if ( $editResult->getNewestRevertedRevisionId() ===
-			$oldestRevertedRevId
-		) {
-			$oldestRevertedRev = $newestRevertedRev;
-		} else {
-			$oldestRevertedRev = $this->revisionStore->getRevisionById(
-				$oldestRevertedRevId
-			);
-		}
-		if ( $newestRevertedRev === null || $oldestRevertedRev === null ) {
-			// Couldn't find reverted revisions
-			return null;
-		}
-
-		$details = [];
-		$details['rev_reverted_revs'] = $this->revisionStore->getRevisionIdsBetween(
-			$newestRevertedRev->getPageId(),
-			$oldestRevertedRev,
-			$newestRevertedRev,
-			null,
-			RevisionStore::INCLUDE_BOTH,
-			RevisionStore::ORDER_OLDEST_TO_NEWEST
-		);
-
-		// Map the revert method to keys used in event schema
-		switch ( $editResult->getRevertMethod() ) {
-			case EditResult::REVERT_UNDO:
-				$details['rev_revert_method'] = 'undo';
-				break;
-			case EditResult::REVERT_ROLLBACK:
-				$details['rev_revert_method'] = 'rollback';
-				break;
-			case EditResult::REVERT_MANUAL:
-				$details['rev_revert_method'] = 'manual';
-				break;
-		}
-
-		$details['rev_is_exact_revert'] = $editResult->isExactRevert();
-
-		if ( $editResult->getOriginalRevisionId() ) {
-			$details['rev_original_rev_id'] = $editResult->getOriginalRevisionId();
-		}
-
-		return $details;
 	}
 
 	/**

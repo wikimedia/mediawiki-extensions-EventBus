@@ -276,7 +276,7 @@ class EventBusHooks {
 	/**
 	 * Occurs after the save page request has been processed.
 	 *
-	 * Sends two events if the new revision was also a page creation
+	 * Sends an event if the new revision was also a page creation
 	 *
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/PageSaveComplete
 	 *
@@ -300,37 +300,41 @@ class EventBusHooks {
 			return;
 		}
 
-		self::sendRevisionCreateEvent(
-			'mediawiki.revision-create',
-			$revisionRecord,
-			$editResult
-		);
-
 		if ( $flags & EDIT_NEW ) {
 			// Not just a new revision, but a new page
 			self::sendRevisionCreateEvent(
 				'mediawiki.page-create',
-				$revisionRecord,
-				$editResult
+				$revisionRecord
 			);
 		}
 	}
 
 	/**
+	 * Occurs after a revision is inserted into the database.
+	 *
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/RevisionRecordInserted
+	 *
+	 * @param RevisionRecord $revisionRecord RevisionRecord that has just been inserted
+	 */
+	public static function onRevisionRecordInserted( RevisionRecord $revisionRecord ) {
+		self::sendRevisionCreateEvent(
+			'mediawiki.revision-create',
+			$revisionRecord
+		);
+	}
+
+	/**
 	 * @param string $stream
 	 * @param RevisionRecord $revisionRecord
-	 * @param EditResult $editResult
 	 */
 	private static function sendRevisionCreateEvent(
 		string $stream,
-		RevisionRecord $revisionRecord,
-		EditResult $editResult
+		RevisionRecord $revisionRecord
 	) {
 		$eventBus = EventBus::getInstanceForStream( $stream );
 		$event = $eventBus->getFactory()->createRevisionCreateEvent(
 			$stream,
-			$revisionRecord,
-			$editResult
+			$revisionRecord
 		);
 
 		DeferredUpdates::addCallableUpdate(
