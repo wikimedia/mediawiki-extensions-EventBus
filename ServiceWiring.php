@@ -39,6 +39,8 @@ return [
 			$services->getContentLanguage(),
 			$services->getRevisionStore(),
 			$services->getTitleFormatter(),
+			$services->getUserGroupManager(),
+			$services->getUserEditTracker(),
 			LoggerFactory::getInstance( 'EventBus' )
 		);
 	}

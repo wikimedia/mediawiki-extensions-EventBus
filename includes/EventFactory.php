@@ -13,6 +13,9 @@ use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\RevisionStore;
 use MediaWiki\Revision\SuppressedDataException;
+use MediaWiki\User\UserEditTracker;
+use MediaWiki\User\UserGroupManager;
+use MediaWiki\User\UserIdentity;
 use MWException;
 use Psr\Log\LoggerInterface;
 use Title;
@@ -47,6 +50,12 @@ class EventFactory {
 	/** @var RevisionStore */
 	private $revisionStore;
 
+	/** @var UserGroupManager */
+	private $userGroupManager;
+
+	/** @var UserEditTracker */
+	private $userEditTracker;
+
 	/** @var string */
 	private $dbDomain;
 
@@ -59,6 +68,8 @@ class EventFactory {
 	 * @param Language $contentLanguage
 	 * @param RevisionStore $revisionStore
 	 * @param TitleFormatter $titleFormatter
+	 * @param UserGroupManager $userGroupManager
+	 * @param UserEditTracker $userEditTracker
 	 * @param LoggerInterface $logger
 	 */
 	public function __construct(
@@ -67,6 +78,8 @@ class EventFactory {
 		Language $contentLanguage,
 		RevisionStore $revisionStore,
 		TitleFormatter $titleFormatter,
+		UserGroupManager $userGroupManager,
+		UserEditTracker $userEditTracker,
 		LoggerInterface $logger
 	) {
 		$serviceOptions->assertRequiredOptions( self::CONSTRUCTOR_OPTIONS );
@@ -75,6 +88,8 @@ class EventFactory {
 		$this->contentLanguage = $contentLanguage;
 		$this->titleFormatter = $titleFormatter;
 		$this->revisionStore = $revisionStore;
+		$this->userGroupManager = $userGroupManager;
+		$this->userEditTracker = $userEditTracker;
 		$this->logger = $logger;
 	}
 
@@ -136,12 +151,12 @@ class EventFactory {
 	 * use in mediawiki/revision entity schemas.
 	 *
 	 * @param RevisionRecord $revision
-	 * @param User|null $performer
+	 * @param UserIdentity|null $performer
 	 * @return array
 	 */
 	private function createRevisionRecordAttrs(
 		RevisionRecord $revision,
-		User $performer = null
+		UserIdentity $performer = null
 	) {
 		$linkTarget = $revision->getPageAsLinkTarget();
 		$attrs = [
@@ -174,12 +189,10 @@ class EventFactory {
 			$attrs['rev_content_format'] = $contentFormat;
 		}
 
-		if ( $performer !== null ) {
-			$attrs['performer'] = self::createPerformerAttrs( $performer );
-		} elseif ( $revision->getUser() !== null ) {
-			$performer = User::newFromId( $revision->getUser()->getId() );
-			$performer->loadFromId();
-			$attrs['performer'] = self::createPerformerAttrs( $performer );
+		if ( $performer ) {
+			$attrs['performer'] = $this->createPerformerAttrs( $performer );
+		} elseif ( $revision->getUser() ) {
+			$attrs['performer'] = $this->createPerformerAttrs( $revision->getUser() );
 		}
 
 		// It is possible that the $revision object does not have any content
@@ -214,27 +227,28 @@ class EventFactory {
 	}
 
 	/**
-	 * Given a User $user, returns an array suitable for
+	 * Given a UserIdentity $user, returns an array suitable for
 	 * use as the performer JSON object in various Mediawiki
 	 * entity schemas.
-	 * @param User $user
+	 * @param UserIdentity $user
 	 * @return array
 	 */
-	private static function createPerformerAttrs( User $user ) {
+	private function createPerformerAttrs( UserIdentity $user ) {
+		$legacyUser = User::newFromIdentity( $user );
 		$performerAttrs = [
 			'user_text'   => $user->getName(),
-			'user_groups' => $user->getEffectiveGroups(),
-			'user_is_bot' => $user->getId() ? $user->isBot() : false,
+			'user_groups' => $this->userGroupManager->getUserEffectiveGroups( $user ),
+			'user_is_bot' => $user->isRegistered() && $legacyUser->isBot(),
 		];
 		if ( $user->getId() ) {
 			$performerAttrs['user_id'] = $user->getId();
 		}
-		if ( $user->getRegistration() ) {
+		if ( $legacyUser->getRegistration() ) {
 			$performerAttrs['user_registration_dt'] =
-				self::createDTAttr( $user->getRegistration() );
+				self::createDTAttr( $legacyUser->getRegistration() );
 		}
-		if ( $user->getEditCount() !== null ) {
-			$performerAttrs['user_edit_count'] = $user->getEditCount();
+		if ( $user->isRegistered() ) {
+			$performerAttrs['user_edit_count'] = $this->userEditTracker->getUserEditCount( $user );
 		}
 
 		return $performerAttrs;
@@ -299,19 +313,19 @@ class EventFactory {
 	 * Provides the event attributes common to all CentralNotice events.
 	 *
 	 * @param string $campaignName The name of the campaign affected.
-	 * @param User $user The user who performed the action on the campaign.
+	 * @param UserIdentity $user The user who performed the action on the campaign.
 	 * @param string $summary Change summary provided by the user, or empty string if none
 	 *   was provided.
 	 * @return array
 	 */
 	private function createCommonCentralNoticeAttrs(
 		$campaignName,
-		User $user,
+		UserIdentity $user,
 		$summary
 	) {
 		$attrs = [
 			'database'           => $this->dbDomain,
-			'performer'          => self::createPerformerAttrs( $user ),
+			'performer'          => $this->createPerformerAttrs( $user ),
 			'campaign_name'      => $campaignName
 		];
 
@@ -402,7 +416,7 @@ class EventFactory {
 	/**
 	 * Create a page delete event message
 	 * @param string $stream the stream to send an event to
-	 * @param User $user
+	 * @param UserIdentity $user
 	 * @param int $id
 	 * @param LinkTarget $title
 	 * @param bool $is_redirect
@@ -413,7 +427,7 @@ class EventFactory {
 	 */
 	public function createPageDeleteEvent(
 		$stream,
-		User $user,
+		UserIdentity $user,
 		$id,
 		LinkTarget $title,
 		$is_redirect,
@@ -425,7 +439,7 @@ class EventFactory {
 		$attrs = [
 			// Common Mediawiki entity fields
 			'database'           => $this->dbDomain,
-			'performer'          => self::createPerformerAttrs( $user ),
+			'performer'          => $this->createPerformerAttrs( $user ),
 
 			// page entity fields
 			'page_id'            => $id,
@@ -459,7 +473,7 @@ class EventFactory {
 	/**
 	 * Create a page undelete message
 	 * @param string $stream the stream to send an event to
-	 * @param User $performer
+	 * @param UserIdentity $performer
 	 * @param Title $title
 	 * @param string $comment
 	 * @param int $oldPageId
@@ -467,7 +481,7 @@ class EventFactory {
 	 */
 	public function createPageUndeleteEvent(
 		$stream,
-		User $performer,
+		UserIdentity $performer,
 		Title $title,
 		$comment,
 		$oldPageId
@@ -476,7 +490,7 @@ class EventFactory {
 		$attrs = [
 			// Common Mediawiki entity fields
 			'database'           => $this->dbDomain,
-			'performer'          => self::createPerformerAttrs( $performer ),
+			'performer'          => $this->createPerformerAttrs( $performer ),
 
 			// page entity fields
 			'page_id'            => $title->getArticleID(),
@@ -518,7 +532,7 @@ class EventFactory {
 	 * @param LinkTarget $oldTitle
 	 * @param LinkTarget $newTitle
 	 * @param RevisionRecord $newRevision
-	 * @param User $user the user who made a tags change
+	 * @param UserIdentity $user the user who made a tags change
 	 * @param string $reason
 	 * @param int $redirectPageId
 	 * @return array
@@ -528,7 +542,7 @@ class EventFactory {
 		LinkTarget $oldTitle,
 		LinkTarget $newTitle,
 		RevisionRecord $newRevision,
-		User $user,
+		UserIdentity $user,
 		$reason,
 		$redirectPageId = 0
 	) {
@@ -545,7 +559,7 @@ class EventFactory {
 		$attrs = [
 			// Common Mediawiki entity fields
 			'database'           => $this->dbDomain,
-			'performer'          => self::createPerformerAttrs( $user ),
+			'performer'          => $this->createPerformerAttrs( $user ),
 
 			// page entity fields
 			'page_id'            => $newRevision->getPageId(),
@@ -618,7 +632,7 @@ class EventFactory {
 	 * @param array $prevTags an array of previous tags
 	 * @param array $addedTags an array of added tags
 	 * @param array $removedTags an array of removed tags
-	 * @param User|null $user the user who made a tags change
+	 * @param UserIdentity|null $user the user who made a tags change
 	 * @return array
 	 */
 	public function createRevisionTagsChangeEvent(
@@ -627,13 +641,13 @@ class EventFactory {
 		array $prevTags,
 		array $addedTags,
 		array $removedTags,
-		?User $user
+		?UserIdentity $user
 	) {
 		$attrs = $this->createRevisionRecordAttrs( $revisionRecord );
 
 		// If the user changing the tags is provided, override the performer in the event
 		if ( $user !== null ) {
-			$attrs['performer'] = self::createPerformerAttrs( $user );
+			$attrs['performer'] = $this->createPerformerAttrs( $user );
 		}
 
 		$newTags = array_values(
@@ -653,14 +667,14 @@ class EventFactory {
 	/**
 	 * @param string $stream the stream to send an event to
 	 * @param RevisionRecord $revisionRecord the revision record affected by the change.
-	 * @param User|null $performer the user who made a tags change
+	 * @param UserIdentity|null $performer the user who made a tags change
 	 * @param array $visibilityChanges
 	 * @return array
 	 */
 	public function createRevisionVisibilityChangeEvent(
 		$stream,
 		RevisionRecord $revisionRecord,
-		?User $performer,
+		?UserIdentity $performer,
 		array $visibilityChanges
 	) {
 		$attrs = $this->createRevisionRecordAttrs(
@@ -716,7 +730,7 @@ class EventFactory {
 	 * @param Title $title
 	 * @param array|null $addedProps
 	 * @param array|null $removedProps
-	 * @param User|null $user the user who made a tags change
+	 * @param UserIdentity|null $user the user who made a tags change
 	 * @param int|null $revId
 	 * @param int $pageId
 	 * @return array
@@ -726,7 +740,7 @@ class EventFactory {
 		Title $title,
 		?array $addedProps,
 		?array $removedProps,
-		?User $user,
+		?UserIdentity $user,
 		$revId,
 		$pageId
 	) {
@@ -744,7 +758,7 @@ class EventFactory {
 		];
 
 		if ( $user !== null ) {
-			$attrs['performer'] = self::createPerformerAttrs( $user );
+			$attrs['performer'] = $this->createPerformerAttrs( $user );
 		}
 
 		if ( !empty( $addedProps ) ) {
@@ -776,7 +790,7 @@ class EventFactory {
 	 * @param array|null $addedExternalLinks
 	 * @param array|null $removedLinks
 	 * @param array|null $removedExternalLinks
-	 * @param User|null $user the user who made a tags change
+	 * @param UserIdentity|null $user the user who made a tags change
 	 * @param int|null $revId
 	 * @param int $pageId
 	 * @return array
@@ -788,7 +802,7 @@ class EventFactory {
 		?array $addedExternalLinks,
 		?array $removedLinks,
 		?array $removedExternalLinks,
-		?User $user,
+		?UserIdentity $user,
 		$revId,
 		$pageId
 	) {
@@ -806,7 +820,7 @@ class EventFactory {
 		];
 
 		if ( $user !== null ) {
-			$attrs['performer'] = self::createPerformerAttrs( $user );
+			$attrs['performer'] = $this->createPerformerAttrs( $user );
 		}
 
 		/**
@@ -856,14 +870,14 @@ class EventFactory {
 	/**
 	 * Create a user or IP block change event message
 	 * @param string $stream the stream to send an event to
-	 * @param User $user
+	 * @param UserIdentity $user
 	 * @param DatabaseBlock $block
 	 * @param DatabaseBlock|null $previousBlock
 	 * @return array
 	 */
 	public function createUserBlockChangeEvent(
 		$stream,
-		User $user,
+		UserIdentity $user,
 		DatabaseBlock $block,
 		?DatabaseBlock $previousBlock
 	) {
@@ -873,7 +887,7 @@ class EventFactory {
 		$attrs = [
 			// Common Mediawiki entity fields:
 			'database'           => $this->dbDomain,
-			'performer'          => self::createPerformerAttrs( $user ),
+			'performer'          => $this->createPerformerAttrs( $user ),
 		];
 
 		$attrs['comment'] = $block->getReasonComment()->text;
@@ -886,14 +900,14 @@ class EventFactory {
 		$attrs['user_text'] = (string)$blockTarget;
 
 		// if the blockTarget is a user, then set user_id.
-		if ( $blockTarget instanceof User ) {
+		if ( $blockTarget instanceof UserIdentity ) {
 			// set user_id if the target User has a user_id
 			if ( $blockTarget->getId() ) {
 				$attrs['user_id'] = $blockTarget->getId();
 			}
 
 			// set user_groups, all Users will have this.
-			$attrs['user_groups'] = $blockTarget->getEffectiveGroups();
+			$attrs['user_groups'] = $this->userGroupManager->getUserEffectiveGroups( $blockTarget );
 		}
 
 		// blocks-change specific fields:
@@ -917,7 +931,7 @@ class EventFactory {
 	/**
 	 * Create a page restrictions change event message
 	 * @param string $stream the stream to send an event to
-	 * @param User $user
+	 * @param UserIdentity $user
 	 * @param LinkTarget $title
 	 * @param int $pageId
 	 * @param RevisionRecord|null $revision
@@ -928,7 +942,7 @@ class EventFactory {
 	 */
 	public function createPageRestrictionsChangeEvent(
 		$stream,
-		User $user,
+		UserIdentity $user,
 		LinkTarget $title,
 		$pageId,
 		?RevisionRecord $revision,
@@ -940,7 +954,7 @@ class EventFactory {
 		$attrs = [
 			// Common Mediawiki entity fields
 			'database'           => $this->dbDomain,
-			'performer'          => self::createPerformerAttrs( $user ),
+			'performer'          => $this->createPerformerAttrs( $user ),
 
 			// page entity fields
 			'page_id'            => $pageId,
@@ -1055,7 +1069,7 @@ class EventFactory {
 	public function createCentralNoticeCampaignCreateEvent(
 		$stream,
 		$campaignName,
-		User $user,
+		UserIdentity $user,
 		array $settings,
 		$summary,
 		$campaignUrl
@@ -1074,7 +1088,7 @@ class EventFactory {
 	public function createCentralNoticeCampaignChangeEvent(
 		$stream,
 		$campaignName,
-		User $user,
+		UserIdentity $user,
 		array $settings,
 		array $priorState,
 		$summary,
@@ -1097,7 +1111,7 @@ class EventFactory {
 	public function createCentralNoticeCampaignDeleteEvent(
 		$stream,
 		$campaignName,
-		User $user,
+		UserIdentity $user,
 		array $priorState,
 		$summary,
 		$campaignUrl
