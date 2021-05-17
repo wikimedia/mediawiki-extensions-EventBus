@@ -12,6 +12,7 @@ use MediaWiki\Storage\EditResult;
 
 /**
  * @covers \MediaWiki\Extension\EventBus\EventFactory
+ * @group Database
  * @group EventBus
  */
 class EventFactoryTest extends MediaWikiIntegrationTestCase {
@@ -498,6 +499,8 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	}
 
 	public function testPageMoveEventWithRedirectPageId() {
+		$redirect = $this->getExistingTestPage( __FUNCTION__ . '/redirect' );
+
 		$event = self::$eventFactory->createPageMoveEvent(
 			'mediawiki.page-move',
 			Title::newFromText( 'Old_Title' ),
@@ -505,7 +508,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 			$this->createMutableRevisionFromArray(),
 			User::newFromName( 'Test_User' ),
 			'Comment',
-			1
+			$redirect->getId()
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
