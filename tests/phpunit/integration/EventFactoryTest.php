@@ -16,7 +16,6 @@ use MediaWiki\Storage\EditResult;
  * @group EventBus
  */
 class EventFactoryTest extends MediaWikiIntegrationTestCase {
-	use MediaWikiCoversValidator;
 
 	/**
 	 * @var EventFactory

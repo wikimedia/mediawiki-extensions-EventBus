@@ -11,7 +11,6 @@ use Wikimedia\TestingAccessWrapper;
  * @group EventBus
  */
 class EventBusFactoryTest extends MediaWikiUnitTestCase {
-	use MediaWikiCoversValidator;
 
 	private const DEFAULT_MW_CONFIG = [
 		'EnableEventBus' => 'TYPE_ALL',

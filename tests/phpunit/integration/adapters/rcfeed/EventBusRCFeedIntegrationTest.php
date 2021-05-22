@@ -9,7 +9,6 @@ use MediaWiki\Extension\EventBus\Adapters\RCFeed\EventBusRCFeedFormatter;
  * @covers \MediaWiki\Extension\EventBus\Adapters\RCFeed\EventBusRCFeedFormatter
  */
 class EventBusRCFeedIntegrationTest extends MediaWikiTestCase {
-	use MediaWikiCoversValidator;
 
 	protected function setUp() : void {
 		parent::setUp();
