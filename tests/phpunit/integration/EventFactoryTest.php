@@ -47,7 +47,6 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	private static function blockProperties( $optionOverrides = [] ) {
 		$options = [
 			'address' => '127.0.0.0/24',
-			'user' => 1,
 			'reason' => 'crosswiki block...',
 			'timestamp' => wfTimestampNow(),
 			'expiry' => wfTimestampNow(),
@@ -305,16 +304,16 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$expectedAddedLinks,
 		$expectedRemovedLinks
 	) {
-			$event = self::$eventFactory->createPageLinksChangeEvent(
-				'mediawiki.page-links-change',
-				Title::newFromText( self::MOCK_PAGE_TITLE ),
-				$addedLinks,
-				$addedExternalLinks,
-				$removedLinks,
-				$removedExternalLinks,
-				User::newFromName( 'Test_User' ),
-				1,
-				self::MOCK_PAGE_ID
+		$event = self::$eventFactory->createPageLinksChangeEvent(
+			'mediawiki.page-links-change',
+			Title::newFromText( self::MOCK_PAGE_TITLE ),
+			$addedLinks,
+			$addedExternalLinks,
+			$removedLinks,
+			$removedExternalLinks,
+			User::newFromName( 'Test_User' ),
+			1,
+			self::MOCK_PAGE_ID
 		);
 
 		$this->assertStream( $event, 'mediawiki.page-links-change' );
@@ -845,26 +844,32 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 
 	public function provideNonUserBlocks() {
 		return [ [ new DatabaseBlock( self::blockProperties( [ 'address' => "127.0.0.0/24" ] ) ),
-				   new DatabaseBlock( self::blockProperties( [ 'address' => "128.0.0.0/24" ] ) ) ]
-			   ];
+			new DatabaseBlock( self::blockProperties( [ 'address' => "128.0.0.0/24" ] ) ) ]
+		];
 	}
 
 	public function provideNullOldBlock() {
 		return [
-			[ null, new DatabaseBlock( self::blockProperties( [ 'address' => "Test_User1" ] ) ) ]
+			[ null, new DatabaseBlock( self::blockProperties( [
+				'address' => UserIdentityValue::newRegistered( 1, 'TestUser1' ),
+			] ) ) ]
 		];
 	}
 
 	public function testUserBlockChangeEvent() {
-		$oldBlock = new DatabaseBlock( self::blockProperties( [ "address" => 'Test_User1' ] ) );
+		$oldBlock = new DatabaseBlock( self::blockProperties( [
+			'address' => User::newFromName( 'TestUser1' ),
+		] ) );
 		$oldBlock->setRestrictions( [
 			new NamespaceRestriction( 0, NS_USER ),
 			new PageRestriction( 0, 1 )
 		] );
-		$newBlock = new DatabaseBlock( self::blockProperties( [ "address" => 'Test_User2' ] ) );
+		$newBlock = new DatabaseBlock( self::blockProperties( [
+			'address' => User::newFromName( 'TestUser2' ),
+		] ) );
 		$event = self::$eventFactory->createUserBlockChangeEvent(
 			'mediawiki.user-blocks-change',
-			User::newFromName( "Test_User" ),
+			UserIdentityValue::newRegistered( 3, "Test_User" ),
 			$newBlock,
 			$oldBlock
 		);
@@ -910,7 +915,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	public function testNullOldBlockUseBlockChangeEvent( $oldBlock, $newBlock ) {
 		$event = self::$eventFactory->createUserBlockChangeEvent(
 			'mediawiki.user-blocks-change',
-			User::newFromName( "Test_User" ),
+			UserIdentityValue::newRegistered( 1, "Test_User" ),
 			$newBlock,
 			$oldBlock
 		);
