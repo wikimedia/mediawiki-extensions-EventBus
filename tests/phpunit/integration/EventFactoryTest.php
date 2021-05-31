@@ -9,6 +9,7 @@ use MediaWiki\Revision\MutableRevisionRecord;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\SlotRecord;
 use MediaWiki\Storage\EditResult;
+use MediaWiki\User\UserIdentityValue;
 
 /**
  * @covers \MediaWiki\Extension\EventBus\EventFactory
@@ -54,7 +55,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 			'enableAutoblock' => true,
 			'hideName' => true,
 			'blockEmail' => true,
-			'byText' => 'm>MetaWikiUser',
+			'by' => UserIdentityValue::newExternal( 'm', 'MetaWikiUser' ),
 		];
 
 		return array_merge( $options, $optionOverrides );
