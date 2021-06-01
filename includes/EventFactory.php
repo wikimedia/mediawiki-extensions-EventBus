@@ -881,9 +881,6 @@ class EventFactory {
 		DatabaseBlock $block,
 		?DatabaseBlock $previousBlock
 	) {
-		// This could be a User, a user_id, or a string (IP, etc.)
-		$blockTarget = $block->getTarget();
-
 		$attrs = [
 			// Common Mediawiki entity fields:
 			'database'           => $this->dbDomain,
@@ -895,19 +892,20 @@ class EventFactory {
 		// user entity fields:
 
 		// Note that, except for null, it is always safe to treat the target
-		// as a string; for User objects this will return User::__toString()
-		// which in turn gives User::getName().
-		$attrs['user_text'] = (string)$blockTarget;
+		// as a string; for UserIdentity objects this will return
+		// UserIdentity::getName()
+		$attrs['user_text'] = $block->getTargetName();
 
-		// if the blockTarget is a user, then set user_id.
-		if ( $blockTarget instanceof UserIdentity ) {
-			// set user_id if the target User has a user_id
-			if ( $blockTarget->getId() ) {
-				$attrs['user_id'] = $blockTarget->getId();
+		$blockTargetIdentity = $block->getTargetUserIdentity();
+		// if the $blockTargetIdentity is a UserIdentity, then set user_id.
+		if ( $blockTargetIdentity ) {
+			// set user_id if the target UserIdentity has a user_id
+			if ( $blockTargetIdentity->getId() ) {
+				$attrs['user_id'] = $blockTargetIdentity->getId();
 			}
 
-			// set user_groups, all Users will have this.
-			$attrs['user_groups'] = $this->userGroupManager->getUserEffectiveGroups( $blockTarget );
+			// set user_groups, all UserIdentities will have this.
+			$attrs['user_groups'] = $this->userGroupManager->getUserEffectiveGroups( $blockTargetIdentity );
 		}
 
 		// blocks-change specific fields:
@@ -921,7 +919,7 @@ class EventFactory {
 		}
 
 		return $this->createEvent(
-			$this->getUserPageURL( $block->getTarget() ),
+			$this->getUserPageURL( $block->getTargetName() ),
 			'/mediawiki/user/blocks-change/1.1.0',
 			$stream,
 			$attrs
