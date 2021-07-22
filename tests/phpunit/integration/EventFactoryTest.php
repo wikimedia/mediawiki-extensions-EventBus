@@ -115,16 +115,16 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	}
 
 	// fixture setup
-	public static function setUpBeforeClass() : void {
+	public static function setUpBeforeClass(): void {
 		self::$eventFactory = MediaWikiServices::getInstance()->get( 'EventBus.EventFactory' );
 	}
 
 	// fixture tear-down
-	public static function tearDownAfterClass() : void {
+	public static function tearDownAfterClass(): void {
 		self::$eventFactory = null;
 	}
 
-	protected function setUp() : void {
+	protected function setUp(): void {
 		parent::setUp();
 		$this->setMwGlobals( [ 'wgArticlePath' => '/wiki/$1' ] );
 	}
@@ -194,7 +194,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	 *        should return.
 	 * @return EditResult
 	 */
-	private function createEditResultMockFromArray( array $values ) : EditResult {
+	private function createEditResultMockFromArray( array $values ): EditResult {
 		$editResult = $this->createMock( EditResult::class );
 		foreach ( $values as $method => $value ) {
 			$editResult->method( $method )->willReturn( $value );

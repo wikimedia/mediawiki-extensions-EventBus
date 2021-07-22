@@ -122,7 +122,7 @@ class EventBusFactory {
 	 * @throws InvalidArgumentException if EventServices or $eventServiceName is misconfigured.
 	 * @return EventBus
 	 */
-	public function getInstance( string $eventServiceName ) : EventBus {
+	public function getInstance( string $eventServiceName ): EventBus {
 		if ( !array_key_exists( $eventServiceName, $this->eventServiceConfig ) ||
 			!array_key_exists( 'url', $this->eventServiceConfig[$eventServiceName] )
 		) {
@@ -158,7 +158,7 @@ class EventBusFactory {
 	 * @return EventBus
 	 * @throws InvalidArgumentException
 	 */
-	public function getInstanceForStream( string $stream ) : EventBus {
+	public function getInstanceForStream( string $stream ): EventBus {
 		// Use eventServiceDefault if no streamConfigs were provided.
 		if ( $this->streamConfigs === null ) {
 			$this->logger->debug(

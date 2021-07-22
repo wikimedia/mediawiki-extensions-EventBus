@@ -7,7 +7,7 @@ use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
 
 return [
-	'EventBus.EventBusFactory' => static function ( MediaWikiServices $services ) : EventBusFactory {
+	'EventBus.EventBusFactory' => static function ( MediaWikiServices $services ): EventBusFactory {
 		if ( ExtensionRegistry::getInstance()->isLoaded( 'EventStreamConfig' ) ) {
 			// Mediawiki\Extension\EventStreamConfig\StreamConfigs instance.
 			$streamConfigs = $services->get( 'EventStreamConfig.StreamConfigs' );
@@ -29,7 +29,7 @@ return [
 		);
 	},
 
-	'EventBus.EventFactory' => static function ( MediaWikiServices $services ) : EventFactory {
+	'EventBus.EventFactory' => static function ( MediaWikiServices $services ): EventFactory {
 		return new EventFactory(
 			new ServiceOptions(
 				EventFactory::CONSTRUCTOR_OPTIONS,

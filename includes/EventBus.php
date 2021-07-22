@@ -145,7 +145,7 @@ class EventBus {
 	 * @param int $serializedSize
 	 * @return array
 	 */
-	private function partitionEvents( array $events, int $serializedSize ) : array {
+	private function partitionEvents( array $events, int $serializedSize ): array {
 		$results = [];
 
 		if ( count( $events ) > 1 ) {

@@ -43,7 +43,7 @@ class EventBusMonologHandler extends AbstractProcessingHandler {
 	 * @param array $record
 	 * @return void
 	 */
-	protected function write( array $record ) : void {
+	protected function write( array $record ): void {
 		// Use the log record context as formatted as the event data.
 		$event = $record['context'];
 

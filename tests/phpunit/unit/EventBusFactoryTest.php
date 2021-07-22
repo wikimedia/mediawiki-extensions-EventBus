@@ -23,7 +23,7 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 		'EventBusMaxBatchByteSize' => 1000000
 	];
 
-	private function getEventBusFactory( array $mwConfig ) : EventBusFactory {
+	private function getEventBusFactory( array $mwConfig ): EventBusFactory {
 		$logger = new NullLogger();
 
 		// EventBus behavior is different if EventStreamConfig is loaded.
