@@ -17,7 +17,10 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 		'EventServiceDefault' => 'intake-main',
 		'EventServices' => [
 			'intake-main' => [ 'url' => 'http://intake.main' ],
-			'intake-other' => [ 'url' => 'http://intake.other' ],
+			'intake-other' => [
+				'url' => 'http://intake.other',
+				'x_client_ip_forwarding_enabled' => true,
+			],
 		],
 		'EventStreamsDefaultSettings' => [],
 		'EventBusMaxBatchByteSize' => 1000000
@@ -145,35 +148,40 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 			'my_stream',
 			self::DEFAULT_MW_CONFIG,
 			// expected:
-			$expectedEventServiceUrls['default']
+			$expectedEventServiceUrls['default'],
+			false
 		];
 
 		yield 'default event service if no destination_event_service for this configured stream' => [
 			'stream_without_destination_event_service',
 			$mwConfigWithEventStreams,
 			// expected:
-			$expectedEventServiceUrls['default']
+			$expectedEventServiceUrls['default'],
+			false
 		];
 
 		yield 'default event service if no stream config for this stream' => [
 			'my_stream',
 			$mwConfigWithEventStreams,
 			// expected:
-			$expectedEventServiceUrls['default']
+			$expectedEventServiceUrls['default'],
+			false
 		];
 
 		yield 'specific destination_event_service' => [
 			'other_stream',
 			$mwConfigWithEventStreams,
 			// expected:
-			$expectedEventServiceUrls['intake-other']
+			$expectedEventServiceUrls['intake-other'],
+			ExtensionRegistry::getInstance()->isLoaded( 'EventStreamConfig' )
 		];
 
 		yield 'undefined destination_event_service in EventServices' => [
 			'stream_with_undefined_event_service',
 			$mwConfigWithEventStreams,
 			// expected: null -> throws InvalidArgumentException
-			$expectedEventServiceUrls['InvalidArgumentException']
+			$expectedEventServiceUrls['InvalidArgumentException'],
+			false
 		];
 	}
 
@@ -184,11 +192,13 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 	 * @param array $mwConfig
 	 * @param string|null $expectedUrl - expected EventBus instance url.
 	 *   If null - expect InvalidArgumentException
+	 * @param bool $forwardXClientIP
 	 */
 	public function testGetInstanceForStream(
 		string $streamName,
 		array $mwConfig,
-		?string $expectedUrl
+		?string $expectedUrl,
+		bool $forwardXClientIP
 	) {
 		if ( !$expectedUrl ) {
 			$this->expectException( InvalidArgumentException::class );
@@ -199,5 +209,6 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 		if ( $expectedUrl ) {
 			$this->assertSame( $expectedUrl, $instance->url );
 		}
+		$this->assertSame( $forwardXClientIP, $instance->forwardXClientIP );
 	}
 }
