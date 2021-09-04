@@ -214,7 +214,7 @@ class EventBusHooks {
 		// Create a  event
 		// for each revId that was changed.
 		foreach ( $revIds as $revId ) {
-			// Read from master since due to replication lag the updated field visibility
+			// Read from primary since due to replication lag the updated field visibility
 			// might still not be available on a replica and we are at risk of leaking
 			// just suppressed data.
 			$revision = self::getRevisionLookup()

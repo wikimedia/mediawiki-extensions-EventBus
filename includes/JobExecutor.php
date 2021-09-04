@@ -71,14 +71,14 @@ class JobExecutor {
 			$fnameTrxOwner = get_class( $job ) . '::run';
 			// Flush any pending changes left over from an implicit transaction round
 			if ( $job->hasExecutionFlag( $job::JOB_NO_EXPLICIT_TRX_ROUND ) ) {
-				$lbFactory->commitMasterChanges( $fnameTrxOwner );
+				$lbFactory->commitPrimaryChanges( $fnameTrxOwner );
 			} else {
-				$lbFactory->beginMasterChanges( $fnameTrxOwner );
+				$lbFactory->beginPrimaryChanges( $fnameTrxOwner );
 			}
 			// Clear any stale REPEATABLE-READ snapshots from replica DB connections
 			$status = $job->run();
 			// Commit all pending changes from this job
-			$this->commitMasterChanges( $lbFactory, $fnameTrxOwner );
+			$this->commitPrimaryChanges( $lbFactory, $fnameTrxOwner );
 
 			if ( $status === false ) {
 				$message = $job->getLastError();
@@ -107,9 +107,9 @@ class JobExecutor {
 			$status = false;
 			$isReadonly = true;
 			$message = 'Database is in read-only mode';
-			MWExceptionHandler::rollbackMasterChangesAndLog( $e );
+			MWExceptionHandler::rollbackPrimaryChangesAndLog( $e );
 		} catch ( Exception $e ) {
-			MWExceptionHandler::rollbackMasterChangesAndLog( $e );
+			MWExceptionHandler::rollbackPrimaryChangesAndLog( $e );
 			$status = false;
 			$message = 'Exception executing job: '
 				. $job->toString() . ' : '
@@ -245,12 +245,12 @@ class JobExecutor {
 	}
 
 	/**
-	 * Issue a commit on all masters who are currently in a transaction and have
+	 * Issue a commit on all primary DBs who are currently in a transaction and have
 	 * made changes to the database. It also supports sometimes waiting for the
 	 * local wiki's replica DBs to catch up. See the documentation for
 	 * $wgJobSerialCommitThreshold for more.
 	 *
-	 * The implementation reseblse the JobRunner::commitMasterChanges and will
+	 * The implementation resembles the JobRunner::commitPrimaryChanges and will
 	 * be merged with it once the kafka-based JobQueue will be moved to use
 	 * the SpecialRunSingleJob and moved to the core.
 	 *
@@ -258,13 +258,13 @@ class JobExecutor {
 	 * @param string $fnameTrxOwner
 	 * @throws DBError
 	 */
-	private function commitMasterChanges( ILBFactory $lbFactory, $fnameTrxOwner ) {
+	private function commitPrimaryChanges( ILBFactory $lbFactory, $fnameTrxOwner ) {
 		$syncThreshold = $this->config()->get( 'JobSerialCommitThreshold' );
 		$maxWriteDuration = $this->config()->get( 'MaxJobDBWriteDuration' );
 
 		$lb = $lbFactory->getMainLB( wfWikiID() );
 		if ( $syncThreshold !== false && $lb->getServerCount() > 1 ) {
-			// Generally, there is one master connection to the local DB
+			// Generally, there is one primary connection to the local DB
 			$dbwSerial = $lb->getAnyOpenConnection( $lb->getWriterIndex() );
 			// We need natively blocking fast locks
 			if ( $dbwSerial && $dbwSerial->namedLocksEnqueue() ) {
@@ -281,7 +281,7 @@ class JobExecutor {
 		}
 
 		if ( !$dbwSerial ) {
-			$lbFactory->commitMasterChanges(
+			$lbFactory->commitPrimaryChanges(
 				$fnameTrxOwner,
 				// Abort if any transaction was too big
 				[ 'maxWriteDuration' => $maxWriteDuration ]
@@ -300,13 +300,13 @@ class JobExecutor {
 		} );
 
 		// Wait for the replica DBs to catch up
-		$pos = $lb->getMasterPos();
+		$pos = $lb->getPrimaryPos();
 		if ( $pos ) {
 			$lb->waitForAll( $pos );
 		}
 
-		// Actually commit the DB master changes
-		$lbFactory->commitMasterChanges(
+		// Actually commit the DB primary changes
+		$lbFactory->commitPrimaryChanges(
 			$fnameTrxOwner,
 			// Abort if any transaction was too big
 			[ 'maxWriteDuration' => $maxWriteDuration ]
