@@ -118,7 +118,7 @@ class EventBodyValidator implements BodyValidator {
 		try {
 			$job = Job::factory( $jobEvent['type'], $jobEvent['params'] );
 		} catch ( Exception $e ) {
-			return $this->throwJobErrors( [
+			$this->throwJobErrors( [
 				'status'  => false,
 				'error' => $e->getMessage(),
 				'type' => $jobEvent['type']
@@ -126,7 +126,7 @@ class EventBodyValidator implements BodyValidator {
 		}
 
 		if ( $job === null ) {
-			return $this->throwJobErrors( [
+			$this->throwJobErrors( [
 				'status'  => false,
 				'error' => 'Could not create a job from event',
 				'type' => $jobEvent['type']
@@ -139,6 +139,7 @@ class EventBodyValidator implements BodyValidator {
 	/**
 	 * @param array $jobResults
 	 * @throws HttpException
+	 * @return never
 	 */
 	private function throwJobErrors( $jobResults ) {
 		$this->logger->error( 'Failed creating job from description', [
