@@ -105,14 +105,14 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 			self::DEFAULT_MW_CONFIG,
 			[
 				'EventStreams' => [
-					[
+					'other_stream' => [
 						'stream' => 'other_stream',
 						'destination_event_service' => 'intake-other'
 					],
-					[
+					'stream_without_destination_event_service' => [
 						'stream' => 'stream_without_destination_event_service'
 					],
-					[
+					'stream_with_undefined_event_service' => [
 						'stream' => 'stream_with_undefined_event_service',
 						'destination_event_service' => 'undefined_event_service'
 					],

@@ -21,7 +21,7 @@ class EventBusRCFeedIntegrationTest extends MediaWikiTestCase {
 			'wgRCFeeds' => [],
 			'wgRCEngines' => [],
 			'wgEventStreams' => [
-				[
+				EventBusRCFeedFormatter::STREAM => [
 					'stream' => EventBusRCFeedFormatter::STREAM,
 					'destination_event_service' => 'test_eventbus_instance'
 				]
