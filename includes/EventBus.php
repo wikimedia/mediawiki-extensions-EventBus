@@ -91,10 +91,12 @@ class EventBus {
 
 	/** @var EventFactory|null event creator */
 	private $eventFactory;
-	/**
-	 * @var int Maximum byte size of a batch
-	 */
+
+	/** @var int Maximum byte size of a batch */
 	private $maxBatchByteSize;
+
+	/** @var bool Whether to forward the X-Client-IP header, if present */
+	private $forwardXClientIP;
 
 	/**
 	 * @param MultiHttpClient $http
@@ -104,6 +106,8 @@ class EventBus {
 	 * @param string $url EventBus service endpoint URL. E.g. http://localhost:8085/v1/events
 	 * @param int $maxBatchByteSize Maximum byte size of a batch
 	 * @param int|null $timeout HTTP request timeout in seconds, defaults to 5.
+	 * @param bool $forwardXClientIP Whether the X-Client-IP header should be forwarded
+	 *   to the intake service, if present
 	 */
 	public function __construct(
 		MultiHttpClient $http,
@@ -111,13 +115,15 @@ class EventBus {
 		EventFactory $eventFactory,
 		string $url,
 		int $maxBatchByteSize,
-		int $timeout = null
+		int $timeout = null,
+		bool $forwardXClientIP = false
 	) {
 		$this->http = $http;
 		$this->url = $url;
 		$this->maxBatchByteSize = $maxBatchByteSize;
 		$this->timeout = $timeout ?: self::DEFAULT_REQUEST_TIMEOUT;
 		$this->eventFactory = $eventFactory;
+		$this->forwardXClientIP = $forwardXClientIP;
 
 		if ( is_int( $enableEventBus ) ) {
 			Assert::precondition(
@@ -218,25 +224,18 @@ class EventBus {
 			}
 		}
 
-		if ( is_array( $body ) ) {
-			$reqs = array_map( function ( $body ) {
-				return [
-					'url'		=> $this->url,
-					'method'	=> 'POST',
-					'body'		=> $body,
-					'headers'	=> [ 'content-type' => 'application/json' ]
-				];
-			}, $body );
-		} else {
-			$reqs = [
-				[
-					'url'		=> $this->url,
-					'method'	=> 'POST',
-					'body'		=> $body,
-					'headers'	=> [ 'content-type' => 'application/json' ]
-				]
+		$reqs = array_map( function ( $body ) {
+			$req = [
+				'url'		=> $this->url,
+				'method'	=> 'POST',
+				'body'		=> $body,
+				'headers'	=> [ 'content-type' => 'application/json' ]
 			];
-		}
+			if ( $this->forwardXClientIP ) {
+				$req['headers']['x-client-ip'] = $_SERVER['HTTP_X_CLIENT_IP'];
+			}
+			return $req;
+		}, is_array( $body ) ? $body : [ $body ] );
 
 		$responses = $this->http->runMulti(
 			$reqs,
@@ -436,7 +435,9 @@ class EventBus {
 	 * 		The EventService config is keyed by service name, and should at least contain
 	 * 		a 'url' entry pointing at the event service endpoint events should be
 	 * 		POSTed to. They can also optionally contain a 'timeout' entry specifying
-	 * 		the HTTP POST request timeout. Instances are singletons identified by
+	 * 		the HTTP POST request timeout, and a 'x_client_ip_forwarding_enabled' entry that can be
+	 * 		set to true if the X-Client-IP header from the originating request should be
+	 * 		forwarded to the event service. Instances are singletons identified by
 	 * 		$eventServiceName.
 	 *
 	 * 		NOTE: Previously, this function took a $config object instead of an

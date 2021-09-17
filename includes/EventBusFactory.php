@@ -62,9 +62,7 @@ class EventBusFactory {
 	/** @var string */
 	private $enableEventBus;
 
-	/**
-	 * @var int
-	 */
+	/** @var int */
 	private $maxBatchByteSize;
 
 	/** @var EventFactory */
@@ -112,8 +110,10 @@ class EventBusFactory {
 	 *   The EventService config is keyed by service name, and should at least contain
 	 *   a 'url' entry pointing at the event service endpoint events should be
 	 *   POSTed to. They can also optionally contain a 'timeout' entry specifying
-	 *   the HTTP POST request timeout. Instances are singletons identified by
-	 *   $eventServiceName.
+	 *   the HTTP POST request timeout, and a 'x_client_ip_forwarding_enabled' entry
+	 *   that can be set to true if the X-Client-IP header from the originating request
+	 *   should be forwarded to the event service. Instances are singletons identified
+	 *   by $eventServiceName.
 	 *
 	 * @note Previously, this function took a $config object instead of an
 	 * event service name.  This is a backwards compatible change, but because
@@ -135,6 +135,7 @@ class EventBusFactory {
 		$eventService = $this->eventServiceConfig[$eventServiceName];
 		$url = $eventService['url'];
 		$timeout = array_key_exists( 'timeout', $eventService ) ? $eventService['timeout'] : null;
+		$forwardXClientIP = $eventService['x_client_ip_forwarding_enabled'] ?? false;
 
 		if ( !array_key_exists( $eventServiceName, $this->eventBusInstances ) ) {
 			$this->eventBusInstances[$eventServiceName] = new EventBus(
@@ -143,7 +144,8 @@ class EventBusFactory {
 				$this->eventFactory,
 				$url,
 				$this->maxBatchByteSize,
-				$timeout
+				$timeout,
+				$forwardXClientIP
 			);
 		}
 
