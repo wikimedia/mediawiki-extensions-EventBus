@@ -231,7 +231,7 @@ class EventBus {
 				'body'		=> $body,
 				'headers'	=> [ 'content-type' => 'application/json' ]
 			];
-			if ( $this->forwardXClientIP ) {
+			if ( $this->forwardXClientIP && isset( $_SERVER['HTTP_X_CLIENT_IP'] ) ) {
 				$req['headers']['x-client-ip'] = $_SERVER['HTTP_X_CLIENT_IP'];
 			}
 			return $req;
