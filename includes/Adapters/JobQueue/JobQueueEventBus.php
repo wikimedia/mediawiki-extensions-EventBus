@@ -67,6 +67,14 @@ class JobQueueEventBus extends JobQueue {
 	}
 
 	/**
+	 * @see JobQueue::supportsTypeAgnostic()
+	 * @return bool
+	 */
+	protected function supportsTypeAgnostic(): bool {
+		return true;
+	}
+
+	/**
 	 * @param IJobSpecification[] $jobs
 	 * @param int $flags
 	 * @throws JobQueueError
