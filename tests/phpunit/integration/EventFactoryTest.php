@@ -8,7 +8,6 @@ use MediaWiki\MediaWikiServices;
 use MediaWiki\Revision\MutableRevisionRecord;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\SlotRecord;
-use MediaWiki\Storage\EditResult;
 use MediaWiki\User\UserIdentityValue;
 
 /**
@@ -184,23 +183,6 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$revision->setComment( $comment );
 
 		return $revision;
-	}
-
-	/**
-	 * Creates a mock of EditResult that will return values specified in the parameter.
-	 * This also avoids using EditResult's constructor that is for internal use only.
-	 *
-	 * @param array $values array mapping method names in EditResult to the values they
-	 *        should return.
-	 * @return EditResult
-	 */
-	private function createEditResultMockFromArray( array $values ): EditResult {
-		$editResult = $this->createMock( EditResult::class );
-		foreach ( $values as $method => $value ) {
-			$editResult->method( $method )->willReturn( $value );
-		}
-
-		return $editResult;
 	}
 
 	public function providePageLinks() {
@@ -619,8 +601,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	public function testRevisionCreationEvent() {
 		$event = self::$eventFactory->createRevisionCreateEvent(
 			'mediawiki.revision-create',
-			$this->createMutableRevisionFromArray(),
-			$this->createMock( EditResult::class )
+			$this->createMutableRevisionFromArray()
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
@@ -632,8 +613,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 			'mediawiki.revision-create',
 			$this->createMutableRevisionFromArray( [
 				'parent_id' => null
-			] ),
-			$this->createMock( EditResult::class )
+			] )
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
@@ -644,8 +624,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	public function testRevisionCreationEventContainsRevParentId() {
 		$event = self::$eventFactory->createRevisionCreateEvent(
 			'mediawiki.revision-create',
-			$this->createMutableRevisionFromArray(),
-			$this->createMock( EditResult::class )
+			$this->createMutableRevisionFromArray()
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
@@ -655,8 +634,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	public function testRevisionCreationEventContentChangeExists() {
 		$event = self::$eventFactory->createRevisionCreateEvent(
 			'mediawiki.revision-create',
-			$this->createMutableRevisionFromArray(),
-			$this->createMock( EditResult::class )
+			$this->createMutableRevisionFromArray()
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
