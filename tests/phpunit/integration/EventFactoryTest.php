@@ -67,6 +67,27 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$this->assertSame( 0, $event['page_namespace'], "'page_namespace' incorrect value" );
 	}
 
+	private function assertSlotRecords( array $event ) {
+		$this->assertIsArray( $event['rev_slots'] );
+		$this->assertCount( 2, $event['rev_slots'] );
+		$this->assertArrayEquals(
+			[
+				'main' => [
+					'rev_slot_content_model' => 'wikitext',
+					'rev_slot_sha1' => 'a3kvjf7vqh9qchzi5sl1q87q9hx48pk',
+					'rev_slot_size' => 12
+				],
+				'sidetext' => [
+					'rev_slot_content_model' => 'text',
+					'rev_slot_sha1' => 'hj5t2yi95v1hhdjtzfn6itv3efu4ltg',
+					'rev_slot_size' => 14,
+					'rev_slot_origin_rev_id' => 42
+				]
+
+			],
+			$event['rev_slots'], false, true );
+	}
+
 	private function assertStream( $event, $expectedStream ) {
 		$this->assertArrayHasKey( 'meta', $event, "'meta' key missing" );
 		$this->assertArrayHasKey( 'stream', $event['meta'], "'.meta.stream' key missing" );
@@ -154,15 +175,16 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		// return array_merge( $row, $rowOverrides );
 
 		$revision = new MutableRevisionRecord( Title::newFromText( self::MOCK_PAGE_TITLE ) );
-
+		$revId = $rowOverrides['id'] ?? 42;
 		$revision->setContent( SlotRecord::MAIN, new WikitextContent( 'Some Content' ) );
+		$slot = SlotRecord::newUnsaved( 'sidetext', new TextContent( 'some side text' ) );
+		$slot = SlotRecord::newSaved( $revId, null, "unknown", $slot );
+		$revision->setId( $revId );
+		$revision->setSlot( $slot );
 
 		$revision->setSha1( 'rdqbbzs3pkhihgbs8qf2q9jsvheag5z' );
 		$revision->setTimestamp( '20171017114835' );
 		$revision->setPageId( self::MOCK_PAGE_ID );
-		$revision->setId(
-			isset( $rowOverrides['id'] ) ? $rowOverrides['id'] : 42
-		);
 		$revision->setSize( 46 );
 		$revision->setUser(
 			User::newFromAnyId( 0, '111.0.1.2', null )
@@ -605,7 +627,8 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		);
 
 		$this->assertEquals( 'array', gettype( $event ), 'Returned event should be of type array' );
-		$this->assertPageProperties( $event );
+		$this->assertRevisionProperties( $event );
+		$this->assertSlotRecords( $event );
 	}
 
 	public function testRevisionCreationEventDoesNotContainRevParentId() {

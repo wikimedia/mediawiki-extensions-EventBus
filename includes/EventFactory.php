@@ -13,6 +13,7 @@ use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\RevisionStore;
 use MediaWiki\Revision\SuppressedDataException;
+use MediaWiki\Storage\RevisionSlots;
 use MediaWiki\User\UserEditTracker;
 use MediaWiki\User\UserGroupManager;
 use MediaWiki\User\UserIdentity;
@@ -223,6 +224,28 @@ class EventFactory {
 			$attrs['rev_parent_id'] = $revision->getParentId();
 		}
 
+		return $attrs;
+	}
+
+	/**
+	 * @param RevisionSlots $slots
+	 * @return array
+	 */
+	private function createSlotRecordsAttrs( RevisionSlots $slots ): array {
+		$attrs = [];
+		foreach ( $slots->getSlots() as $slotRecord ) {
+			$slotAttr = [
+				'rev_slot_content_model' => $slotRecord->getModel(),
+				'rev_slot_sha1' => $slotRecord->getSha1(),
+				'rev_slot_size' => $slotRecord->getSize()
+			];
+			if ( $slotRecord->hasOrigin() ) {
+				// unclear if necessary to guard against missing origin in this context but since it
+				// might fail on unsaved content we are better safe than sorry
+				$slotAttr['rev_slot_origin_rev_id'] = $slotRecord->getOrigin();
+			}
+			$attrs[$slotRecord->getRole()] = $slotAttr;
+		}
 		return $attrs;
 	}
 
@@ -704,7 +727,8 @@ class EventFactory {
 		RevisionRecord $revisionRecord
 	) {
 		$attrs = $this->createRevisionRecordAttrs( $revisionRecord );
-
+		// Only add to revision-create for now
+		$attrs['rev_slots'] = $this->createSlotRecordsAttrs( $revisionRecord->getSlots() );
 		// The parent_revision_id attribute is not required, but when supplied
 		// must have a minimum value of 1, so omit it entirely when there is no
 		// parent revision (i.e. page creation).
