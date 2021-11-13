@@ -820,10 +820,10 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 			"'page_title' incorrect value" );
 		$this->assertArrayHasKey( 'prior_state', $event, "'prior_state' key missing" );
 		$this->assertArrayHasKey( 'page_id', $event['prior_state'], "'page_id' key missing" );
-		$this->assertEquals( $event['prior_state']['page_id'], 1,
+		$this->assertSame( 1, $event['prior_state']['page_id'],
 			"'prior_state/page_id' incorrect value" );
 		$this->assertArrayHasKey( 'comment', $event, "'comment' key missing" );
-		$this->assertEquals( $event['comment'], 'testreason',
+		$this->assertEquals( 'testreason', $event['comment'],
 			"'comment' incorrect value" );
 		$this->assertStream( $event, 'mediawiki.page-undelete' );
 	}
@@ -838,8 +838,8 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$this->assertArrayHasKey( 'tags', $event, "'tags' key missing" );
 		$this->assertArrayHasKey( '0', $event['tags'], "'tags/0' key missing" );
 		$this->assertArrayHasKey( '1', $event['tags'],  "'tags/1' key missing" );
-		$this->assertEquals( $event['tags']['0'], 'tag0', "'tags/0' incorrect value" );
-		$this->assertEquals( $event['tags']['1'], 'tag1', "'tags/1' incorrect value" );
+		$this->assertEquals( 'tag0', $event['tags']['0'], "'tags/0' incorrect value" );
+		$this->assertEquals( 'tag1', $event['tags']['1'], "'tags/1' incorrect value" );
 		$this->assertStream( $event, 'resource_change' );
 	}
 
