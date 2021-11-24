@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Dhallin"
+		]
+	},
+	"eventbus-desc": "Förökar ändra information till en RESTful -evenemangstjänst"
+}
