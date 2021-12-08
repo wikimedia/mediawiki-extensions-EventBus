@@ -413,7 +413,7 @@ class EventBusHooks {
 		} else {
 			$revId = $title->getLatestRevID();
 		}
-		$pageId = $linksUpdate->mId;
+		$pageId = $linksUpdate->getPageId();
 
 		if ( !$arePropsEmpty ) {
 			$stream = 'mediawiki.page-properties-change';
