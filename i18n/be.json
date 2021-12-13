@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"ZlyiLev"
+		]
+	},
+	"eventbus-desc": "Перадае інфармацыю пра змены на RESTful-сэрвіс падзей."
+}
