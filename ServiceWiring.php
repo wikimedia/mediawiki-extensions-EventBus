@@ -41,6 +41,7 @@ return [
 			$services->getTitleFormatter(),
 			$services->getUserGroupManager(),
 			$services->getUserEditTracker(),
+			$services->getWikiPageFactory(),
 			LoggerFactory::getInstance( 'EventBus' )
 		);
 	}

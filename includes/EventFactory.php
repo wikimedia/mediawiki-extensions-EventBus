@@ -10,6 +10,7 @@ use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\Block\Restriction\Restriction;
 use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Linker\LinkTarget;
+use MediaWiki\Page\WikiPageFactory;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\RevisionStore;
 use MediaWiki\Revision\SuppressedDataException;
@@ -25,7 +26,6 @@ use UIDGenerator;
 use User;
 use WebRequest;
 use WikiMap;
-use WikiPage;
 
 /**
  * Used to create events of particular types.
@@ -60,6 +60,9 @@ class EventFactory {
 	/** @var string */
 	private $dbDomain;
 
+	/** @var WikiPageFactory */
+	private $wikiPageFactory;
+
 	/** @var LoggerInterface */
 	private $logger;
 
@@ -71,6 +74,7 @@ class EventFactory {
 	 * @param TitleFormatter $titleFormatter
 	 * @param UserGroupManager $userGroupManager
 	 * @param UserEditTracker $userEditTracker
+	 * @param WikiPageFactory $wikiPageFactory
 	 * @param LoggerInterface $logger
 	 */
 	public function __construct(
@@ -81,6 +85,7 @@ class EventFactory {
 		TitleFormatter $titleFormatter,
 		UserGroupManager $userGroupManager,
 		UserEditTracker $userEditTracker,
+		WikiPageFactory $wikiPageFactory,
 		LoggerInterface $logger
 	) {
 		$serviceOptions->assertRequiredOptions( self::CONSTRUCTOR_OPTIONS );
@@ -91,6 +96,7 @@ class EventFactory {
 		$this->revisionStore = $revisionStore;
 		$this->userGroupManager = $userGroupManager;
 		$this->userEditTracker = $userEditTracker;
+		$this->wikiPageFactory = $wikiPageFactory;
 		$this->logger = $logger;
 	}
 
@@ -602,7 +608,7 @@ class EventFactory {
 		// If a new redirect page was created during this move, then include
 		// some information about it.
 		if ( $redirectPageId ) {
-			$redirectWikiPage = WikiPage::newFromID( $redirectPageId );
+			$redirectWikiPage = $this->wikiPageFactory->newFromID( $redirectPageId );
 			if ( $redirectWikiPage !== null ) {
 				$attrs['new_redirect_page'] = [
 					'page_id' => $redirectPageId,
