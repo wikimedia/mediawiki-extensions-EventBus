@@ -16,6 +16,7 @@ use MediaWiki\Revision\RevisionStore;
 use MediaWiki\Revision\SuppressedDataException;
 use MediaWiki\Storage\RevisionSlots;
 use MediaWiki\User\UserEditTracker;
+use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
 use MediaWiki\User\UserIdentity;
 use MWException;
@@ -23,7 +24,6 @@ use Psr\Log\LoggerInterface;
 use Title;
 use TitleFormatter;
 use UIDGenerator;
-use User;
 use WebRequest;
 use WikiMap;
 
@@ -57,6 +57,9 @@ class EventFactory {
 	/** @var UserEditTracker */
 	private $userEditTracker;
 
+	/** @var UserFactory */
+	private $userFactory;
+
 	/** @var string */
 	private $dbDomain;
 
@@ -75,6 +78,7 @@ class EventFactory {
 	 * @param UserGroupManager $userGroupManager
 	 * @param UserEditTracker $userEditTracker
 	 * @param WikiPageFactory $wikiPageFactory
+	 * @param UserFactory $userFactory
 	 * @param LoggerInterface $logger
 	 */
 	public function __construct(
@@ -86,6 +90,7 @@ class EventFactory {
 		UserGroupManager $userGroupManager,
 		UserEditTracker $userEditTracker,
 		WikiPageFactory $wikiPageFactory,
+		UserFactory $userFactory,
 		LoggerInterface $logger
 	) {
 		$serviceOptions->assertRequiredOptions( self::CONSTRUCTOR_OPTIONS );
@@ -97,6 +102,7 @@ class EventFactory {
 		$this->userGroupManager = $userGroupManager;
 		$this->userEditTracker = $userEditTracker;
 		$this->wikiPageFactory = $wikiPageFactory;
+		$this->userFactory = $userFactory;
 		$this->logger = $logger;
 	}
 
@@ -263,7 +269,7 @@ class EventFactory {
 	 * @return array
 	 */
 	private function createPerformerAttrs( UserIdentity $user ) {
-		$legacyUser = User::newFromIdentity( $user );
+		$legacyUser = $this->userFactory->newFromUserIdentity( $user );
 		$performerAttrs = [
 			'user_text'   => $user->getName(),
 			'user_groups' => $this->userGroupManager->getUserEffectiveGroups( $user ),

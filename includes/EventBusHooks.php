@@ -177,7 +177,7 @@ class EventBusHooks {
 			$oldTitle,
 			$newTitle,
 			$newRevisionRecord,
-			User::newFromIdentity( $userIdentity ),
+			$userIdentity,
 			$reason
 		);
 
