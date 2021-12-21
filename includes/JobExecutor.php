@@ -262,7 +262,7 @@ class JobExecutor {
 		$syncThreshold = $this->config()->get( 'JobSerialCommitThreshold' );
 		$maxWriteDuration = $this->config()->get( 'MaxJobDBWriteDuration' );
 
-		$lb = $lbFactory->getMainLB( wfWikiID() );
+		$lb = $lbFactory->getMainLB();
 		if ( $syncThreshold !== false && $lb->getServerCount() > 1 ) {
 			// Generally, there is one primary connection to the local DB
 			$dbwSerial = $lb->getAnyOpenConnection( $lb->getWriterIndex() );
