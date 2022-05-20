@@ -87,7 +87,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	private function assertStream( $event, $expectedStream ) {
 		$this->assertArrayHasKey( 'meta', $event, "'meta' key missing" );
 		$this->assertArrayHasKey( 'stream', $event['meta'], "'.meta.stream' key missing" );
-		$this->assertEquals( $event['meta']['stream'], $expectedStream,
+		$this->assertEquals( $expectedStream, $event['meta']['stream'],
 			"'.meta.stream' incorrect value" );
 	}
 
