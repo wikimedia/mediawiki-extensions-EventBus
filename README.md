@@ -51,7 +51,7 @@ used in case a stream's `destination_event_service` setting is not provided.
 
 ## EventBus RCFeed
 
-This extension also provides an RCFeedEngine and RCFeedFormatter implementation
+This extension also provides an FormattedRCFeed and RCFeedFormatter implementation
 That will allow RCFeed configuration to post to the EventBus service in the
 `mediawiki.recentchange` topic.  To use,
 add the following to your `LocalSettings.php`:

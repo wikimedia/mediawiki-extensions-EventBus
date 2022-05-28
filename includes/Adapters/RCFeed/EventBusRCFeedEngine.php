@@ -48,7 +48,7 @@ class EventBusRCFeedEngine extends FormattedRCFeed {
 	 * @param string|array $line to send
 	 * @return bool Success
 	 *
-	 * @see RCFeedEngine::send
+	 * @see FormattedRCFeed::send
 	 */
 	public function send( array $feed, $line ) {
 		$eventBus = EventBus::getInstanceForStream( EventBusRCFeedFormatter::STREAM );
