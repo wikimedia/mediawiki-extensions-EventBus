@@ -193,8 +193,7 @@ class EventFactory {
 		if ( $contentFormat === null ) {
 			try {
 				$contentFormat = ContentHandler::getForModelID( $contentModel )->getDefaultFormat();
-			}
-			catch ( MWException $e ) {
+			} catch ( MWException $e ) {
 				// Ignore, the `rev_content_format` is not required.
 			}
 		}
