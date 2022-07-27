@@ -5,7 +5,7 @@ namespace MediaWiki\Extension\EventBus\Adapters\Monolog;
 use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Extension\EventBus\EventBus;
 use Monolog\Handler\AbstractProcessingHandler;
-use Monolog\Logger;
+use Psr\Log\LogLevel;
 
 /**
  * Log handler that supports sending messages to Kafka over
@@ -28,10 +28,10 @@ class EventBusMonologHandler extends AbstractProcessingHandler {
 	 * EventBusHandler constructor.
 	 *
 	 * @param string $eventServiceName the name of the event service to use
-	 * @param int $level The minimum logging level at which this handler will be triggered
+	 * @param int|string $level The minimum logging level at which this handler will be triggered
 	 * @param bool $bubble Whether the messages that are handled can bubble up the stack or not
 	 */
-	public function __construct( $eventServiceName, $level = Logger::DEBUG, $bubble = true ) {
+	public function __construct( $eventServiceName, $level = LogLevel::DEBUG, $bubble = true ) {
 		parent::__construct( $level, $bubble );
 
 		$this->eventBus = EventBus::getInstance( $eventServiceName );
