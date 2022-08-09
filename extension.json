@@ -1,6 +1,6 @@
 {
 	"name": "EventBus",
-	"version": "0.4.0",
+	"version": "0.5.0",
 	"author": [
 		"Eric Evans",
 		"Petr Pchelko",
@@ -39,6 +39,11 @@
 		},
 		"EventBusMaxBatchByteSize": {
 			"value": 4194304
+		},
+		"EventBusStreamNamesMap": {
+			"value": {
+				"mediawiki_page_change": "mediawiki.page_change"
+			}
 		}
 	},
 	"MessagesDirs": {
@@ -46,12 +51,44 @@
 			"i18n"
 		]
 	},
+	"HookHandlers": {
+		"mediawiki_page_change": {
+			"class": "MediaWiki\\Extension\\EventBus\\HookHandlers\\MediaWiki\\PageChangeHooks",
+			"services": [
+				"EventBus.EventBusFactory",
+				"MainConfig",
+				"GlobalIdGenerator",
+				"UserGroupManager",
+				"TitleFormatter",
+				"CommentFormatter",
+				"WikiPageFactory",
+				"UserFactory",
+				"RevisionStore",
+				"ContentHandlerFactory"
+			]
+		}
+	},
 	"Hooks": {
+		"PageSaveComplete": [
+			"MediaWiki\\Extension\\EventBus\\EventBusHooks::onPageSaveComplete",
+			"mediawiki_page_change"
+		],
+		"PageMoveComplete": [
+			"MediaWiki\\Extension\\EventBus\\EventBusHooks::onPageMoveComplete",
+			"mediawiki_page_change"
+		],
 		"ArticleDeleteComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticleDeleteComplete",
-		"ArticleUndelete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticleUndelete",
-		"PageMoveComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onPageMoveComplete",
-		"ArticleRevisionVisibilitySet": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticleRevisionVisibilitySet",
-		"PageSaveComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onPageSaveComplete",
+		"PageDeleteComplete": [
+			"mediawiki_page_change"
+		],
+		"ArticleUndelete": [
+			"mediawiki_page_change"
+		],
+
+		"ArticleRevisionVisibilitySet": [
+			"MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticleRevisionVisibilitySet",
+			"mediawiki_page_change"
+		],
 		"ArticlePurge": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticlePurge",
 		"BlockIpComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onBlockIpComplete",
 		"LinksUpdateComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onLinksUpdateComplete",

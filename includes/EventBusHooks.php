@@ -43,6 +43,11 @@ use UnexpectedValueException;
 use User;
 use WikiPage;
 
+/**
+ * @deprecated since EventBus 0.5.0 Use specific feature based hooks in HookHandlers/,
+ * 	or even better, put them in your own extension instead of in EventBus.
+ *  (e.g. Campaign hooks should move elsewhere.)
+ */
 class EventBusHooks {
 
 	/**
