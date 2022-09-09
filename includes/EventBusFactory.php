@@ -297,7 +297,7 @@ class EventBusFactory {
 		}
 
 		// Else attempt to lookup EVENT_STREAM_CONFIG_SERVICE_SETTING for this stream.
-		$streamConfigEntries = $this->streamConfigs->get( [ $streamName ], true );
+		$streamConfigEntries = $this->streamConfigs->get( [ $streamName ] );
 
 		$streamSettings = $streamConfigEntries[$streamName] ?? [];
 
