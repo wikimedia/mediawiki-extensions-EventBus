@@ -334,6 +334,18 @@ class EventFactory {
 	}
 
 	/**
+	 * Creates an event fragment suitable for the fragment/mediawiki/common schema fragment.
+	 * @param UserIdentity $user
+	 * @return array
+	 */
+	public function createMediaWikiCommonAttrs( UserIdentity $user ): array {
+		return [
+			'database'  => $this->dbDomain,
+			'performer' => $this->createPerformerAttrs( $user ),
+		];
+	}
+
+	/**
 	 * Format a timestamp for a date-time attribute in an event.
 	 *
 	 * @param string $timestamp Timestamp, in a format supported by wfTimestamp()
