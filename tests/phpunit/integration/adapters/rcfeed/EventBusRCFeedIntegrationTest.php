@@ -27,7 +27,10 @@ class EventBusRCFeedIntegrationTest extends MediaWikiIntegrationTestCase {
 			],
 			'wgEventServices' => [
 				'test_eventbus_instance' => [
-					'url' => '/test_url'
+					'url' => 'http://test_event_bus_instance/test_url'
+				],
+				'eventbus' => [
+					'url' => 'http://eventbus/test_url'
 				]
 			]
 		] );

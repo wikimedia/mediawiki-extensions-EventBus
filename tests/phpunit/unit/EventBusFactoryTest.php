@@ -12,7 +12,7 @@ use Wikimedia\TestingAccessWrapper;
  */
 class EventBusFactoryTest extends MediaWikiUnitTestCase {
 
-	private const DEFAULT_MW_CONFIG = [
+	private const MW_CONFIG = [
 		'EnableEventBus' => 'TYPE_ALL',
 		'EventServiceDefault' => 'intake-main',
 		'EventServices' => [
@@ -23,17 +23,30 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 			],
 		],
 		'EventStreamsDefaultSettings' => [],
-		'EventBusMaxBatchByteSize' => 1000000
+		'EventBusMaxBatchByteSize' => 1000000,
+		'EventStreams' => [
+			'other_stream' => [
+				'stream' => 'other_stream',
+				'destination_event_service' => 'intake-other'
+			],
+			'stream_without_destination_event_service' => [
+				'stream' => 'stream_without_destination_event_service'
+			],
+			'stream_with_undefined_event_service' => [
+				'stream' => 'stream_with_undefined_event_service',
+				'destination_event_service' => 'undefined_event_service'
+			],
+		],
 	];
 
-	private function getEventBusFactory( array $mwConfig ): EventBusFactory {
+	private function getEventBusFactory(
+		array $mwConfig,
+		$useStreamConfigs = false
+	): EventBusFactory {
 		$logger = new NullLogger();
 
 		// EventBus behavior is different if EventStreamConfig is loaded.
-		if (
-			array_key_exists( 'EventStreams', $mwConfig ) &&
-			ExtensionRegistry::getInstance()->isLoaded( 'EventStreamConfig' )
-		) {
+		if ( $useStreamConfigs ) {
 			$streamConfigsOptions = new ServiceOptions(
 				StreamConfigs::CONSTRUCTOR_OPTIONS,
 				$mwConfig
@@ -51,14 +64,14 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 			$streamConfigs,
 			$this->createNoOpMock( EventFactory::class ),
 			$this->createNoOpMock( MultiHttpClient::class ),
-			new NullLogger()
+			$logger
 		);
 	}
 
 	public function provideGetInstance() {
 		yield 'non existent event service name' => [
 			'nonexistent',
-			self::DEFAULT_MW_CONFIG,
+			self::MW_CONFIG,
 			// Expected: throw InvalidArgumentException
 			null
 		];
@@ -66,7 +79,7 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 		yield 'existent service name, no url set' => [
 			'testbus',
 			array_merge_recursive(
-				self::DEFAULT_MW_CONFIG, [ 'EventServices' => [ 'intake-no-url' => [] ] ]
+				self::MW_CONFIG, [ 'EventServices' => [ 'intake-no-url' => [] ] ]
 			),
 			// Expected: throw InvalidArgumentException
 			null
@@ -74,7 +87,7 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 
 		yield 'existing specific event service name' => [
 			'intake-other',
-			self::DEFAULT_MW_CONFIG,
+			self::MW_CONFIG,
 			'http://intake.other'
 		];
 	}
@@ -104,84 +117,69 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 	}
 
 	public function provideGetInstanceForStream() {
-		$mwConfigWithEventStreams = array_merge_recursive(
-			self::DEFAULT_MW_CONFIG,
-			[
-				'EventStreams' => [
-					'other_stream' => [
-						'stream' => 'other_stream',
-						'destination_event_service' => 'intake-other'
-					],
-					'stream_without_destination_event_service' => [
-						'stream' => 'stream_without_destination_event_service'
-					],
-					'stream_with_undefined_event_service' => [
-						'stream' => 'stream_with_undefined_event_service',
-						'destination_event_service' => 'undefined_event_service'
-					],
-				]
-			]
-		);
-
-		// Expected results are different if EventStreamConfig is loaded vs when not loaded.
-		$defaultEventServiceUrl = self::DEFAULT_MW_CONFIG['EventServices'][
-			self::DEFAULT_MW_CONFIG['EventServiceDefault']
-		]['url'];
-		if ( ExtensionRegistry::getInstance()->isLoaded( 'EventStreamConfig' ) ) {
-			$expectedEventServiceUrls = [
-				'default' => $defaultEventServiceUrl,
-				'intake-main' => self::DEFAULT_MW_CONFIG['EventServices']['intake-main']['url'],
-				'intake-other' => self::DEFAULT_MW_CONFIG['EventServices']['intake-other']['url'],
-				'InvalidArgumentException' => null,
-			];
-		} else {
-			// If no EventStreamConfig extension, EventBus will always use EventServiceDefault
-			$expectedEventServiceUrls = [
-				'default' => $defaultEventServiceUrl,
-				'intake-main' => $defaultEventServiceUrl,
-				'intake-other' => $defaultEventServiceUrl,
-				'InvalidArgumentException' => $defaultEventServiceUrl,
-			];
-		}
-
-		yield 'default event service if no EventStreams configuration' => [
-			'my_stream',
-			self::DEFAULT_MW_CONFIG,
-			// expected:
-			$expectedEventServiceUrls['default'],
-			false
-		];
-
-		yield 'default event service if no destination_event_service for this configured stream' => [
+		yield 'default event service if no destination_event_service for stream' => [
 			'stream_without_destination_event_service',
-			$mwConfigWithEventStreams,
+			false,
 			// expected:
-			$expectedEventServiceUrls['default'],
+			'http://intake.main',
 			false
 		];
 
-		yield 'default event service if no stream config for this stream' => [
+		yield 'default event service if no stream config' => [
 			'my_stream',
-			$mwConfigWithEventStreams,
+			false,
 			// expected:
-			$expectedEventServiceUrls['default'],
-			false
+			'http://intake.main',
+			false,
 		];
 
 		yield 'specific destination_event_service' => [
 			'other_stream',
-			$mwConfigWithEventStreams,
+			false,
 			// expected:
-			$expectedEventServiceUrls['intake-other'],
-			ExtensionRegistry::getInstance()->isLoaded( 'EventStreamConfig' )
+			'http://intake.main',
+			false,
 		];
 
-		yield 'undefined destination_event_service in EventServices' => [
+		yield 'undefined destination_event_service' => [
 			'stream_with_undefined_event_service',
-			$mwConfigWithEventStreams,
-			// expected: null -> throws InvalidArgumentException
-			$expectedEventServiceUrls['InvalidArgumentException'],
+			false,
+			// expected:
+			'http://intake.main',
 			false
+		];
+
+		yield 'default event service if no destination_event_service for stream (w/ EventStreamConfig)' => [
+			'stream_without_destination_event_service',
+			true,
+			// expected:
+			'http://intake.main',
+			false
+		];
+
+		yield 'default event service if no stream config (w/ EventStreamConfig)' => [
+			'my_stream',
+			true,
+			// expected:
+			'http://intake.main',
+			false,
+		];
+
+		yield 'specific destination_event_service (w/ EventStreamConfig)' => [
+			'other_stream',
+			true,
+			// expected:
+			'http://intake.other',
+			true,
+		];
+
+		yield 'undefined destination_event_service (w/ EventStreamConfig)' => [
+			'stream_with_undefined_event_service',
+			true,
+			// expected:
+			// null -> expected InvalidArgumentException
+			null,
+			null,
 		];
 	}
 
@@ -189,26 +187,46 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 	 * @covers \MediaWiki\Extension\EventBus\EventBusFactory::getInstanceForStream
 	 * @dataProvider provideGetInstanceForStream
 	 * @param string $streamName
-	 * @param array $mwConfig
+	 * @param bool $useStreamConfigs
 	 * @param string|null $expectedUrl - expected EventBus instance url.
 	 *   If null - expect InvalidArgumentException
-	 * @param bool $forwardXClientIP
+	 * @param bool|null $forwardXClientIP
 	 */
 	public function testGetInstanceForStream(
 		string $streamName,
-		array $mwConfig,
+		bool $useStreamConfigs,
 		?string $expectedUrl,
-		bool $forwardXClientIP
+		?bool $forwardXClientIP
 	) {
+		if (
+			$useStreamConfigs &&
+			!ExtensionRegistry::getInstance()->isLoaded( 'EventStreamConfig' )
+		) {
+			$this->markTestSkipped( 'EventStreamConfig is not loaded.' );
+
+			return;
+		}
+
 		if ( !$expectedUrl ) {
 			$this->expectException( InvalidArgumentException::class );
 		}
-		$factory = $this->getEventBusFactory( $mwConfig );
+		$factory = $this->getEventBusFactory( self::MW_CONFIG, $useStreamConfigs );
 		$instance = $factory->getInstanceForStream( $streamName );
 		$instance = TestingAccessWrapper::newFromObject( $instance );
-		if ( $expectedUrl ) {
-			$this->assertSame( $expectedUrl, $instance->url );
-		}
+
+		$this->assertSame( $expectedUrl, $instance->url );
 		$this->assertSame( $forwardXClientIP, $instance->forwardXClientIP );
+	}
+
+	public function testGetInstanceForStreamNoEventStreams() {
+		$mwConfigWithoutEventStreams = self::MW_CONFIG;
+		unset( $mwConfigWithoutEventStreams['EventStreams'] );
+
+		$factory = $this->getEventBusFactory( $mwConfigWithoutEventStreams );
+		$instance = $factory->getInstanceForStream( 'my_stream' );
+		$instance = TestingAccessWrapper::newFromObject( $instance );
+
+		$this->assertSame( 'http://intake.main', $instance->url );
+		$this->assertSame( false, $instance->forwardXClientIP );
 	}
 }
