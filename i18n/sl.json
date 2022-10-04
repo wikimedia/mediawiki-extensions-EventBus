@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Eleassar"
+		]
+	},
+	"eventbus-desc": "Posreduje informacije o spremembah storitvi dogodkov RESTful"
+}
