@@ -3,6 +3,7 @@ use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\EventFactory;
 use MediaWiki\Extension\EventStreamConfig\StreamConfigs;
+
 use Psr\Log\NullLogger;
 use Wikimedia\TestingAccessWrapper;
 
@@ -35,6 +36,15 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 			'stream_with_undefined_event_service' => [
 				'stream' => 'stream_with_undefined_event_service',
 				'destination_event_service' => 'undefined_event_service'
+			],
+			'disabled_stream' => [
+				'stream' => 'disabled_stream',
+				'destination_event_service' => 'intake-other',
+				'producers' => [
+					EventBusFactory::EVENT_STREAM_CONFIG_PRODUCER_NAME => [
+						EventBusFactory::EVENT_STREAM_CONFIG_ENABLED_SETTING => false
+					]
+				],
 			],
 		],
 	];
@@ -157,14 +167,6 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 			false
 		];
 
-		yield 'default event service if no stream config (w/ EventStreamConfig)' => [
-			'my_stream',
-			true,
-			// expected:
-			'http://intake.main',
-			false,
-		];
-
 		yield 'specific destination_event_service (w/ EventStreamConfig)' => [
 			'other_stream',
 			true,
@@ -180,6 +182,24 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 			// null -> expected InvalidArgumentException
 			null,
 			null,
+		];
+
+		yield 'explicitly disabled stream (w/ EventStreamConfig)' => [
+			'disabled_stream',
+			true,
+			// expected:
+			// dummy url is set to same as disabld instance name.
+			EventBusFactory::EVENT_SERVICE_DISABLED_NAME,
+			false
+		];
+
+		yield 'undeclared stream (w/ EventStreamConfig)' => [
+			'undeclared_stream',
+			true,
+			// expected:
+			// dummy url is set to same as disabld instance name.
+			EventBusFactory::EVENT_SERVICE_DISABLED_NAME,
+			false
 		];
 	}
 
