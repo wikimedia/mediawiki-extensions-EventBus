@@ -59,13 +59,13 @@ class EventBusFactory {
 	public const EVENT_STREAM_CONFIG_ENABLED_SETTING = 'enabled';
 
 	/**
-	 * Key in wgEventStreams that specifies
+	 * Key in wgEventStreams['stream_name']['producers'][EVENT_STREAM_CONFIG_PRODUCER_NAME] that specifies
 	 * the event service name that should be used for a specific stream.
+	 * This should be a key into $eventServiceConfig, which usually is configured
+	 * using the EventBus MW config wgEventServices.
 	 * If not found via StreamConfigs, EventServiceDefault will be used.
-	 * TODO: This should be moved into
-	 *       wgEventStreams['stream_name']['producers'][EVENT_STREAM_CONFIG_PRODUCER_NAME]
 	 */
-	public const EVENT_STREAM_CONFIG_SERVICE_SETTING = 'destination_event_service';
+	public const EVENT_STREAM_CONFIG_SERVICE_SETTING = 'event_service_name';
 
 	/**
 	 * Internal name of an EventBus instance that never sends events.
@@ -214,11 +214,14 @@ class EventBusFactory {
 
 	/**
 	 * Gets an EventBus instance for a $stream.
-	 * If EventStreamConfig is not used, or if the stream is configured but
-	 * does not set destination_event_service, EventServiceDefault.
-	 * Unless, the stream is undeclared in stream config or is explicitly disabled
-	 * by setting enabled=>false.  In that case, a disabled/non-producing EventBus
-	 * will be used.
+	 *
+	 * If EventStreamConfig is not configured, or if the stream is configured but
+	 * does not set ['producers']['mediawiki_eventbus'][EVENT_STREAM_CONFIG_SERVICE_SETTING],
+	 * EventServiceDefault will be used.
+	 *
+	 * If EventStreamConfig is configured, but the stream is not or the stream has
+	 * ['producers']['mediawiki_eventbus']['enabled'] = false, this will return
+	 * a non-producing EventBus instance.
 	 *
 	 * @param string $streamName the stream to send an event to
 	 * @return EventBus
@@ -271,15 +274,17 @@ class EventBusFactory {
 		}
 
 		$streamSettings = $streamConfigEntries[$streamName];
+
 		return $streamSettings['producers'][
 			self::EVENT_STREAM_CONFIG_PRODUCER_NAME
 		][self::EVENT_STREAM_CONFIG_ENABLED_SETTING] ?? true;
 	}
 
 	/**
-	 * Looks up the destination_event_service setting for this stream.
-	 * If wgEventStreams is not set, or if the stream is not configured,
-	 * or if the stream does not have destination_event_service set,
+	 * Looks up the wgEventStreams[$streamName]['producers']['mediawiki_eventbus'][EVENT_STREAM_CONFIG_SERVICE_SETTING]
+	 * setting for this stream.
+	 * If wgEventStreams is not configured, or if the stream is not configured in wgEventStreams,
+	 * or if the stream does not have EVENT_STREAM_CONFIG_SERVICE_SETTING set,
 	 * then this will return null.
 	 *
 	 * @param string $streamName
@@ -295,6 +300,16 @@ class EventBusFactory {
 		$streamConfigEntries = $this->streamConfigs->get( [ $streamName ], true );
 
 		$streamSettings = $streamConfigEntries[$streamName] ?? [];
-		return $streamSettings[self::EVENT_STREAM_CONFIG_SERVICE_SETTING] ?? null;
+
+		$eventServiceName = $streamSettings['producers'][
+			self::EVENT_STREAM_CONFIG_PRODUCER_NAME
+		][self::EVENT_STREAM_CONFIG_SERVICE_SETTING] ?? null;
+
+		// For backwards compatibility, the event service name setting used to be a top level
+		// stream setting 'destination_event_service'. If EVENT_STREAM_CONFIG_SERVICE_SETTING, use it instead.
+		// This can be removed once all streams have been migrated to using the
+		// producers.mediawiki_eventbus specific setting.
+		// https://phabricator.wikimedia.org/T321557
+		return $eventServiceName ?: $streamSettings['destination_event_service'] ?? null;
 	}
 }

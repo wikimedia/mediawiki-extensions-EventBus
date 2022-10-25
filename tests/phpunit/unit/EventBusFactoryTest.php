@@ -28,15 +28,22 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 		'EventStreams' => [
 			'other_stream' => [
 				'stream' => 'other_stream',
-				'destination_event_service' => 'intake-other'
+				'producers' => [
+					EventBusFactory::EVENT_STREAM_CONFIG_PRODUCER_NAME => [
+						EventBusFactory::EVENT_STREAM_CONFIG_SERVICE_SETTING => 'intake-other',
+					]
+				],
 			],
 			'stream_without_destination_event_service' => [
 				'stream' => 'stream_without_destination_event_service'
 			],
 			'stream_with_undefined_event_service' => [
 				'stream' => 'stream_with_undefined_event_service',
-				'destination_event_service' => 'undefined_event_service'
-			],
+				'producers' => [
+					EventBusFactory::EVENT_STREAM_CONFIG_PRODUCER_NAME => [
+						EventBusFactory::EVENT_STREAM_CONFIG_SERVICE_SETTING => 'undefined_event_service',
+					]
+				], ],
 			'disabled_stream' => [
 				'stream' => 'disabled_stream',
 				'destination_event_service' => 'intake-other',
@@ -45,6 +52,11 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 						EventBusFactory::EVENT_STREAM_CONFIG_ENABLED_SETTING => false
 					]
 				],
+			],
+			// This can be removed after https://phabricator.wikimedia.org/T321557
+			'stream_with_destination_event_service_backwards_compatible_setting' => [
+				'stream' => 'stream_with_destination_event_service_backwards_compatible_setting',
+				'destination_event_service' => 'intake-main'
 			],
 		],
 	];
@@ -200,6 +212,15 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 			// dummy url is set to same as disabld instance name.
 			EventBusFactory::EVENT_SERVICE_DISABLED_NAME,
 			false
+		];
+
+		// This can be removed after https://phabricator.wikimedia.org/T321557
+		yield 'backwards compatible destination_event_service setting' => [
+			'stream_with_destination_event_service_backwards_compatible_setting',
+			true,
+			// expected:
+			'http://intake.main',
+			false,
 		];
 	}
 
