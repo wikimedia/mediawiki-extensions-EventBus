@@ -262,7 +262,7 @@ class EventBus {
 					'service_response' => $res,
 					'exception' => new Exception(),
 				];
-				self::logger()->error( "Unable to deliver all events: ${message}", $context );
+				self::logger()->error( "Unable to deliver all events: {$message}", $context );
 
 				$results[] = "Unable to deliver all events: $message";
 			}
