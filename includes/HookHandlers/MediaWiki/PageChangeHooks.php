@@ -367,6 +367,23 @@ class PageChangeHooks implements
 				RevisionStore::READ_LATEST
 			);
 
+			if ( $revisionRecord === null ) {
+				$this->logger->warning(
+					'revision ' . $revId . ' for page ' . $title->getId() .
+					' could not be loaded from database and may have been deleted.' .
+					' Cannot create visibility change event for ' . $this->streamName . '.'
+				);
+				continue;
+			} elseif ( !array_key_exists( $revId, $visibilityChangeMap ) ) {
+				// This should not happen, log it.
+				$this->logger->error(
+					'revision ' . $revId . ' for page ' . $title->getId() .
+					' not found in visibilityChangeMap.' .
+					' Cannot create visibility change event for ' . $this->streamName . '.'
+				);
+				continue;
+			}
+
 			// If this is the current revision of the page,
 			// then we need to represent the fact that the visibility
 			// properties of the current state of the page has changed.
@@ -375,13 +392,14 @@ class PageChangeHooks implements
 
 				$visibilityChanges = $visibilityChangeMap[$revId];
 
-				// current revision's visibility should be the same as we are given in $visibilityChanges['newBits'].
-				// Just in case, assert that this is true.
+				// current revision's visibility should be the same as we are given in
+				// $visibilityChanges['newBits']. Just in case, assert that this is true.
 				if ( $revisionRecord->getVisibility() != $visibilityChanges['newBits'] ) {
 					throw new InvalidArgumentException(
 						"Current revision $revId's' visibility did not match the expected " .
 						'visibility change provided by hook. Current revision visibility is ' .
-						$revisionRecord->getVisibility() . '. visibility changed to ' . $visibilityChanges['newBits']
+						$revisionRecord->getVisibility() . '. visibility changed to ' .
+						$visibilityChanges['newBits']
 					);
 				}
 
