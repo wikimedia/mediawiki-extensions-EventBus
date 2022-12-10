@@ -5,9 +5,9 @@ namespace MediaWiki\Extension\EventBus;
 use ContentHandler;
 use IJobSpecification;
 use Language;
-use Linker;
 use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\Block\Restriction\Restriction;
+use MediaWiki\CommentFormatter\CommentFormatter;
 use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Page\WikiPageFactory;
@@ -69,6 +69,9 @@ class EventFactory {
 	/** @var WikiPageFactory */
 	private $wikiPageFactory;
 
+	/** @var CommentFormatter */
+	private $commentFormatter;
+
 	/** @var LoggerInterface */
 	private $logger;
 
@@ -82,6 +85,7 @@ class EventFactory {
 	 * @param UserEditTracker $userEditTracker
 	 * @param WikiPageFactory $wikiPageFactory
 	 * @param UserFactory $userFactory
+	 * @param CommentFormatter $commentFormatter
 	 * @param LoggerInterface $logger
 	 */
 	public function __construct(
@@ -94,6 +98,7 @@ class EventFactory {
 		UserEditTracker $userEditTracker,
 		WikiPageFactory $wikiPageFactory,
 		UserFactory $userFactory,
+		CommentFormatter $commentFormatter,
 		LoggerInterface $logger
 	) {
 		$serviceOptions->assertRequiredOptions( self::CONSTRUCTOR_OPTIONS );
@@ -106,6 +111,7 @@ class EventFactory {
 		$this->userEditTracker = $userEditTracker;
 		$this->wikiPageFactory = $wikiPageFactory;
 		$this->userFactory = $userFactory;
+		$this->commentFormatter = $commentFormatter;
 		$this->logger = $logger;
 	}
 
@@ -228,7 +234,7 @@ class EventFactory {
 
 		if ( $revision->getComment() !== null && strlen( $revision->getComment()->text ) ) {
 			$attrs['comment'] = $revision->getComment()->text;
-			$attrs['parsedcomment'] = Linker::formatComment( $revision->getComment()->text );
+			$attrs['parsedcomment'] = $this->commentFormatter->format( $revision->getComment()->text );
 		}
 
 		// The rev_parent_id attribute is not required, but when supplied
@@ -508,7 +514,7 @@ class EventFactory {
 
 		if ( $reason !== null && strlen( $reason ) ) {
 			$attrs['comment'] = $reason;
-			$attrs['parsedcomment'] = Linker::formatComment( $reason, $title );
+			$attrs['parsedcomment'] = $this->commentFormatter->format( $reason, $title );
 		}
 
 		return $this->createEvent(
@@ -565,7 +571,7 @@ class EventFactory {
 
 		if ( $comment !== null && strlen( $comment ) ) {
 			$attrs['comment'] = $comment;
-			$attrs['parsedcomment'] = Linker::formatComment( $comment, $title );
+			$attrs['parsedcomment'] = $this->commentFormatter->format( $comment, $title );
 		}
 
 		return $this->createEvent(
@@ -644,7 +650,7 @@ class EventFactory {
 
 		if ( $reason !== null && strlen( $reason ) ) {
 			$attrs['comment'] = $reason;
-			$attrs['parsedcomment'] = Linker::formatComment( $reason, $newTitle );
+			$attrs['parsedcomment'] = $this->commentFormatter->format( $reason, $newTitle );
 		}
 
 		return $this->createEvent(
@@ -1036,7 +1042,7 @@ class EventFactory {
 	 */
 	public function createRecentChangeEvent( $stream, LinkTarget $title, $attrs ) {
 		if ( isset( $attrs['comment'] ) ) {
-			$attrs['parsedcomment'] = Linker::formatComment( $attrs['comment'], $title );
+			$attrs['parsedcomment'] = $this->commentFormatter->format( $attrs['comment'], $title );
 		}
 
 		$event = $this->createEvent(

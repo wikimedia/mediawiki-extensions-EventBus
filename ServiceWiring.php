@@ -43,6 +43,7 @@ return [
 			$services->getUserEditTracker(),
 			$services->getWikiPageFactory(),
 			$services->getUserFactory(),
+			$services->getCommentFormatter(),
 			LoggerFactory::getInstance( 'EventBus' )
 		);
 	}
