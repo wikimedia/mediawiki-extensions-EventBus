@@ -2,13 +2,13 @@
 
 namespace MediaWiki\Extension\EventBus;
 
-use ContentHandler;
 use IJobSpecification;
 use Language;
 use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\Block\Restriction\Restriction;
 use MediaWiki\CommentFormatter\CommentFormatter;
 use MediaWiki\Config\ServiceOptions;
+use MediaWiki\Content\IContentHandlerFactory;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Page\WikiPageFactory;
 use MediaWiki\Revision\RevisionRecord;
@@ -72,6 +72,9 @@ class EventFactory {
 	/** @var CommentFormatter */
 	private $commentFormatter;
 
+	/** @var IContentHandlerFactory */
+	private $contentHandlerFactory;
+
 	/** @var LoggerInterface */
 	private $logger;
 
@@ -86,6 +89,7 @@ class EventFactory {
 	 * @param WikiPageFactory $wikiPageFactory
 	 * @param UserFactory $userFactory
 	 * @param CommentFormatter $commentFormatter
+	 * @param IContentHandlerFactory $contentHandlerFactory
 	 * @param LoggerInterface $logger
 	 */
 	public function __construct(
@@ -99,6 +103,7 @@ class EventFactory {
 		WikiPageFactory $wikiPageFactory,
 		UserFactory $userFactory,
 		CommentFormatter $commentFormatter,
+		IContentHandlerFactory $contentHandlerFactory,
 		LoggerInterface $logger
 	) {
 		$serviceOptions->assertRequiredOptions( self::CONSTRUCTOR_OPTIONS );
@@ -112,6 +117,7 @@ class EventFactory {
 		$this->wikiPageFactory = $wikiPageFactory;
 		$this->userFactory = $userFactory;
 		$this->commentFormatter = $commentFormatter;
+		$this->contentHandlerFactory = $contentHandlerFactory;
 		$this->logger = $logger;
 	}
 
@@ -201,7 +207,7 @@ class EventFactory {
 		$contentFormat = $revision->getSlot( 'main' )->getFormat();
 		if ( $contentFormat === null ) {
 			try {
-				$contentFormat = ContentHandler::getForModelID( $contentModel )->getDefaultFormat();
+				$contentFormat = $this->contentHandlerFactory->getContentHandler( $contentModel )->getDefaultFormat();
 			} catch ( MWException $e ) {
 				// Ignore, the `rev_content_format` is not required.
 			}

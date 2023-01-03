@@ -44,6 +44,7 @@ return [
 			$services->getWikiPageFactory(),
 			$services->getUserFactory(),
 			$services->getCommentFormatter(),
+			$services->getContentHandlerFactory(),
 			LoggerFactory::getInstance( 'EventBus' )
 		);
 	}
