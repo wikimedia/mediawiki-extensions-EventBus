@@ -14,6 +14,7 @@ use MediaWiki\Page\WikiPageFactory;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\RevisionSlots;
 use MediaWiki\Revision\RevisionStore;
+use MediaWiki\Revision\SlotRecord;
 use MediaWiki\Revision\SuppressedDataException;
 use MediaWiki\User\UserEditTracker;
 use MediaWiki\User\UserFactory;
@@ -196,9 +197,9 @@ class EventFactory {
 			'rev_len'            => $revision->getSize(),
 		];
 
-		$attrs['rev_content_model'] = $contentModel = $revision->getSlot( 'main' )->getModel();
+		$attrs['rev_content_model'] = $contentModel = $revision->getSlot( SlotRecord::MAIN )->getModel();
 
-		$contentFormat = $revision->getSlot( 'main' )->getFormat();
+		$contentFormat = $revision->getSlot( SlotRecord::MAIN )->getFormat();
 		if ( $contentFormat === null ) {
 			try {
 				$contentFormat = ContentHandler::getForModelID( $contentModel )->getDefaultFormat();
@@ -222,7 +223,7 @@ class EventFactory {
 		// has its content hidden.
 		// TODO: In MCR Content::isRedirect should not be used to derive a redirect directly.
 		try {
-			$content = $revision->getContent( 'main' );
+			$content = $revision->getContent( SlotRecord::MAIN );
 			if ( $content !== null ) {
 				$attrs['page_is_redirect'] = $content->isRedirect();
 			} else {
@@ -604,7 +605,7 @@ class EventFactory {
 		// TODO: In MCR Content::isRedirect should not be used to derive a redirect directly.
 		$newPageIsRedirect = false;
 		try {
-			$content = $newRevision->getContent( 'main' );
+			$content = $newRevision->getContent( SlotRecord::MAIN );
 			if ( $content !== null ) {
 				$newPageIsRedirect = $content->isRedirect();
 			}

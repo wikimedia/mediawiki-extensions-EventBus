@@ -69,7 +69,7 @@ class RevisionSlotEntitySerializerTest extends MediaWikiUnitTestCase {
 			$contentHandlerFactory
 		);
 
-		$baseCaseSlotRecord = SlotRecord::newUnsaved( 'main', $content );
+		$baseCaseSlotRecord = SlotRecord::newUnsaved( SlotRecord::MAIN, $content );
 		$baseCaseExpected = [
 			'slot_role' => $baseCaseSlotRecord->getRole(),
 			'content_model' => 'text',

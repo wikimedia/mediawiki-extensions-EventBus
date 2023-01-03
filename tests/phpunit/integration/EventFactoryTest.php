@@ -68,7 +68,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$this->assertCount( 2, $event['rev_slots'] );
 		$this->assertArrayEquals(
 			[
-				'main' => [
+				SlotRecord::MAIN => [
 					'rev_slot_content_model' => 'wikitext',
 					'rev_slot_sha1' => 'a3kvjf7vqh9qchzi5sl1q87q9hx48pk',
 					'rev_slot_size' => 12
