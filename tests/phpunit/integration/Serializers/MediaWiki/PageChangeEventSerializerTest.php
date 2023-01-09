@@ -507,6 +507,9 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			$wikiPage0->getRevisionRecord(),
 			$wikiPage0->getRevisionRecord()->getSlots()->getSlots()
 		);
+		# Use whatever timestamp just to have a consistent timestamp.
+		$revisionRecord->setTimestamp( $eventTimestamp );
+
 		$revisionRecord->setVisibility( RevisionRecord::DELETED_COMMENT | RevisionRecord::DELETED_USER );
 		$newDeleted = $revisionRecord->getVisibility();
 
