@@ -70,8 +70,10 @@ class EventFactory {
 	/** @var WikiPageFactory */
 	private $wikiPageFactory;
 
-	/** @var CommentFormatter */
-	private $commentFormatter;
+	/**
+	 * @var CommentFormatter|null Will be null when in a MW_NO_SESSION context.
+	 */
+	private ?CommentFormatter $commentFormatter = null;
 
 	/** @var IContentHandlerFactory */
 	private $contentHandlerFactory;
@@ -89,7 +91,7 @@ class EventFactory {
 	 * @param UserEditTracker $userEditTracker
 	 * @param WikiPageFactory $wikiPageFactory
 	 * @param UserFactory $userFactory
-	 * @param CommentFormatter $commentFormatter
+	 * @param CommentFormatter|null $commentFormatter
 	 * @param IContentHandlerFactory $contentHandlerFactory
 	 * @param LoggerInterface $logger
 	 */
@@ -103,7 +105,7 @@ class EventFactory {
 		UserEditTracker $userEditTracker,
 		WikiPageFactory $wikiPageFactory,
 		UserFactory $userFactory,
-		CommentFormatter $commentFormatter,
+		?CommentFormatter $commentFormatter,
 		IContentHandlerFactory $contentHandlerFactory,
 		LoggerInterface $logger
 	) {
@@ -241,7 +243,9 @@ class EventFactory {
 
 		if ( $revision->getComment() !== null && strlen( $revision->getComment()->text ) ) {
 			$attrs['comment'] = $revision->getComment()->text;
-			$attrs['parsedcomment'] = $this->commentFormatter->format( $revision->getComment()->text );
+			if ( $this->commentFormatter ) {
+				$attrs['parsedcomment'] = $this->commentFormatter->format( $revision->getComment()->text );
+			}
 		}
 
 		// The rev_parent_id attribute is not required, but when supplied
@@ -521,7 +525,9 @@ class EventFactory {
 
 		if ( $reason !== null && strlen( $reason ) ) {
 			$attrs['comment'] = $reason;
-			$attrs['parsedcomment'] = $this->commentFormatter->format( $reason, $title );
+			if ( $this->commentFormatter ) {
+				$attrs['parsedcomment'] = $this->commentFormatter->format( $reason, $title );
+			}
 		}
 
 		return $this->createEvent(
@@ -578,7 +584,9 @@ class EventFactory {
 
 		if ( $comment !== null && strlen( $comment ) ) {
 			$attrs['comment'] = $comment;
-			$attrs['parsedcomment'] = $this->commentFormatter->format( $comment, $title );
+			if ( $this->commentFormatter ) {
+				$attrs['parsedcomment'] = $this->commentFormatter->format( $comment, $title );
+			}
 		}
 
 		return $this->createEvent(
@@ -657,7 +665,9 @@ class EventFactory {
 
 		if ( $reason !== null && strlen( $reason ) ) {
 			$attrs['comment'] = $reason;
-			$attrs['parsedcomment'] = $this->commentFormatter->format( $reason, $newTitle );
+			if ( $this->commentFormatter ) {
+				$attrs['parsedcomment'] = $this->commentFormatter->format( $reason, $newTitle );
+			}
 		}
 
 		return $this->createEvent(
@@ -1048,7 +1058,7 @@ class EventFactory {
 	 * @return array
 	 */
 	public function createRecentChangeEvent( $stream, LinkTarget $title, $attrs ) {
-		if ( isset( $attrs['comment'] ) ) {
+		if ( isset( $attrs['comment'] ) && $this->commentFormatter ) {
 			$attrs['parsedcomment'] = $this->commentFormatter->format( $attrs['comment'], $title );
 		}
 
