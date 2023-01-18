@@ -467,6 +467,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	}
 
 	public function testPageMoveEvent() {
+		/** @var EventFactory $eventFactory */
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createPageMoveEvent(
 			'mediawiki.page-move',
@@ -974,6 +975,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	}
 
 	public function testCreateRecentChangeEvent() {
+		/** @var EventFactory $eventFactory */
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createRecentChangeEvent(
 			'mediawiki.recentchange',

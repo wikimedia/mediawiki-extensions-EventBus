@@ -71,7 +71,7 @@ class EventSerializer {
 	}
 
 	/**
-	 * Formats the comment about $linkTarget using $this->>commentFormatter
+	 * Formats the comment about $linkTarget using $this->commentFormatter
 	 * Helper function for formatting comments.
 	 *
 	 * @param string $comment

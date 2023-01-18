@@ -43,7 +43,7 @@ return [
 			$services->getUserEditTracker(),
 			$services->getWikiPageFactory(),
 			$services->getUserFactory(),
-			$services->getCommentFormatter(),
+			defined( 'MW_NO_SESSION' ) ? null : $services->getCommentFormatter(),
 			$services->getContentHandlerFactory(),
 			LoggerFactory::getInstance( 'EventBus' )
 		);

@@ -87,7 +87,9 @@ class RevisionEntitySerializer {
 		// left by the editor.
 		if ( $revisionRecord->getComment() !== null ) {
 			$revAttrs['comment'] = $revisionRecord->getComment()->text;
-			$revAttrs['comment_html'] = $this->formatComment( $revisionRecord );
+			if ( $this->commentFormatter ) {
+				$revAttrs['comment_html'] = $this->formatComment( $revisionRecord );
+			}
 		}
 
 		if ( $revisionRecord->getUser() ) {
