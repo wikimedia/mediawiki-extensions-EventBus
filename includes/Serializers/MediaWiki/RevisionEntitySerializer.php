@@ -20,7 +20,6 @@
  */
 namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
-use MediaWiki\CommentFormatter\CommentFormatter;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\RevisionSlots;
@@ -42,22 +41,14 @@ class RevisionEntitySerializer {
 	private UserEntitySerializer $userEntitySerializer;
 
 	/**
-	 * @var CommentFormatter
-	 */
-	private CommentFormatter $commentFormatter;
-
-	/**
 	 * @param RevisionSlotEntitySerializer $contentEntitySerializer
 	 * @param UserEntitySerializer $userEntitySerializer
-	 * @param CommentFormatter $commentFormatter
 	 */
 	public function __construct(
 		RevisionSlotEntitySerializer $contentEntitySerializer,
-		UserEntitySerializer $userEntitySerializer,
-		CommentFormatter $commentFormatter
+		UserEntitySerializer $userEntitySerializer
 	) {
 		$this->userEntitySerializer = $userEntitySerializer;
-		$this->commentFormatter = $commentFormatter;
 		$this->revisionSlotEntitySerializer = $contentEntitySerializer;
 	}
 
@@ -87,9 +78,6 @@ class RevisionEntitySerializer {
 		// left by the editor.
 		if ( $revisionRecord->getComment() !== null ) {
 			$revAttrs['comment'] = $revisionRecord->getComment()->text;
-			if ( $this->commentFormatter ) {
-				$revAttrs['comment_html'] = $this->formatComment( $revisionRecord );
-			}
 		}
 
 		if ( $revisionRecord->getUser() ) {
@@ -122,18 +110,6 @@ class RevisionEntitySerializer {
 			$slotsAttrs[$slotRole] = $this->revisionSlotEntitySerializer->toArray( $slotRecord );
 		}
 		return $slotsAttrs;
-	}
-
-	/**
-	 * Formats the RevisionRecord's comment using our CommentFormatter.
-	 * @param RevisionRecord $revisionRecord
-	 * @return string
-	 */
-	public function formatComment( RevisionRecord $revisionRecord ): string {
-		return $this->commentFormatter->format(
-			$revisionRecord->getComment()->text,
-			$revisionRecord->getPageAsLinkTarget()
-		);
 	}
 
 	/**

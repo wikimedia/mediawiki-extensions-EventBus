@@ -1,6 +1,5 @@
 <?php
 
-use MediaWiki\CommentFormatter\CommentFormatter;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use Wikimedia\UUID\GlobalIdGenerator;
 
@@ -10,7 +9,6 @@ use Wikimedia\UUID\GlobalIdGenerator;
 class EventSerializerTest extends MediaWikiUnitTestCase {
 	private const MOCK_SERVER_NAME = 'my_wiki';
 	private const MOCK_UUID = 'b14a2ee4-f5df-40f3-b995-ce6c954e29e3';
-	private const MOCK_FORMATTED_COMMENT = 'formatted_comment';
 	private const MOCK_SCHEMA_URI = 'my/schema/uri/1.0.0';
 	private const MOCK_STREAM_NAME = 'my_stream';
 	private const MOCK_URI = 'http://woohoo';
@@ -41,13 +39,9 @@ class EventSerializerTest extends MediaWikiUnitTestCase {
 		$globalIdGenerator = $this->createMock( GlobalIdGenerator::class );
 		$globalIdGenerator->method( 'newUUIDv4' )->willReturn( self::MOCK_UUID );
 
-		$commentFormatter = $this->createMock( CommentFormatter::class );
-		$commentFormatter->method( 'format' )->willReturn( self::MOCK_FORMATTED_COMMENT );
-
 		$this->eventSerializer = new EventSerializer(
 			$config,
-			$globalIdGenerator,
-			$commentFormatter
+			$globalIdGenerator
 		);
 
 		$this->setUpHasRun = true;
@@ -77,18 +71,6 @@ class EventSerializerTest extends MediaWikiUnitTestCase {
 		} else {
 			$this->assertMatchesRegularExpression( $expected, $actual );
 		}
-	}
-
-	/**
-	 * @covers ::formatComment
-	 */
-	public function testFormatComment() {
-		$linkTarget = $this->createNoOpMock( Title::class );
-		$actual = $this->eventSerializer->formatComment(
-			"dummy comment",
-			$linkTarget
-		);
-		$this->assertEquals( self::MOCK_FORMATTED_COMMENT, $actual );
 	}
 
 	public function provideCreateEvent() {

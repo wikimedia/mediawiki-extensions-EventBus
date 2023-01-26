@@ -49,8 +49,7 @@ class RevisionEntitySerializerTest extends MediaWikiIntegrationTestCase {
 
 		$this->revisionEntitySerializer = new RevisionEntitySerializer(
 			$this->contentEntitySerializer,
-			$this->userEntitySerializer,
-			$this->getServiceContainer()->getCommentFormatter()
+			$this->userEntitySerializer
 		);
 
 		$this->setUpHasRun = true;
@@ -83,7 +82,6 @@ class RevisionEntitySerializerTest extends MediaWikiIntegrationTestCase {
 			'rev_sha1' => $revisionRecord->getSha1(),
 			'rev_size' => $revisionRecord->getSize(),
 			'comment' => $revisionRecord->getComment()->text,
-			'comment_html' => $this->revisionEntitySerializer->formatComment( $revisionRecord ),
 			'editor' => $this->userEntitySerializer->toArray( $revisionRecord->getUser() ),
 			'is_content_visible' => true,
 			'is_editor_visible' => true,

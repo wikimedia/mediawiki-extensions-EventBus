@@ -42,7 +42,7 @@ class PageChangeEventSerializer {
 	 * we are ready to 'release' this schema and stream.
 	 * https://phabricator.wikimedia.org/T308017
 	 */
-	public const PAGE_CHANGE_SCHEMA_URI = '/development/mediawiki/page/change/1.0.0';
+	public const PAGE_CHANGE_SCHEMA_URI = '/development/mediawiki/page/change/2.0.0';
 
 	/**
 	 * There are many kinds of changes that can happen to a MediaWiki pages,
@@ -160,10 +160,6 @@ class PageChangeEventSerializer {
 
 		if ( $comment !== null ) {
 			$eventAttrs['comment'] = $comment;
-			$eventAttrs['comment_html'] = $this->eventSerializer->formatComment(
-				$comment,
-				$wikiPage->getTitle()
-			);
 		}
 
 		if ( $currentRevision !== null ) {
@@ -364,7 +360,6 @@ class PageChangeEventSerializer {
 			unset( $eventAttrs['revision']['rev_size'] );
 			unset( $eventAttrs['revision']['rev_sha1'] );
 			unset( $eventAttrs['revision']['comment'] );
-			unset( $eventAttrs['revision']['comment_html'] );
 			unset( $eventAttrs['revision']['editor'] );
 			unset( $eventAttrs['revision']['content_slots'] );
 

@@ -60,7 +60,6 @@
 				"GlobalIdGenerator",
 				"UserGroupManager",
 				"TitleFormatter",
-				"CommentFormatter",
 				"WikiPageFactory",
 				"UserFactory",
 				"RevisionStore",
