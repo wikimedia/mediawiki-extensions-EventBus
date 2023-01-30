@@ -77,15 +77,12 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		$globalIdGenerator = $this->createMock( GlobalIdGenerator::class );
 		$globalIdGenerator->method( 'newUUIDv4' )->willReturn( self::MOCK_UUID );
 
-		$commentFormatter = $this->getServiceContainer()->getCommentFormatter();
-
 		$this->userFactory = $this->getServiceContainer()->getUserFactory();
 		$this->revisionStore = $this->getServiceContainer()->getRevisionStore();
 
 		$this->eventSerializer = new EventSerializer(
 			$config,
-			$globalIdGenerator,
-			$commentFormatter
+			$globalIdGenerator
 		);
 
 		$this->pageEntitySerializer = new PageEntitySerializer(
@@ -104,8 +101,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 
 		$this->revisionEntitySerializer = new RevisionEntitySerializer(
 			$revisionSlotEntitySerializer,
-			$this->userEntitySerializer,
-			$commentFormatter
+			$this->userEntitySerializer
 		);
 
 		$this->pageChangeEventSerializer = new PageChangeEventSerializer(
@@ -147,10 +143,6 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		$commentAttrs = [];
 		if ( $comment !== null ) {
 			$commentAttrs['comment'] = $comment;
-			$commentAttrs['comment_html'] = $this->eventSerializer->formatComment(
-				$comment,
-				$wikiPage->getTitle()
-			);
 		}
 
 		return array_merge_recursive(
@@ -424,7 +416,6 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		unset( $expected['revision']['rev_size'] );
 		unset( $expected['revision']['rev_sha1'] );
 		unset( $expected['revision']['comment'] );
-		unset( $expected['revision']['comment_html'] );
 		unset( $expected['revision']['editor'] );
 		unset( $expected['revision']['content_slots'] );
 

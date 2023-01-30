@@ -25,7 +25,6 @@ use DeferredUpdates;
 use Exception;
 use InvalidArgumentException;
 use ManualLogEntry;
-use MediaWiki\CommentFormatter\CommentFormatter;
 use MediaWiki\Content\ContentHandlerFactory;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
@@ -137,7 +136,6 @@ class PageChangeHooks implements
 	 * @param GlobalIdGenerator $globalIdGenerator
 	 * @param UserGroupManager $userGroupManager
 	 * @param TitleFormatter $titleFormatter
-	 * @param CommentFormatter $commentFormatter
 	 * @param WikiPageFactory $wikiPageFactory
 	 * @param UserFactory $userFactory
 	 * @param RevisionStore $revisionStore
@@ -149,7 +147,6 @@ class PageChangeHooks implements
 		GlobalIdGenerator $globalIdGenerator,
 		UserGroupManager $userGroupManager,
 		TitleFormatter $titleFormatter,
-		CommentFormatter $commentFormatter,
 		WikiPageFactory $wikiPageFactory,
 		UserFactory $userFactory,
 		RevisionStore $revisionStore,
@@ -170,13 +167,12 @@ class PageChangeHooks implements
 		$userEntitySerializer = new UserEntitySerializer( $userFactory, $userGroupManager );
 
 		$this->pageChangeEventSerializer = new PageChangeEventSerializer(
-			new EventSerializer( $mainConfig, $globalIdGenerator, $commentFormatter ),
+			new EventSerializer( $mainConfig, $globalIdGenerator ),
 			new PageEntitySerializer( $mainConfig, $titleFormatter ),
 			$userEntitySerializer,
 			new RevisionEntitySerializer(
 				new RevisionSlotEntitySerializer( $contentHandlerFactory ),
-				$userEntitySerializer,
-				$commentFormatter
+				$userEntitySerializer
 			)
 		);
 

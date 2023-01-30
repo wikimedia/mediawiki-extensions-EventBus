@@ -21,8 +21,6 @@
 namespace MediaWiki\Extension\EventBus\Serializers;
 
 use Config;
-use MediaWiki\CommentFormatter\CommentFormatter;
-use MediaWiki\Linker\LinkTarget;
 use WebRequest;
 use WikiMap;
 use Wikimedia\UUID\GlobalIdGenerator;
@@ -40,24 +38,17 @@ class EventSerializer {
 	 * @var GlobalIdGenerator
 	 */
 	private GlobalIdGenerator $globalIdGenerator;
-	/**
-	 * @var CommentFormatter
-	 */
-	private CommentFormatter $commentFormatter;
 
 	/**
 	 * @param Config $mainConfig
 	 * @param GlobalIdGenerator $globalIdGenerator
-	 * @param CommentFormatter $commentFormatter
 	 */
 	public function __construct(
 		Config $mainConfig,
-		GlobalIdGenerator $globalIdGenerator,
-		CommentFormatter $commentFormatter
+		GlobalIdGenerator $globalIdGenerator
 	) {
 		$this->mainConfig = $mainConfig;
 		$this->globalIdGenerator = $globalIdGenerator;
-		$this->commentFormatter = $commentFormatter;
 	}
 
 	/**
@@ -68,18 +59,6 @@ class EventSerializer {
 	 */
 	public static function timestampToDt( ?string $timestamp = null ): string {
 		return wfTimestamp( TS_ISO_8601, $timestamp );
-	}
-
-	/**
-	 * Formats the comment about $linkTarget using $this->commentFormatter
-	 * Helper function for formatting comments.
-	 *
-	 * @param string $comment
-	 * @param LinkTarget $linkTarget
-	 * @return string
-	 */
-	public function formatComment( string $comment, LinkTarget $linkTarget ): string {
-		return $this->commentFormatter->format( $comment, $linkTarget );
 	}
 
 	/**
