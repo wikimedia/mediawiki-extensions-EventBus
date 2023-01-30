@@ -260,7 +260,6 @@ class JobExecutor {
 	 */
 	private function commitPrimaryChanges( ILBFactory $lbFactory, $fnameTrxOwner ) {
 		$syncThreshold = $this->config()->get( 'JobSerialCommitThreshold' );
-		$maxWriteDuration = $this->config()->get( 'MaxJobDBWriteDuration' );
 
 		$lb = $lbFactory->getMainLB();
 		if ( $syncThreshold !== false && $lb->getServerCount() > 1 ) {
@@ -282,9 +281,7 @@ class JobExecutor {
 
 		if ( !$dbwSerial ) {
 			$lbFactory->commitPrimaryChanges(
-				$fnameTrxOwner,
-				// Abort if any transaction was too big
-				[ 'maxWriteDuration' => $maxWriteDuration ]
+				$fnameTrxOwner
 			);
 
 			return;
@@ -307,9 +304,7 @@ class JobExecutor {
 
 		// Actually commit the DB primary changes
 		$lbFactory->commitPrimaryChanges(
-			$fnameTrxOwner,
-			// Abort if any transaction was too big
-			[ 'maxWriteDuration' => $maxWriteDuration ]
+			$fnameTrxOwner
 		);
 		ScopedCallback::consume( $unlocker );
 	}
