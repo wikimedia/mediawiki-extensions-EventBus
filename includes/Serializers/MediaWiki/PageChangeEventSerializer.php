@@ -37,12 +37,9 @@ class PageChangeEventSerializer {
 
 	/**
 	 * All page change events will have their $schema URI set to this.
-	 * NOTE: This hardcoded and currently in the /development schema namespace.
-	 * This will be moved to top level /mediawiki schema namespace once
-	 * we are ready to 'release' this schema and stream.
 	 * https://phabricator.wikimedia.org/T308017
 	 */
-	public const PAGE_CHANGE_SCHEMA_URI = '/development/mediawiki/page/change/2.0.0';
+	public const PAGE_CHANGE_SCHEMA_URI = '/mediawiki/page/change/1.0.0';
 
 	/**
 	 * There are many kinds of changes that can happen to a MediaWiki pages,
