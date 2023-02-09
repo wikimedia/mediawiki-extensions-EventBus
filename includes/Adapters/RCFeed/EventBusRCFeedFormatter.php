@@ -4,6 +4,7 @@ namespace MediaWiki\Extension\EventBus\Adapters\RCFeed;
 
 use MachineReadableRCFeedFormatter;
 use MediaWiki\Extension\EventBus\EventBus;
+use MediaWiki\MediaWikiServices;
 use RecentChange;
 
 /**
@@ -55,6 +56,7 @@ class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 		$attrs = parent::getLine( $feed, $rc, $actionComment );
 
 		$eventFactory = EventBus::getInstanceForStream( self::STREAM )->getFactory();
+		$eventFactory->setCommentFormatter( MediaWikiServices::getInstance()->getCommentFormatter() );
 		$event = $eventFactory->createRecentChangeEvent(
 			self::STREAM,
 			$rc->getTitle(),

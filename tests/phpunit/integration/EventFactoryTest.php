@@ -469,6 +469,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	public function testPageMoveEvent() {
 		/** @var EventFactory $eventFactory */
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
+		$eventFactory->setCommentFormatter( $this->getServiceContainer()->getCommentFormatter() );
 		$event = $eventFactory->createPageMoveEvent(
 			'mediawiki.page-move',
 			Title::newFromText( 'Old_Title' ),
@@ -977,6 +978,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	public function testCreateRecentChangeEvent() {
 		/** @var EventFactory $eventFactory */
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
+		$eventFactory->setCommentFormatter( $this->getServiceContainer()->getCommentFormatter() );
 		$event = $eventFactory->createRecentChangeEvent(
 			'mediawiki.recentchange',
 			new TitleValue( 0, self::MOCK_PAGE_TITLE ),

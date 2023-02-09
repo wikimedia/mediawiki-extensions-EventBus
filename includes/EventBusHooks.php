@@ -102,7 +102,9 @@ class EventBusHooks {
 			'mediawiki.page-suppress' : 'mediawiki.page-delete';
 		$eventbus = EventBus::getInstanceForStream( $stream );
 
-		$event = $eventbus->getFactory()->createPageDeleteEvent(
+		$eventBusFactory = $eventbus->getFactory();
+		$eventBusFactory->setCommentFormatter( MediaWikiServices::getInstance()->getCommentFormatter() );
+		$event = $eventBusFactory->createPageDeleteEvent(
 			$stream,
 			$user,
 			$id,
@@ -140,7 +142,9 @@ class EventBusHooks {
 		$performer = RequestContext::getMain()->getUser();
 
 		$eventBus = EventBus::getInstanceForStream( $stream );
-		$event = $eventBus->getFactory()->createPageUndeleteEvent(
+		$eventBusFactory = $eventBus->getFactory();
+		$eventBusFactory->setCommentFormatter( MediaWikiServices::getInstance()->getCommentFormatter() );
+		$event = $eventBusFactory->createPageUndeleteEvent(
 			$stream,
 			$performer,
 			$title,
@@ -177,7 +181,9 @@ class EventBusHooks {
 	) {
 		$stream = 'mediawiki.page-move';
 		$eventBus = EventBus::getInstanceForStream( $stream );
-		$event = $eventBus->getFactory()->createPageMoveEvent(
+		$eventBusFactory = $eventBus->getFactory();
+		$eventBusFactory->setCommentFormatter( MediaWikiServices::getInstance()->getCommentFormatter() );
+		$event = $eventBusFactory->createPageMoveEvent(
 			$stream,
 			$oldTitle,
 			$newTitle,
@@ -244,7 +250,9 @@ class EventBusHooks {
 				);
 				continue;
 			} else {
-				$events[] = $eventBus->getFactory()->createRevisionVisibilityChangeEvent(
+				$eventBusFactory = $eventBus->getFactory();
+				$eventBusFactory->setCommentFormatter( MediaWikiServices::getInstance()->getCommentFormatter() );
+				$events[] = $eventBusFactory->createRevisionVisibilityChangeEvent(
 					$stream,
 					$revision,
 					$performer,
@@ -337,7 +345,11 @@ class EventBusHooks {
 		RevisionRecord $revisionRecord
 	) {
 		$eventBus = EventBus::getInstanceForStream( $stream );
-		$event = $eventBus->getFactory()->createRevisionCreateEvent(
+		$eventBusFactory = $eventBus->getFactory();
+		$eventBusFactory->setCommentFormatter(
+			MediaWikiServices::getInstance()->getCommentFormatter()
+		);
+		$event = $eventBusFactory->createRevisionCreateEvent(
 			$stream,
 			$revisionRecord
 		);
@@ -541,7 +553,9 @@ class EventBusHooks {
 
 		$stream = 'mediawiki.revision-tags-change';
 		$eventBus = EventBus::getInstanceForStream( $stream );
-		$event = $eventBus->getFactory()->createRevisionTagsChangeEvent(
+		$eventBusFactory = $eventBus->getFactory();
+		$eventBusFactory->setCommentFormatter( MediaWikiServices::getInstance()->getCommentFormatter() );
+		$event = $eventBusFactory->createRevisionTagsChangeEvent(
 			$stream,
 			$revisionRecord,
 			$prevTags,

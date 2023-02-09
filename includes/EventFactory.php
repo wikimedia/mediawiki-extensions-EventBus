@@ -71,7 +71,7 @@ class EventFactory {
 	private $wikiPageFactory;
 
 	/**
-	 * @var CommentFormatter|null Will be null when in a MW_NO_SESSION context.
+	 * @var CommentFormatter|null Will be null unless set by caller with setCommentFormatter().
 	 */
 	private ?CommentFormatter $commentFormatter = null;
 
@@ -91,7 +91,6 @@ class EventFactory {
 	 * @param UserEditTracker $userEditTracker
 	 * @param WikiPageFactory $wikiPageFactory
 	 * @param UserFactory $userFactory
-	 * @param CommentFormatter|null $commentFormatter
 	 * @param IContentHandlerFactory $contentHandlerFactory
 	 * @param LoggerInterface $logger
 	 */
@@ -105,7 +104,6 @@ class EventFactory {
 		UserEditTracker $userEditTracker,
 		WikiPageFactory $wikiPageFactory,
 		UserFactory $userFactory,
-		?CommentFormatter $commentFormatter,
 		IContentHandlerFactory $contentHandlerFactory,
 		LoggerInterface $logger
 	) {
@@ -119,9 +117,17 @@ class EventFactory {
 		$this->userEditTracker = $userEditTracker;
 		$this->wikiPageFactory = $wikiPageFactory;
 		$this->userFactory = $userFactory;
-		$this->commentFormatter = $commentFormatter;
 		$this->contentHandlerFactory = $contentHandlerFactory;
 		$this->logger = $logger;
+	}
+
+	/**
+	 * Inject a CommentFormatter for EventFactory's use. Only needed if you need comment_html populated (T327065).
+	 * @param CommentFormatter $commentFormatter
+	 * @return void
+	 */
+	public function setCommentFormatter( CommentFormatter $commentFormatter ): void {
+		$this->commentFormatter = $commentFormatter;
 	}
 
 	/**
