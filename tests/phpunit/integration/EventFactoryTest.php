@@ -819,7 +819,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		);
 		$this->assertIsArray( $event, 'array', 'Returned event should be of type array' );
 		$this->assertArrayHasKey( 'page_title', $event, "'page_title' key missing" );
-		$this->assertEquals( $event['page_title'], self::MOCK_PAGE_TITLE,
+		$this->assertEquals( self::MOCK_PAGE_TITLE, $event['page_title'],
 			"'page_title' incorrect value" );
 		$this->assertArrayHasKey( 'prior_state', $event, "'prior_state' key missing" );
 		$this->assertArrayHasKey( 'page_id', $event['prior_state'], "'page_id' key missing" );

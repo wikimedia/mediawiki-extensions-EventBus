@@ -53,7 +53,7 @@ class EventBusRCFeedIntegrationTest extends MediaWikiIntegrationTestCase {
 				// meta and $schema might change, only assert that a few values are correct.
 				$this->assertNotEmpty( $line['meta'] );
 				$this->assertEquals( $line['meta']['dt'], wfTimestamp( TS_ISO_8601, 1301644800 ) );
-				$this->assertEquals( $line['meta']['stream'], EventBusRCFeedFormatter::STREAM );
+				$this->assertEquals( EventBusRCFeedFormatter::STREAM, $line['meta']['stream'] );
 
 				// Unset meta and $schema and verify assert that the rest of the event is correct.
 				unset( $line['meta'] );
