@@ -80,8 +80,8 @@
 		"PageDeleteComplete": [
 			"mediawiki_page_change"
 		],
-		"ArticleUndelete": [
-			"MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticleUndelete",
+		"PageUndeleteComplete": [
+			"MediaWiki\\Extension\\EventBus\\EventBusHooks::onPageUndeleteComplete",
 			"mediawiki_page_change"
 		],
 		"ArticleRevisionVisibilitySet": [

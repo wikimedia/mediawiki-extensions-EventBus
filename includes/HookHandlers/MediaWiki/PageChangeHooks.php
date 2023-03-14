@@ -36,8 +36,8 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Hook\ArticleRevisionVisibilitySetHook;
 use MediaWiki\Hook\PageMoveCompleteHook;
 use MediaWiki\Logger\LoggerFactory;
-use MediaWiki\Page\Hook\ArticleUndeleteHook;
 use MediaWiki\Page\Hook\PageDeleteCompleteHook;
+use MediaWiki\Page\Hook\PageUndeleteCompleteHook;
 use MediaWiki\Page\ProperPageIdentity;
 use MediaWiki\Page\WikiPageFactory;
 use MediaWiki\Permissions\Authority;
@@ -67,7 +67,7 @@ class PageChangeHooks implements
 	PageSaveCompleteHook,
 	PageMoveCompleteHook,
 	PageDeleteCompleteHook,
-	ArticleUndeleteHook,
+	PageUndeleteCompleteHook,
 	ArticleRevisionVisibilitySetHook
 {
 
@@ -313,33 +313,28 @@ class PageChangeHooks implements
 	 * @inheritDoc
 	 * @throws Exception
 	 */
-	public function onArticleUndelete(
-		$title,
-		$create,
-		$comment,
-		$oldPageId,
-		// TODO what to do about $restoredPages?
-		$restoredPages
-	) {
-		$wikiPage = $this->wikiPageFactory->newFromTitle( $title );
-		$currentRevision = $wikiPage->getRevisionRecord();
-
-		// NOTE: is there a better way to get the performer?!
-		// https://phabricator.wikimedia.org/T321412
-		$performer = RequestContext::getMain()->getUser();
-		$performer->loadFromId();
+	public function onPageUndeleteComplete(
+		ProperPageIdentity $page,
+		Authority $restorer,
+		string $reason,
+		RevisionRecord $restoredRev,
+		ManualLogEntry $logEntry,
+		int $restoredRevisionCount,
+		bool $created,
+		array $restoredPageIds
+	): void {
+		$wikiPage = $this->wikiPageFactory->newFromTitle( $page );
+		$performer = $this->userFactory->newFromAuthority( $restorer );
 
 		// Send page change undelete event
 		$event = $this->pageChangeEventSerializer->toUndeleteEvent(
 			$this->streamName,
 			$wikiPage,
 			$performer,
-			$currentRevision,
-			$comment,
-			// NOTE: ArticleUndelete hook does not give us a proper event time.
-			// The best we can do is use the current timestamp :(
-			wfTimestampNow(),
-			$oldPageId
+			$restoredRev,
+			$reason,
+			$logEntry->getTimestamp(),
+			$page->getId()
 		);
 
 		$this->sendEvents( $this->streamName, [ $event ] );
