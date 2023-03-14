@@ -16,6 +16,9 @@
 		"no-jquery/no-hide": "error",
 		"no-jquery/no-show": "error",
 		"no-jquery/no-toggle": "error",
-		"max-len": "off"
+		"max-len": "off",
+		"es-x/no-async-functions": "warn",
+		"es-x/no-block-scoped-variables": "warn",
+		"es-x/no-destructuring": "warn"
 	}
 }

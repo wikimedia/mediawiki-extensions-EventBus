@@ -8,7 +8,7 @@ describe( 'Run Single Job', function () {
 	const client = new REST( 'rest.php/eventbus/v0/internal' );
 	let mindy, editResults, siteInfo;
 
-	const getDeletePageJobEvent = () => {
+	const getDeletePageJobEvent = function () {
 		const event = {
 			$schema: '/mediawiki/job/1.0.0',
 			meta: {
@@ -23,7 +23,7 @@ describe( 'Run Single Job', function () {
 			type: 'deletePage',
 			params: {
 				namespace: 0,
-				title,
+				title: title,
 				wikiPageId: editResults.pageid,
 				reason: 'testing delete job',
 				suppress: false,
@@ -39,13 +39,13 @@ describe( 'Run Single Job', function () {
 		return event;
 	};
 
-	before( async () => {
+	before( async function () {
 		mindy = await action.mindy();
 		editResults = await mindy.edit( title, { text: 'Create Page', summary: 'edit 1' } );
 		siteInfo = await mindy.meta( 'siteinfo', {}, 'general' );
 	} );
 
-	it( 'should return a 200 for delete job', async () => {
+	it( 'should return a 200 for delete job', async function () {
 		const event = getDeletePageJobEvent();
 		const { body, status } = await client.post( '/job/execute', event );
 
@@ -58,7 +58,7 @@ describe( 'Run Single Job', function () {
 		assert.equal( code, 'missingtitle' );
 	} );
 
-	it( 'should return 400 for missing event database', async () => {
+	it( 'should return 400 for missing event database', async function () {
 		const missingDatabaseEvent = getDeletePageJobEvent();
 		delete missingDatabaseEvent.database;
 		const { status, body } = await client.post( '/job/execute', missingDatabaseEvent );
@@ -67,7 +67,7 @@ describe( 'Run Single Job', function () {
 		assert.deepEqual( body.missing_params, [ 'database' ] );
 	} );
 
-	it( 'should return 400 for missing event type', async () => {
+	it( 'should return 400 for missing event type', async function () {
 		const missingTypeEvent = getDeletePageJobEvent();
 		delete missingTypeEvent.type;
 		const { status, body } = await client.post( '/job/execute', missingTypeEvent );
@@ -76,7 +76,7 @@ describe( 'Run Single Job', function () {
 		assert.deepEqual( body.missing_params, [ 'type' ] );
 	} );
 
-	it( 'should return 400 for missing event params', async () => {
+	it( 'should return 400 for missing event params', async function () {
 		const missingParamsEvent = getDeletePageJobEvent();
 		delete missingParamsEvent.params;
 		const { status, body } = await client.post( '/job/execute', missingParamsEvent );
@@ -85,7 +85,7 @@ describe( 'Run Single Job', function () {
 		assert.deepEqual( body.missing_params, [ 'params' ] );
 	} );
 
-	it( 'should return 403 for missing signature', async () => {
+	it( 'should return 403 for missing signature', async function () {
 		const missingSignatureEvent = getDeletePageJobEvent();
 		delete missingSignatureEvent.mediawiki_signature;
 		const { status, body } = await client.post( '/job/execute', missingSignatureEvent );
@@ -95,7 +95,7 @@ describe( 'Run Single Job', function () {
 
 	} );
 
-	it( 'should return 403 for invalid signature', async () => {
+	it( 'should return 403 for invalid signature', async function () {
 		const invalidSignatureEvent = getDeletePageJobEvent();
 		invalidSignatureEvent.mediawiki_signature = '8765234567890dak98ufnjrkw2';
 		const { status, body } = await client.post( '/job/execute', invalidSignatureEvent );
@@ -104,7 +104,7 @@ describe( 'Run Single Job', function () {
 		assert.equal( body.message, 'Invalid mediawiki signature' );
 	} );
 
-	it( 'should return 415 for unsupported content-type', async () => {
+	it( 'should return 415 for unsupported content-type', async function () {
 		const event = JSON.stringify( getDeletePageJobEvent() );
 		const { status, body } = await client.post( '/job/execute', event, { 'content-type': 'text/plain' } );
 
