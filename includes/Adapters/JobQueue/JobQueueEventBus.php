@@ -127,6 +127,7 @@ class JobQueueEventBus extends JobQueue {
 				EventBus::logger()->error( 'Could not enqueue jobs for stream {stream}', [
 					'stream' => $stream,
 					'exception' => new JobQueueError( "Could not enqueue jobs" ),
+					'response' => $result
 				] );
 				// Avoid fragmenting exception by job or stream name, since backend
 				// issues are generally unrelated to the job (T249745).
