@@ -266,7 +266,7 @@ class EventBusFactory {
 			return true;
 		}
 
-		$streamConfigEntries = $this->streamConfigs->get( [ $streamName ], true );
+		$streamConfigEntries = $this->streamConfigs->get( [ $streamName ] );
 
 		// If $streamName is not declared in EventStreamConfig, then it is not enabled.
 		if ( !array_key_exists( $streamName, $streamConfigEntries ) ) {
