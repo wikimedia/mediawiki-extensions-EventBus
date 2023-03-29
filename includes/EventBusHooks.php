@@ -27,18 +27,19 @@ namespace MediaWiki\Extension\EventBus;
 use Campaign;
 use Content;
 use DeferredUpdates;
-use LinksUpdate;
 use ManualLogEntry;
 use MediaWiki\Block\DatabaseBlock;
+use MediaWiki\Deferred\LinksUpdate\LinksTable;
+use MediaWiki\Deferred\LinksUpdate\LinksUpdate;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Revision\RevisionLookup;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Storage\EditResult;
+use MediaWiki\Title\Title;
 use MediaWiki\User\UserIdentity;
 use RecentChange;
 use RequestContext;
-use Title;
 use UnexpectedValueException;
 use User;
 use WikiPage;
@@ -406,9 +407,9 @@ class EventBusHooks {
 		$removedProps = $linksUpdate->getRemovedProperties();
 		$arePropsEmpty = empty( $removedProps ) && empty( $addedProps );
 
-		$addedLinks = $linksUpdate->getAddedLinks();
+		$addedLinks = $linksUpdate->getPageReferenceArray( 'pagelinks', LinksTable::INSERTED );
 		$addedExternalLinks = $linksUpdate->getAddedExternalLinks();
-		$removedLinks = $linksUpdate->getRemovedLinks();
+		$removedLinks = $linksUpdate->getPageReferenceArray( 'pagelinks', LinksTable::DELETED );
 		$removedExternalLinks = $linksUpdate->getRemovedExternalLinks();
 		$areLinksEmpty = empty( $removedLinks ) && empty( $addedLinks )
 			&& empty( $removedExternalLinks ) && empty( $addedExternalLinks );

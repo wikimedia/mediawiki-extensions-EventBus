@@ -10,19 +10,20 @@ use MediaWiki\CommentFormatter\CommentFormatter;
 use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Content\IContentHandlerFactory;
 use MediaWiki\Linker\LinkTarget;
+use MediaWiki\Page\PageReferenceValue;
 use MediaWiki\Page\WikiPageFactory;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\RevisionSlots;
 use MediaWiki\Revision\RevisionStore;
 use MediaWiki\Revision\SlotRecord;
 use MediaWiki\Revision\SuppressedDataException;
+use MediaWiki\Title\Title;
 use MediaWiki\User\UserEditTracker;
 use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
 use MediaWiki\User\UserIdentity;
 use MWException;
 use Psr\Log\LoggerInterface;
-use Title;
 use TitleFormatter;
 use UIDGenerator;
 use WebRequest;
@@ -904,13 +905,19 @@ class EventFactory {
 
 		/**
 		 * Extract URL encoded link and whether it's external
-		 * @param Title|String $t External links are strings, internal
-		 *   links are Titles
+		 * @param PageReferenceValue|String $t External links are strings, internal
+		 *   links are PageReferenceValue
 		 * @return array
 		 */
 		$getLinkData = static function ( $t ) {
-			$isExternal = is_string( $t );
-			$link = $isExternal ? $t : $t->getLinkURL();
+			if ( $t instanceof PageReferenceValue ) {
+				$t = Title::castFromPageReference( $t );
+				$link = $t->getLinkURL();
+				$isExternal = false;
+			} else {
+				$isExternal = true;
+				$link = $t;
+			}
 			return [
 				'link' => wfUrlencode( $link ),
 				'external' => $isExternal
