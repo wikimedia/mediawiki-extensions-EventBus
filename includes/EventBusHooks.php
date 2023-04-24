@@ -33,6 +33,8 @@ use MediaWiki\Deferred\LinksUpdate\LinksTable;
 use MediaWiki\Deferred\LinksUpdate\LinksUpdate;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\MediaWikiServices;
+use MediaWiki\Page\ProperPageIdentity;
+use MediaWiki\Permissions\Authority;
 use MediaWiki\Revision\RevisionLookup;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Storage\EditResult;
@@ -126,31 +128,28 @@ class EventBusHooks {
 	/**
 	 * When one or more revisions of an article are restored.
 	 *
-	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ArticleUndelete
+	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/PageUndeleteComplete
 	 *
-	 * @param Title $title title corresponding to the article restored
-	 * @param bool $create whether the restoration caused the page to be created
-	 * @param string $comment comment explaining the undeletion
-	 * @param int $oldPageId ID of page previously deleted (from archive table)
+	 * @param ProperPageIdentity $page Page that was undeleted.
+	 * @param Authority $restorer Who undeleted the page
+	 * @param string $reason Reason the page was undeleted
 	 */
-	public static function onArticleUndelete(
-		Title $title,
-		$create,
-		$comment,
-		$oldPageId
+	public static function onPageUndeleteComplete(
+		ProperPageIdentity $page,
+		Authority $restorer,
+		string $reason
 	) {
 		$stream = 'mediawiki.page-undelete';
-		$performer = RequestContext::getMain()->getUser();
-
 		$eventBus = EventBus::getInstanceForStream( $stream );
 		$eventBusFactory = $eventBus->getFactory();
 		$eventBusFactory->setCommentFormatter( MediaWikiServices::getInstance()->getCommentFormatter() );
 		$event = $eventBusFactory->createPageUndeleteEvent(
 			$stream,
-			$performer,
-			$title,
-			$comment,
-			$oldPageId
+			$restorer->getUser(),
+			// @phan-suppress-next-line PhanTypeMismatchArgumentNullable PageIdentity is not null
+			Title::castFromPageIdentity( $page ),
+			$reason,
+			$page->getId()
 		);
 
 		DeferredUpdates::addCallableUpdate( static function () use ( $eventBus, $event ) {
