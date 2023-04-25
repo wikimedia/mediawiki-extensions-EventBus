@@ -23,9 +23,9 @@ namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Revision\RevisionRecord;
+use MediaWiki\WikiMap\WikiMap;
 use MWException;
 use User;
-use WikiMap;
 use Wikimedia\Assert\Assert;
 use WikiPage;
 

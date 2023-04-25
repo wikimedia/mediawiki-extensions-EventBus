@@ -10,6 +10,7 @@ use MediaWiki\Revision\MutableRevisionRecord;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\RevisionStore;
 use MediaWiki\User\UserFactory;
+use MediaWiki\WikiMap\WikiMap;
 use Wikimedia\UUID\GlobalIdGenerator;
 
 /**

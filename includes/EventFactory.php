@@ -22,12 +22,12 @@ use MediaWiki\User\UserEditTracker;
 use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
 use MediaWiki\User\UserIdentity;
+use MediaWiki\WikiMap\WikiMap;
 use MWException;
 use Psr\Log\LoggerInterface;
 use TitleFormatter;
 use UIDGenerator;
 use WebRequest;
-use WikiMap;
 
 /**
  * Used to create events of particular types.

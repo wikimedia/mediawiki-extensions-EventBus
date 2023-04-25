@@ -21,8 +21,8 @@
 namespace MediaWiki\Extension\EventBus\Serializers;
 
 use Config;
+use MediaWiki\WikiMap\WikiMap;
 use WebRequest;
-use WikiMap;
 use Wikimedia\UUID\GlobalIdGenerator;
 
 /**
