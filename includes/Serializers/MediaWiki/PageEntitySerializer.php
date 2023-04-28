@@ -21,7 +21,9 @@
 namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
 use Config;
+use MediaWiki\Extension\EventBus\Redirects\RedirectTarget;
 use MediaWiki\Linker\LinkTarget;
+use MediaWiki\Page\PageRecord;
 use TitleFormatter;
 use WikiPage;
 
@@ -52,15 +54,35 @@ class PageEntitySerializer {
 
 	/**
 	 * @param WikiPage $wikiPage
+	 * @param RedirectTarget|null $redirectTarget will only be encoded if not null and pointing to an existing page
 	 * @return array
 	 */
-	public function toArray( WikiPage $wikiPage ): array {
-		return [
+	public function toArray( WikiPage $wikiPage, ?RedirectTarget $redirectTarget = null ): array {
+		$serialized = [
 			'page_id' => $wikiPage->getId(),
 			'page_title' => $this->formatWikiPageTitle( $wikiPage ),
 			'namespace_id' => $wikiPage->getNamespace(),
 			'is_redirect' => $wikiPage->isRedirect(),
 		];
+		if ( $redirectTarget != null ) {
+			$redirectLinkTarget = $redirectTarget->getLink();
+			$redirect = [
+				'page_title' => $this->formatLinkTarget( $redirectLinkTarget ),
+				'namespace_id' => $redirectLinkTarget->getNamespace(),
+			];
+			$redirectPageIdentity = $redirectTarget->getPage();
+			if ( $redirectPageIdentity->exists() ) {
+				$redirect['page_id'] = $redirectPageIdentity->getId();
+				if ( $redirectPageIdentity instanceof PageRecord ) {
+					$redirect['is_redirect'] = $redirectPageIdentity->isRedirect();
+				}
+			}
+			if ( $redirectLinkTarget->getInterwiki() != null && strlen( $redirectLinkTarget->getInterwiki() ) > 0 ) {
+				$redirect['interwiki_prefix'] = $redirectLinkTarget->getInterwiki();
+			}
+			$serialized['redirect_page_link'] = $redirect;
+		}
+		return $serialized;
 	}
 
 	/**

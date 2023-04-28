@@ -20,6 +20,7 @@
  */
 namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
+use MediaWiki\Extension\EventBus\Redirects\RedirectTarget;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Revision\RevisionRecord;
@@ -39,7 +40,7 @@ class PageChangeEventSerializer {
 	 * All page change events will have their $schema URI set to this.
 	 * https://phabricator.wikimedia.org/T308017
 	 */
-	public const PAGE_CHANGE_SCHEMA_URI = '/mediawiki/page/change/1.0.0';
+	public const PAGE_CHANGE_SCHEMA_URI = '/mediawiki/page/change/1.1.0';
 
 	/**
 	 * There are many kinds of changes that can happen to a MediaWiki pages,
@@ -132,6 +133,7 @@ class PageChangeEventSerializer {
 	 * @param WikiPage $wikiPage
 	 * @param User $performer
 	 * @param RevisionRecord|null $currentRevision
+	 * @param RedirectTarget|null $redirectTarget
 	 * @param string|null $comment
 	 * @return array
 	 * @throws MWException
@@ -142,6 +144,7 @@ class PageChangeEventSerializer {
 		WikiPage $wikiPage,
 		User $performer,
 		?RevisionRecord $currentRevision = null,
+		?RedirectTarget $redirectTarget = null,
 		?string $comment = null
 	): array {
 		$eventAttrs = [
@@ -151,7 +154,7 @@ class PageChangeEventSerializer {
 			# Ideally, wiki_id would come from a dependency injected MediaWikiService,
 			# But for now, the best place to get it is from WikiMap, which ultimately uses globals.
 			'wiki_id' => WikiMap::getCurrentWikiId(),
-			'page' => $this->pageEntitySerializer->toArray( $wikiPage ),
+			'page' => $this->pageEntitySerializer->toArray( $wikiPage, $redirectTarget ),
 			'performer' => $this->userEntitySerializer->toArray( $performer )
 		];
 
@@ -173,6 +176,7 @@ class PageChangeEventSerializer {
 	 * @param WikiPage $wikiPage
 	 * @param User $performer
 	 * @param RevisionRecord $currentRevision
+	 * @param RedirectTarget|null $redirectTarget
 	 * @return array
 	 * @throws MWException
 	 */
@@ -180,7 +184,8 @@ class PageChangeEventSerializer {
 		string $stream,
 		WikiPage $wikiPage,
 		User $performer,
-		RevisionRecord $currentRevision
+		RevisionRecord $currentRevision,
+		?RedirectTarget $redirectTarget = null
 	): array {
 		$eventAttrs = $this->toCommonAttrs(
 			'create',
@@ -188,6 +193,7 @@ class PageChangeEventSerializer {
 			$wikiPage,
 			$performer,
 			$currentRevision,
+			$redirectTarget,
 			null
 		);
 
@@ -201,6 +207,7 @@ class PageChangeEventSerializer {
 	 * @param WikiPage $wikiPage
 	 * @param User $performer
 	 * @param RevisionRecord $currentRevision
+	 * @param RedirectTarget|null $redirectTarget
 	 * @param RevisionRecord|null $parentRevision
 	 * @return array
 	 */
@@ -209,6 +216,7 @@ class PageChangeEventSerializer {
 		WikiPage $wikiPage,
 		User $performer,
 		RevisionRecord $currentRevision,
+		?RedirectTarget $redirectTarget = null,
 		?RevisionRecord $parentRevision = null
 	): array {
 		$eventAttrs = $this->toCommonAttrs(
@@ -217,6 +225,7 @@ class PageChangeEventSerializer {
 			$wikiPage,
 			$performer,
 			$currentRevision,
+			$redirectTarget,
 			null
 		);
 
@@ -242,6 +251,7 @@ class PageChangeEventSerializer {
 	 * @param LinkTarget $oldTitle
 	 * @param string $reason
 	 * @param WikiPage|null $createdRedirectWikiPage
+	 * @param RedirectTarget|null $redirectTarget
 	 * @return array
 	 * @throws MWException
 	 */
@@ -253,7 +263,8 @@ class PageChangeEventSerializer {
 		RevisionRecord $parentRevision,
 		LinkTarget $oldTitle,
 		string $reason,
-		?WikiPage $createdRedirectWikiPage = null
+		?WikiPage $createdRedirectWikiPage = null,
+		?RedirectTarget $redirectTarget = null
 	): array {
 		$eventAttrs = $this->toCommonAttrs(
 			'move',
@@ -263,6 +274,7 @@ class PageChangeEventSerializer {
 			$wikiPage,
 			$performer,
 			$currentRevision,
+			$redirectTarget,
 			// NOTE: the reason for the page move is used to generate the comment
 			// on the revision created by the page move, but it is not the same!
 			$reason
@@ -308,6 +320,7 @@ class PageChangeEventSerializer {
 	 * @param string $reason
 	 * @param string|null $eventTimestamp
 	 * @param int|null $archivedRevisionCount
+	 * @param RedirectTarget|null $redirectTarget
 	 * @param bool $isSuppression
 	 *  If true, the current revision info emitted by this even will have
 	 *  all of its visibility settings set to false.
@@ -324,6 +337,7 @@ class PageChangeEventSerializer {
 		string $reason,
 		?string $eventTimestamp = null,
 		?int $archivedRevisionCount = null,
+		?RedirectTarget $redirectTarget = null,
 		bool $isSuppression = false
 	): array {
 		$eventAttrs = $this->toCommonAttrs(
@@ -332,6 +346,7 @@ class PageChangeEventSerializer {
 			$wikiPage,
 			$performer,
 			$currentRevision,
+			$redirectTarget,
 			$reason
 		);
 
@@ -377,6 +392,7 @@ class PageChangeEventSerializer {
 	 * @param User $performer
 	 * @param RevisionRecord $currentRevision
 	 * @param string $reason
+	 * @param RedirectTarget|null $redirectTarget
 	 * @param string|null $eventTimestamp
 	 * @param int|null $oldPageID
 	 * @return array
@@ -388,6 +404,7 @@ class PageChangeEventSerializer {
 		User $performer,
 		RevisionRecord $currentRevision,
 		string $reason,
+		?RedirectTarget $redirectTarget = null,
 		?string $eventTimestamp = null,
 		?int $oldPageID = null
 	): array {
@@ -397,6 +414,7 @@ class PageChangeEventSerializer {
 			$wikiPage,
 			$performer,
 			$currentRevision,
+			$redirectTarget,
 			$reason
 		);
 
