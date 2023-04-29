@@ -11,7 +11,7 @@
 		"eslint-config-wikimedia": "0.24.0",
 		"grunt": "1.6.1",
 		"grunt-banana-checker": "0.10.0",
-		"grunt-eslint": "24.0.0",
+		"grunt-eslint": "24.0.1",
 		"mocha": "7.2.0",
 		"uuid": "^3.4.0"
 	}
