@@ -90,9 +90,13 @@ class PageChangeHooks implements
 
 	/**
 	 * Default value for $streamName.
-	 * Used unless STREAM_NAMES_MAP_PAGE_CHANGE_KEY is set in STREAM_NAMES_MAP_CONFIG_KEY in $mainConfig;
+	 * Used unless STREAM_NAMES_MAP_PAGE_CHANGE_KEY is set in
+	 * STREAM_NAMES_MAP_CONFIG_KEY in $mainConfig.
+	 * Note that this is a versioned stream name.
+	 * The version suffix should match the stream's schema's major version.
+	 * See: https://wikitech.wikimedia.org/wiki/Event_Platform/Stream_Configuration#Stream_versioning
 	 */
-	public const PAGE_CHANGE_STREAM_NAME_DEFAULT = 'mediawiki.page_change';
+	public const PAGE_CHANGE_STREAM_NAME_DEFAULT = 'mediawiki.page_change.v1';
 
 	/**
 	 * Name of the stream that events will be produced to.
