@@ -45,9 +45,15 @@ class EventBusRCFeedIntegrationTest extends MediaWikiIntegrationTestCase {
 		$feed->method( 'send' )
 			->willReturn( true );
 
+		// FIXME: Temporary to merge core change
+		$extra = [];
+		if ( method_exists( RecentChange::class, 'getNotifyUrl' ) ) {
+			$extra = [ 'title_url' => 'https://example.org/index.php/Example' ];
+		}
+
 		$feed->expects( $this->once() )
 			->method( 'send' )
-			->with( $this->anything(), $this->callback( function ( $line ) {
+			->with( $this->anything(), $this->callback( function ( $line ) use ( $extra ) {
 				$line = FormatJson::decode( $line, true )[0];
 
 				// meta and $schema might change, only assert that a few values are correct.
@@ -82,7 +88,7 @@ class EventBusRCFeedIntegrationTest extends MediaWikiIntegrationTestCase {
 						'server_name' => 'example.org',
 						'server_script_path' => '/w',
 						'wiki' => 'example-' . $this->dbPrefix()
-					],
+					] + $extra,
 					$line
 				);
 				return true;
