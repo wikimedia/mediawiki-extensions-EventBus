@@ -16,6 +16,7 @@ class EventBusRCFeedIntegrationTest extends MediaWikiIntegrationTestCase {
 			'wgCanonicalServer' => 'https://example.org',
 			'wgServerName' => 'example.org',
 			'wgScriptPath' => '/w',
+			'wgArticlePath' => '/wiki/$1',
 			'wgDBname' => 'example',
 			'wgDBprefix' => $this->dbPrefix(),
 			'wgRCFeeds' => [],
@@ -82,7 +83,7 @@ class EventBusRCFeedIntegrationTest extends MediaWikiIntegrationTestCase {
 						'server_name' => 'example.org',
 						'server_script_path' => '/w',
 						'wiki' => 'example-' . $this->dbPrefix(),
-						'title_url' => 'https://example.org/index.php/Example',
+						'title_url' => 'https://example.org/wiki/Example',
 					],
 					$line
 				);
