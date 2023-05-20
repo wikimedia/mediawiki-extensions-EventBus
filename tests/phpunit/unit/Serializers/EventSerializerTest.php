@@ -54,7 +54,7 @@ class EventSerializerTest extends MediaWikiUnitTestCase {
 		$this->assertInstanceOf( EventSerializer::class, $this->eventSerializer );
 	}
 
-	public function provideTimestampToDt() {
+	public static function provideTimestampToDt() {
 		yield 'Provided mediawiki timestamp' => [ '20221019140732', '2022-10-19T14:07:32Z' ];
 		yield 'Null for current timestamp' => [ null, '/\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ/' ];
 	}
@@ -73,7 +73,7 @@ class EventSerializerTest extends MediaWikiUnitTestCase {
 		}
 	}
 
-	public function provideCreateEvent() {
+	public static function provideCreateEvent() {
 		yield 'null metaDt' => [
 			[
 				'$schema' => self::MOCK_SCHEMA_URI,

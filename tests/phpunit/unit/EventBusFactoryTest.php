@@ -89,7 +89,7 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 		);
 	}
 
-	public function provideGetInstance() {
+	public static function provideGetInstance() {
 		yield 'non existent event service name' => [
 			'nonexistent',
 			self::MW_CONFIG,
@@ -137,7 +137,7 @@ class EventBusFactoryTest extends MediaWikiUnitTestCase {
 		}
 	}
 
-	public function provideGetInstanceForStream() {
+	public static function provideGetInstanceForStream() {
 		yield 'default event service if no destination_event_service for stream' => [
 			'stream_without_destination_event_service',
 			false,
