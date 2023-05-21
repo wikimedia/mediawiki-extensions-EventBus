@@ -96,7 +96,7 @@ class RevisionSlotEntitySerializerTest extends MediaWikiUnitTestCase {
 		$this->assertInstanceOf( RevisionSlotEntitySerializer::class, $this->revisionSlotEntitySerializer );
 	}
 
-	public function provideToArray() {
+	public static function provideToArray() {
 		foreach ( self::TO_ARRAY_TEST_NAMES as $testName ) {
 			yield $testName => [ $testName ];
 		}

@@ -174,7 +174,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		return $revision;
 	}
 
-	public function providePageLinks() {
+	public static function providePageLinks() {
 		yield 'Add new links' => [
 			[
 				new PageReferenceValue( NS_MAIN, 'Added_link_1', PageReference::LOCAL ),
@@ -324,7 +324,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		}
 	}
 
-	public function provideRevisionTagsChange() {
+	public static function provideRevisionTagsChange() {
 		yield 'Add new tags to empty tags' => [
 			[],
 			[ 'added_tag_1', 'added_tag_2' ],
@@ -385,7 +385,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$this->assertArrayHasKey( 'performer', $event, "'performer' missing" );
 	}
 
-	public function provideRevisionVisibilityChange() {
+	public static function provideRevisionVisibilityChange() {
 		yield 'Add all suppression' => [
 			[
 				'newBits' => RevisionRecord::SUPPRESSED_ALL,
@@ -664,7 +664,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$this->assertTrue( $event['rev_content_changed'], "'rev_content_changed' incorrect value" );
 	}
 
-	public function provideCentralNoticeCampaignEvents() {
+	public static function provideCentralNoticeCampaignEvents() {
 		yield 'CentralNotice campaign event' => [
 			'Test_Campaign',
 			new UserIdentityValue( 1, 'Test_User' ),
@@ -844,14 +844,14 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$this->assertStream( $event, 'resource_change' );
 	}
 
-	public function provideNonUserBlocks() {
+	public static function provideNonUserBlocks() {
 		yield [
 			self::blockProperties( [ 'address' => "127.0.0.0/24" ] ),
 			self::blockProperties( [ 'address' => "128.0.0.0/24" ] ),
 		];
 	}
 
-	public function provideNullOldBlock() {
+	public static function provideNullOldBlock() {
 		yield [
 			self::blockProperties( [
 				'address' => UserIdentityValue::newRegistered( 1, 'TestUser1' ),

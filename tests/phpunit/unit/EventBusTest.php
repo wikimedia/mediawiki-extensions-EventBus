@@ -37,7 +37,7 @@ class EventBusTest extends MediaWikiUnitTestCase {
 		$this->assertEquals( $expected, $events );
 	}
 
-	public function provideAllowedTypes() {
+	public static function provideAllowedTypes() {
 		yield 'Nothing provided, defaults to TYPE_ALL' => [ '', EventBus::TYPE_ALL ];
 		yield 'TYPE_ALL allows everything' => [ 'TYPE_ALL', EventBus::TYPE_ALL ];
 		yield 'TYPE_NONE allows nothing' => [ 'TYPE_NONE', EventBus::TYPE_NONE ];
@@ -85,7 +85,7 @@ class EventBusTest extends MediaWikiUnitTestCase {
 		}
 	}
 
-	public function provideBody() {
+	public static function provideBody() {
 		yield 'Single event, under maxBatchByteSize' => [
 			json_encode(
 				[
