@@ -84,7 +84,6 @@ class UserEntitySerializer {
 			'user_text' => $user->getName(),
 			'groups' => $this->userGroupManager->getUserEffectiveGroups( $user ),
 			'is_bot' => $user->isRegistered() && $user->isBot(),
-			'is_registered' => $user->isRegistered(),
 			'is_system' => $user->isSystemUser(),
 			'is_temp' => $user->isTemp()
 		];

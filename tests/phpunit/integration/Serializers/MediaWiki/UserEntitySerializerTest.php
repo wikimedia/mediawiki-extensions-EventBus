@@ -77,7 +77,6 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 					'user_text' => $anonUser->getName(),
 					'groups' => [ '*' ],
 					'is_bot' => false,
-					'is_registered' => false,
 					'is_system' => false,
 					'is_temp' => false,
 				]
@@ -88,7 +87,6 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 					'user_text' => $anonUserIdentity->getName(),
 					'groups' => [ '*' ],
 					'is_bot' => false,
-					'is_registered' => false,
 					'is_system' => false,
 					'is_temp' => false,
 				]
@@ -99,7 +97,6 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 					'user_text' => $regUser->getName(),
 					'groups' => $registeredUserGroups,
 					'is_bot' => false,
-					'is_registered' => true,
 					'is_system' => false,
 					'is_temp' => false,
 					'user_id' => $regUser->getId(),
