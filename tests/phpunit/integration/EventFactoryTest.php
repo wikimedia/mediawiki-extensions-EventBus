@@ -140,7 +140,6 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	 * Creates a new instance of RevisionRecord with mock values.
 	 * @param array $rowOverrides
 	 * @return RevisionRecord
-	 * @throws MWException
 	 */
 	public function createMutableRevisionFromArray( $rowOverrides = [] ) {
 		$revision = new MutableRevisionRecord( Title::newFromText( self::MOCK_PAGE_TITLE ) );
@@ -778,9 +777,6 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$this->assertCentralNoticeSettings( $event['prior_state'], $settings );
 	}
 
-	/**
-	 * @throws MWException
-	 */
 	public function testPageDeleteEvent() {
 		$revisionRecord = self::createMutableRevisionFromArray();
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );

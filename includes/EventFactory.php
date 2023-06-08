@@ -23,7 +23,7 @@ use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
 use MediaWiki\User\UserIdentity;
 use MediaWiki\WikiMap\WikiMap;
-use MWException;
+use MWUnknownContentModelException;
 use Psr\Log\LoggerInterface;
 use TitleFormatter;
 use UIDGenerator;
@@ -218,7 +218,7 @@ class EventFactory {
 		if ( $contentFormat === null ) {
 			try {
 				$contentFormat = $this->contentHandlerFactory->getContentHandler( $contentModel )->getDefaultFormat();
-			} catch ( MWException $e ) {
+			} catch ( MWUnknownContentModelException $e ) {
 				// Ignore, the `rev_content_format` is not required.
 			}
 		}

@@ -24,7 +24,6 @@ use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\WikiMap\WikiMap;
-use MWException;
 use User;
 use Wikimedia\Assert\Assert;
 use WikiPage;
@@ -134,7 +133,6 @@ class PageChangeEventSerializer {
 	 * @param RevisionRecord|null $currentRevision
 	 * @param string|null $comment
 	 * @return array
-	 * @throws MWException
 	 */
 	private function toCommonAttrs(
 		string $page_change_kind,
@@ -174,7 +172,6 @@ class PageChangeEventSerializer {
 	 * @param User $performer
 	 * @param RevisionRecord $currentRevision
 	 * @return array
-	 * @throws MWException
 	 */
 	public function toCreateEvent(
 		string $stream,
@@ -243,7 +240,6 @@ class PageChangeEventSerializer {
 	 * @param string $reason
 	 * @param WikiPage|null $createdRedirectWikiPage
 	 * @return array
-	 * @throws MWException
 	 */
 	public function toMoveEvent(
 		string $stream,
@@ -314,7 +310,6 @@ class PageChangeEventSerializer {
 	 *  A consumer of this event probably doesn't care, because they should delete the page
 	 *  and revision in response to this event anyway.
 	 * @return array
-	 * @throws MWException
 	 */
 	public function toDeleteEvent(
 		string $stream,
@@ -380,7 +375,6 @@ class PageChangeEventSerializer {
 	 * @param string|null $eventTimestamp
 	 * @param int|null $oldPageID
 	 * @return array
-	 * @throws MWException
 	 */
 	public function toUndeleteEvent(
 		string $stream,
@@ -429,7 +423,6 @@ class PageChangeEventSerializer {
 	 * @param int $priorVisibilityBitfield
 	 * @param string|null $eventTimestamp
 	 * @return array
-	 * @throws MWException
 	 */
 	public function toVisibilityChangeEvent(
 		string $stream,

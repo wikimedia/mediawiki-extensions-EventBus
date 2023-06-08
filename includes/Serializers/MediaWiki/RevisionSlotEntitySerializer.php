@@ -22,7 +22,6 @@ namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
 use MediaWiki\Content\IContentHandlerFactory;
 use MediaWiki\Revision\SlotRecord;
-use MWException;
 use MWUnknownContentModelException;
 
 /**
@@ -48,7 +47,6 @@ class RevisionSlotEntitySerializer {
 	/**
 	 * @param SlotRecord $slotRecord
 	 * @return array
-	 * @throws MWException
 	 */
 	public function toArray( SlotRecord $slotRecord ): array {
 		$contentModel = $slotRecord->getModel();

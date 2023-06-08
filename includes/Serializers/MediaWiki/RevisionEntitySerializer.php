@@ -23,7 +23,6 @@ namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\RevisionSlots;
-use MWException;
 
 /**
  * Converts a RevisionRecord to an array matching the fragment/mediawiki/state/entity/revision schema
@@ -55,7 +54,6 @@ class RevisionEntitySerializer {
 	/**
 	 * @param RevisionRecord $revisionRecord
 	 * @return array
-	 * @throws MWException
 	 */
 	public function toArray( RevisionRecord $revisionRecord ): array {
 		$revAttrs = [
@@ -102,7 +100,6 @@ class RevisionEntitySerializer {
 	 * Converts RevisionSlots to a fragment/mediawiki/state/entity/revision_slots map type entity
 	 * @param RevisionSlots $revisionSlots
 	 * @return array
-	 * @throws MWException
 	 */
 	public function revisionSlotsToArray( RevisionSlots $revisionSlots ): array {
 		$slotsAttrs = [];
