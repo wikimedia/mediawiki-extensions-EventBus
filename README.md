@@ -141,9 +141,9 @@ HookHandlers/Mediawiki/PageChangeHooks.php adds a config `EventBusStreamNamesMap
 maps from internal logical names of streams to the actual stream name that will be produced.
 This allows developers to vary the stream name used for e.g. 'mediawiki.page_change' in testing
 and staging environments.  Perhaps you want to produce page change events to a release candidate
-stream before promoting it to 'production'.  Instead of having 'mediawiki.page_change' hardcoded
+stream before promoting it to 'production'.  Instead of having 'mediawiki.page_change.v1' hardcoded
 into the hook handler, the stream name to produce will be looked up in config from
-`EventBusStreamNamesMap['mediawiki_page_change']`, defaulting to 'mediawiki.page_change'.
+`EventBusStreamNamesMap['mediawiki_page_change']`, defaulting to 'mediawiki.page_change.v1'.
 
 Any HookHandlers that produce events should support configuring the stream name that
 they produce to using `EventBusStreamNamesMap` in this way.

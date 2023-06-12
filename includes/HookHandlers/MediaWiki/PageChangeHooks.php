@@ -89,8 +89,8 @@ class PageChangeHooks implements
 	private const STREAM_NAMES_MAP_PAGE_CHANGE_KEY = 'mediawiki_page_change';
 
 	/**
-	 * Default value for $streamName.
-	 * Used unless STREAM_NAMES_MAP_PAGE_CHANGE_KEY is set in
+	 * Default value for the mediawiki page_change stream.
+	 * This is used unless STREAM_NAMES_MAP_PAGE_CHANGE_KEY is set in
 	 * STREAM_NAMES_MAP_CONFIG_KEY in $mainConfig.
 	 * Note that this is a versioned stream name.
 	 * The version suffix should match the stream's schema's major version.

@@ -41,9 +41,7 @@
 			"value": 4194304
 		},
 		"EventBusStreamNamesMap": {
-			"value": {
-				"mediawiki_page_change": "mediawiki.page_change"
-			}
+			"value": {}
 		}
 	},
 	"MessagesDirs": {
