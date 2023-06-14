@@ -61,7 +61,9 @@
 				"WikiPageFactory",
 				"UserFactory",
 				"RevisionStore",
-				"ContentHandlerFactory"
+				"ContentHandlerFactory",
+				"RedirectStore",
+				"PageStore"
 			]
 		}
 	},

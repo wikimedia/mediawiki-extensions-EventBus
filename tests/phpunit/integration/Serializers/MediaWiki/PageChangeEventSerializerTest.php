@@ -216,7 +216,8 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			$this->userFactory->newFromUserIdentity(
 				$wikiPage0->getRevisionRecord()->getUser()
 			),
-			$wikiPage0->getRevisionRecord()
+			$wikiPage0->getRevisionRecord(),
+			null
 		);
 
 		$this->assertEventEquals( $expected, $actual );
@@ -263,6 +264,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 				$wikiPage0->getRevisionRecord()->getUser()
 			),
 			$wikiPage0->getRevisionRecord(),
+			null,
 			$this->revisionStore->getRevisionById(
 				$wikiPage0->getRevisionRecord()->getParentId()
 			)
@@ -369,6 +371,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			$reason,
 			$eventTimestamp,
 			$mockRevisionCount,
+			null,
 			false
 		);
 
@@ -428,6 +431,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			$reason,
 			$eventTimestamp,
 			$mockRevisionCount,
+			null,
 			true
 		);
 
@@ -475,6 +479,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			$this->getTestUser()->getUser(),
 			$wikiPage0->getRevisionRecord(),
 			$reason,
+			null,
 			$eventTimestamp,
 			$oldPageId,
 		);

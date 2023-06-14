@@ -18,6 +18,7 @@
  * @file
  * @author Andrew Otto <otto@wikimedia.org>
  */
+
 namespace MediaWiki\Extension\EventBus\HookHandlers\MediaWiki;
 
 use Config;
@@ -27,6 +28,7 @@ use InvalidArgumentException;
 use ManualLogEntry;
 use MediaWiki\Content\ContentHandlerFactory;
 use MediaWiki\Extension\EventBus\EventBusFactory;
+use MediaWiki\Extension\EventBus\Redirects\RedirectTarget;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageChangeEventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
@@ -38,7 +40,10 @@ use MediaWiki\Hook\PageMoveCompleteHook;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\Page\Hook\PageDeleteCompleteHook;
 use MediaWiki\Page\Hook\PageUndeleteCompleteHook;
+use MediaWiki\Page\PageLookup;
+use MediaWiki\Page\PageReference;
 use MediaWiki\Page\ProperPageIdentity;
+use MediaWiki\Page\RedirectLookup;
 use MediaWiki\Page\WikiPageFactory;
 use MediaWiki\Permissions\Authority;
 use MediaWiki\Revision\RevisionRecord;
@@ -135,6 +140,16 @@ class PageChangeHooks implements
 	private RevisionStore $revisionStore;
 
 	/**
+	 * @var RedirectLookup
+	 */
+	private RedirectLookup $redirectLookup;
+
+	/**
+	 * @var PageLookup
+	 */
+	private PageLookup $pageLookup;
+
+	/**
 	 * @param EventBusFactory $eventBusFactory
 	 * @param Config $mainConfig
 	 * @param GlobalIdGenerator $globalIdGenerator
@@ -144,6 +159,8 @@ class PageChangeHooks implements
 	 * @param UserFactory $userFactory
 	 * @param RevisionStore $revisionStore
 	 * @param ContentHandlerFactory $contentHandlerFactory
+	 * @param RedirectLookup $redirectLookup
+	 * @param PageLookup $pageLookup
 	 */
 	public function __construct(
 		EventBusFactory $eventBusFactory,
@@ -154,7 +171,9 @@ class PageChangeHooks implements
 		WikiPageFactory $wikiPageFactory,
 		UserFactory $userFactory,
 		RevisionStore $revisionStore,
-		ContentHandlerFactory $contentHandlerFactory
+		ContentHandlerFactory $contentHandlerFactory,
+		RedirectLookup $redirectLookup,
+		PageLookup $pageLookup
 	) {
 		$this->logger = LoggerFactory::getInstance( self::class );
 
@@ -183,6 +202,8 @@ class PageChangeHooks implements
 		$this->wikiPageFactory = $wikiPageFactory;
 		$this->userFactory = $userFactory;
 		$this->revisionStore = $revisionStore;
+		$this->redirectLookup = $redirectLookup;
+		$this->pageLookup = $pageLookup;
 	}
 
 	/**
@@ -222,22 +243,25 @@ class PageChangeHooks implements
 	) {
 		$performer = $this->userFactory->newFromUserIdentity( $user );
 
+		$redirectTarget = self::lookupRedirectTarget( $wikiPage, $this->pageLookup, $this->redirectLookup );
+
 		if ( $flags & EDIT_NEW ) {
 			// New page state change event for page create
 			$event = $this->pageChangeEventSerializer->toCreateEvent(
 				$this->streamName,
 				$wikiPage,
 				$performer,
-				$revisionRecord
+				$revisionRecord,
+				$redirectTarget
 			);
 
 		} else {
-			// New page state change event for page edit
 			$event = $this->pageChangeEventSerializer->toEditEvent(
 				$this->streamName,
 				$wikiPage,
 				$performer,
 				$revisionRecord,
+				$redirectTarget,
 				$this->revisionStore->getRevisionById( $revisionRecord->getParentId() )
 			);
 		}
@@ -258,7 +282,15 @@ class PageChangeHooks implements
 		$revision
 	) {
 		$wikiPage = $this->wikiPageFactory->newFromID( $pageid );
+
+		if ( $wikiPage == null ) {
+			throw new InvalidArgumentException( "No page moved from '$oldTitle' to '$newTitle' "
+				. " with ID $pageid could be found" );
+		}
+
 		$performer = $this->userFactory->newFromUserIdentity( $user );
+
+		$redirectTarget = self::lookupRedirectTarget( $wikiPage, $this->pageLookup, $this->redirectLookup );
 
 		$createdRedirectWikiPage = $redirid ? $this->wikiPageFactory->newFromID( $redirid ) : null;
 
@@ -276,6 +308,7 @@ class PageChangeHooks implements
 			$oldTitle,
 			$reason,
 			$createdRedirectWikiPage,
+			$redirectTarget
 		);
 
 		$this->sendEvents( $this->streamName, [ $event ] );
@@ -297,6 +330,9 @@ class PageChangeHooks implements
 		int $archivedRevisionCount
 	) {
 		$wikiPage = $this->wikiPageFactory->newFromTitle( $page );
+
+		$redirectTarget = self::lookupRedirectTarget( $wikiPage, $this->pageLookup, $this->redirectLookup );
+
 		$performer = $this->userFactory->newFromAuthority( $deleter );
 
 		$event = $this->pageChangeEventSerializer->toDeleteEvent(
@@ -307,6 +343,7 @@ class PageChangeHooks implements
 			$reason,
 			$logEntry->getTimestamp(),
 			$archivedRevisionCount,
+			$redirectTarget,
 			$logEntry->getType() === 'suppress'
 		);
 
@@ -330,6 +367,8 @@ class PageChangeHooks implements
 		$wikiPage = $this->wikiPageFactory->newFromTitle( $page );
 		$performer = $this->userFactory->newFromAuthority( $restorer );
 
+		$redirectTarget = self::lookupRedirectTarget( $wikiPage, $this->pageLookup, $this->redirectLookup );
+
 		// Send page change undelete event
 		$event = $this->pageChangeEventSerializer->toUndeleteEvent(
 			$this->streamName,
@@ -337,6 +376,7 @@ class PageChangeHooks implements
 			$performer,
 			$restoredRev,
 			$reason,
+			$redirectTarget,
 			$logEntry->getTimestamp(),
 			$page->getId()
 		);
@@ -429,4 +469,46 @@ class PageChangeHooks implements
 			}
 		}
 	}
+
+	/**
+	 * Returns a redirect target of supplied {@link PageReference}, if any.
+	 *
+	 * If the page reference does not represent a redirect, `null` is returned.
+	 *
+	 * See {@link RedirectTarget} for the meaning of its properties.
+	 *
+	 * TODO visible for testing only, move into RedirectLookup?
+	 *
+	 * @param PageReference $page
+	 * @param PageLookup $pageLookup
+	 * @param RedirectLookup $redirectLookup
+	 * @return RedirectTarget|null
+	 * @see RedirectTarget
+	 */
+	public static function lookupRedirectTarget(
+		PageReference $page,
+		PageLookup $pageLookup,
+		RedirectLookup $redirectLookup
+	): ?RedirectTarget {
+		$redirectSourcePageReference = $pageLookup->getPageByReference( $page );
+
+		$redirectLinkTarget = $redirectSourcePageReference != null && $redirectSourcePageReference->isRedirect()
+			? $redirectLookup->getRedirectTarget( $redirectSourcePageReference )
+			: null;
+
+		if ( $redirectLinkTarget != null ) {
+			if ( !$redirectLinkTarget->isExternal() ) {
+				try {
+					$redirectTargetPage = $pageLookup->getPageForLink( $redirectLinkTarget );
+					return new RedirectTarget( $redirectLinkTarget, $redirectTargetPage );
+				} catch ( InvalidArgumentException $e ) {
+					// silently ignore failed lookup, they are expected for anything but page targets
+				}
+			}
+			return new RedirectTarget( $redirectLinkTarget );
+		}
+
+		return null;
+	}
+
 }
