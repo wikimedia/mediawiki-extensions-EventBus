@@ -4,6 +4,7 @@ use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\Block\Restriction\NamespaceRestriction;
 use MediaWiki\Block\Restriction\PageRestriction;
 use MediaWiki\Extension\EventBus\EventFactory;
+use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Page\PageReference;
 use MediaWiki\Page\PageReferenceValue;
 use MediaWiki\Revision\MutableRevisionRecord;
@@ -613,6 +614,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 
 	public function testRevisionCreationEvent() {
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
+		$revision = $this->createMutableRevisionFromArray();
 		$event = $eventFactory->createRevisionCreateEvent(
 			'mediawiki.revision-create',
 			$this->createMutableRevisionFromArray()
@@ -621,6 +623,8 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$this->assertIsArray( $event, 'Returned event should be of type array' );
 		$this->assertRevisionProperties( $event );
 		$this->assertSlotRecords( $event );
+		$this->assertSame( EventSerializer::timestampToDt( $revision->getTimestamp() ), $event['dt'] );
+		$this->assertSame( "/mediawiki/revision/create/2.0.0", $event['$schema'] );
 	}
 
 	public function testRevisionCreationEventDoesNotContainRevParentId() {

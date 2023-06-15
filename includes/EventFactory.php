@@ -783,6 +783,7 @@ class EventFactory {
 		RevisionRecord $revisionRecord
 	) {
 		$attrs = $this->createRevisionRecordAttrs( $revisionRecord );
+		$attrs['dt'] = self::createDTAttr( $revisionRecord->getTimestamp() );
 		// Only add to revision-create for now
 		$attrs['rev_slots'] = $this->createSlotRecordsAttrs( $revisionRecord->getSlots() );
 		// The parent_revision_id attribute is not required, but when supplied
@@ -799,7 +800,7 @@ class EventFactory {
 
 		return $this->createEvent(
 			$this->getArticleURL( $revisionRecord->getPageAsLinkTarget() ),
-			'/mediawiki/revision/create/1.1.0',
+			'/mediawiki/revision/create/2.0.0',
 			$stream,
 			$attrs
 		);
