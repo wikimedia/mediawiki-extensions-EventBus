@@ -39,6 +39,7 @@ use MediaWiki\Hook\ArticleRevisionVisibilitySetHook;
 use MediaWiki\Hook\PageMoveCompleteHook;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\Page\Hook\PageDeleteCompleteHook;
+use MediaWiki\Page\Hook\PageDeleteHook;
 use MediaWiki\Page\Hook\PageUndeleteCompleteHook;
 use MediaWiki\Page\PageLookup;
 use MediaWiki\Page\PageReference;
@@ -53,6 +54,7 @@ use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
 use Psr\Log\LoggerInterface;
 use RequestContext;
+use StatusValue;
 use TitleFormatter;
 use Wikimedia\UUID\GlobalIdGenerator;
 
@@ -73,6 +75,7 @@ class PageChangeHooks implements
 	PageMoveCompleteHook,
 	PageDeleteCompleteHook,
 	PageUndeleteCompleteHook,
+	PageDeleteHook,
 	ArticleRevisionVisibilitySetHook
 {
 
@@ -148,6 +151,13 @@ class PageChangeHooks implements
 	 * @var PageLookup
 	 */
 	private PageLookup $pageLookup;
+
+	/**
+	 * Temporarily holds a map of page ID to redirect target between
+	 * {@link onPageDelete} and {@link onPageDeleteComplete}.
+	 * @var array<int, RedirectTarget>
+	 */
+	private array $deletedPageRedirectTarget = [];
 
 	/**
 	 * @param EventBusFactory $eventBusFactory
@@ -314,6 +324,17 @@ class PageChangeHooks implements
 		$this->sendEvents( $this->streamName, [ $event ] );
 	}
 
+	public function onPageDelete(
+		ProperPageIdentity $page,
+		Authority $deleter,
+		string $reason,
+		StatusValue $status,
+		bool $suppress
+	) {
+		$this->deletedPageRedirectTarget[$page->getId()] =
+			self::lookupRedirectTarget( $page, $this->pageLookup, $this->redirectLookup );
+	}
+
 	// Supercedes ArticleDeleteComplete
 
 	/**
@@ -331,8 +352,6 @@ class PageChangeHooks implements
 	) {
 		$wikiPage = $this->wikiPageFactory->newFromTitle( $page );
 
-		$redirectTarget = self::lookupRedirectTarget( $wikiPage, $this->pageLookup, $this->redirectLookup );
-
 		$performer = $this->userFactory->newFromAuthority( $deleter );
 
 		$event = $this->pageChangeEventSerializer->toDeleteEvent(
@@ -343,11 +362,13 @@ class PageChangeHooks implements
 			$reason,
 			$logEntry->getTimestamp(),
 			$archivedRevisionCount,
-			$redirectTarget,
+			$this->deletedPageRedirectTarget[$page->getId()] ?? null,
 			$logEntry->getType() === 'suppress'
 		);
 
 		$this->sendEvents( $this->streamName, [ $event ] );
+
+		unset( $this->deletedPageRedirectTarget[$page->getId()] );
 	}
 
 	/**

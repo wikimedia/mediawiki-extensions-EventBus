@@ -77,6 +77,9 @@
 			"mediawiki_page_change"
 		],
 		"ArticleDeleteComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticleDeleteComplete",
+		"PageDelete": [
+			"mediawiki_page_change"
+		],
 		"PageDeleteComplete": [
 			"mediawiki_page_change"
 		],
