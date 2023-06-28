@@ -997,11 +997,13 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$command = 'deletePage';
 		$title = Title::newFromText( self::MOCK_PAGE_TITLE );
 		$stream = 'mediawiki.job.' . $command;
-		$job = Job::factory( $command, [
+		$services = $this->getServiceContainer();
+		$job = $services->getJobFactory()->newJob( $command, [
 			'namespace' => $title->getNamespace(),
 			'title' => $title->getDBkey()
 		] );
-		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
+
+		$eventFactory = $services->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createJobEvent(
 			$stream,
 			$wgDBname,
@@ -1020,11 +1022,12 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$url = 'https://en.wikipedia.org/wiki/Main_Page';
 		$releaseTimestamp = time() + 10000;
 		$stream = 'mediawiki.job.' . $command;
-		$job = Job::factory( $command, [
+		$services = $this->getServiceContainer();
+		$job = $services->getJobFactory()->newJob( $command, [
 			'urls' => [ $url ],
 			'jobReleaseTimestamp' => $releaseTimestamp
 		] );
-		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
+		$eventFactory = $services->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createJobEvent(
 			$stream,
 			$wgDBname,

@@ -6,14 +6,13 @@ use Exception;
 use Job;
 use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\Extension\EventBus\EventFactory;
+use MediaWiki\MediaWikiServices;
 use MediaWiki\Rest\HttpException;
 use MediaWiki\Rest\RequestInterface;
 use MediaWiki\Rest\Validator\BodyValidator;
 use Psr\Log\LoggerInterface;
 
 /**
- * Class EventBodyValidator
- *
  * Validates the body
  */
 class EventBodyValidator implements BodyValidator {
@@ -116,7 +115,8 @@ class EventBodyValidator implements BodyValidator {
 	 */
 	private function getJobFromParams( array $jobEvent ) {
 		try {
-			$job = Job::factory( $jobEvent['type'], $jobEvent['params'] );
+			$jobFactory = MediaWikiServices::getInstance()->getJobFactory();
+			$job = $jobFactory->newJob( $jobEvent['type'], $jobEvent['params'] );
 		} catch ( Exception $e ) {
 			$this->throwJobErrors( [
 				'status'  => false,

@@ -10,7 +10,6 @@ namespace MediaWiki\Extension\EventBus;
 use Config;
 use DeferredUpdates;
 use Exception;
-use Job;
 use Liuggio\StatsdClient\Factory\StatsdDataFactoryInterface;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
@@ -185,7 +184,8 @@ class JobExecutor {
 		$params = $jobEvent['params'];
 
 		try {
-			$job = Job::factory( $jobType, $params );
+			$jobFactory = MediaWikiServices::getInstance()->getJobFactory();
+			$job = $jobFactory->newJob( $jobType, $params );
 		} catch ( Exception $e ) {
 			return [
 				'status'  => false,
@@ -193,6 +193,7 @@ class JobExecutor {
 			];
 		}
 
+		// @phan-suppress-next-line PhanImpossibleTypeComparison
 		if ( $job === null ) {
 			return [
 				'status'  => false,
