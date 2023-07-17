@@ -552,6 +552,7 @@ class EventFactory {
 	 * @param Title $title
 	 * @param string $comment
 	 * @param int $oldPageId
+	 * @param RevisionRecord $restoredRevision
 	 * @return array
 	 */
 	public function createPageUndeleteEvent(
@@ -559,7 +560,8 @@ class EventFactory {
 		UserIdentity $performer,
 		Title $title,
 		$comment,
-		$oldPageId
+		$oldPageId,
+		RevisionRecord $restoredRevision
 	) {
 		// Create a mediawiki page undelete event.
 		$attrs = [
@@ -572,7 +574,7 @@ class EventFactory {
 			'page_title'         => $this->titleFormatter->getPrefixedDBkey( $title ),
 			'page_namespace'     => $title->getNamespace(),
 			'page_is_redirect'   => $title->isRedirect(),
-			'rev_id'             => $title->getLatestRevID(),
+			'rev_id'             => $restoredRevision->getId(),
 		];
 
 		// If this page had a different id in the archive table,
