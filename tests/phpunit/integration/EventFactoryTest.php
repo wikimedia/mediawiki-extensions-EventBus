@@ -806,16 +806,22 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	}
 
 	public function testPageUndeleteEvent() {
+		$expectedRevId = 123;
+		$revisionRecord = self::createMutableRevisionFromArray( [ 'id' => $expectedRevId ] );
+		/** @var EventFactory $eventFactory */
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createPageUndeleteEvent(
 			'mediawiki.page-undelete',
 			UserIdentityValue::newRegistered( 1, 'Test_User' ),
 			Title::newFromText( self::MOCK_PAGE_TITLE ),
 			'testreason',
-			1
+			1,
+			$revisionRecord
 		);
 		$this->assertIsArray( $event, 'array', 'Returned event should be of type array' );
 		$this->assertArrayHasKey( 'page_title', $event, "'page_title' key missing" );
+		$this->assertArrayHasKey( 'rev_id', $event, "'rev_id' key missing" );
+		$this->assertSame( $expectedRevId, $event['rev_id'], "'rev_id' mismatch" );
 		$this->assertEquals( self::MOCK_PAGE_TITLE, $event['page_title'],
 			"'page_title' incorrect value" );
 		$this->assertArrayHasKey( 'prior_state', $event, "'prior_state' key missing" );
