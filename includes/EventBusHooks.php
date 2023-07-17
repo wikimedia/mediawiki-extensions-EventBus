@@ -25,7 +25,6 @@
 namespace MediaWiki\Extension\EventBus;
 
 use Campaign;
-use Content;
 use DeferredUpdates;
 use ManualLogEntry;
 use MediaWiki\Block\DatabaseBlock;
@@ -44,6 +43,7 @@ use RecentChange;
 use RequestContext;
 use UnexpectedValueException;
 use User;
+use Wikimedia\Assert\Assert;
 use WikiPage;
 
 /**
@@ -84,22 +84,23 @@ class EventBusHooks {
 	 *
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ArticleDeleteComplete
 	 *
-	 * @param WikiPage $wikiPage the WikiPage that was deleted
-	 * @param User $user the user that deleted the article
-	 * @param string $reason the reason the article was deleted
-	 * @param int $id the ID of the article that was deleted
-	 * @param Content|null $content the content of the deleted article, or null in case of error
-	 * @param ManualLogEntry $logEntry the log entry used to record the deletion
-	 * @param int $archivedRevisionCount the number of revisions archived during the page delete
+	 * @param ProperPageIdentity $page Page that was deleted.
+	 * @param Authority $deleter Who deleted the page
+	 * @param string $reason Reason the page was deleted
+	 * @param int $pageID ID of the page that was deleted
+	 * @param RevisionRecord $deletedRev Last revision of the deleted page
+	 * @param ManualLogEntry $logEntry ManualLogEntry used to record the deletion
+	 * @param int $archivedRevisionCount Number of revisions archived during the deletion
+	 * @return true|void
 	 */
-	public static function onArticleDeleteComplete(
-		WikiPage $wikiPage,
-		User $user,
-		$reason,
-		$id,
-		?Content $content,
+	public static function onPageDeleteComplete(
+		ProperPageIdentity $page,
+		Authority $deleter,
+		string $reason,
+		int $pageID,
+		RevisionRecord $deletedRev,
 		ManualLogEntry $logEntry,
-		$archivedRevisionCount
+		int $archivedRevisionCount
 	) {
 		$stream = $logEntry->getType() === 'suppress' ?
 			'mediawiki.page-suppress' : 'mediawiki.page-delete';
@@ -107,14 +108,16 @@ class EventBusHooks {
 
 		$eventBusFactory = $eventbus->getFactory();
 		$eventBusFactory->setCommentFormatter( MediaWikiServices::getInstance()->getCommentFormatter() );
+		$title = Title::castFromPageIdentity( $page );
+		Assert::postcondition( $title !== null, '$page can be cast to a LinkTarget' );
 		$event = $eventBusFactory->createPageDeleteEvent(
 			$stream,
-			$user,
-			$id,
-			$wikiPage->getTitle(),
-			$wikiPage->isRedirect(),
+			$deleter->getUser(),
+			$pageID,
+			$title,
+			$title->isRedirect(),
 			$archivedRevisionCount,
-			$wikiPage->getRevisionRecord(),
+			$deletedRev,
 			$reason
 		);
 
