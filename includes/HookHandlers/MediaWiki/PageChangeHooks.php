@@ -251,6 +251,14 @@ class PageChangeHooks implements
 		$revisionRecord,
 		$editResult
 	) {
+		// Null edits are only useful to trigger side-effects, and would be
+		//   confusing to consumers of these events.  Since these would not be able to
+		//   change page state, they also don't belong in here.  If filtering them out
+		//   breaks a downstream consumer, we should send them to a different stream.
+		if ( $editResult->isNullEdit() ) {
+			return;
+		}
+
 		$performer = $this->userFactory->newFromUserIdentity( $user );
 
 		$redirectTarget = self::lookupRedirectTarget( $wikiPage, $this->pageLookup, $this->redirectLookup );
