@@ -76,11 +76,11 @@
 			"MediaWiki\\Extension\\EventBus\\EventBusHooks::onPageMoveComplete",
 			"mediawiki_page_change"
 		],
-		"ArticleDeleteComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticleDeleteComplete",
 		"PageDelete": [
 			"mediawiki_page_change"
 		],
 		"PageDeleteComplete": [
+			"MediaWiki\\Extension\\EventBus\\EventBusHooks::onPageDeleteComplete",
 			"mediawiki_page_change"
 		],
 		"PageUndeleteComplete": [
