@@ -21,8 +21,8 @@
 namespace MediaWiki\Extension\EventBus\Serializers;
 
 use Config;
+use MediaWiki\Http\Telemetry;
 use MediaWiki\WikiMap\WikiMap;
-use WebRequest;
 use Wikimedia\UUID\GlobalIdGenerator;
 
 /**
@@ -39,16 +39,21 @@ class EventSerializer {
 	 */
 	private GlobalIdGenerator $globalIdGenerator;
 
+	private Telemetry $telemetry;
+
 	/**
 	 * @param Config $mainConfig
 	 * @param GlobalIdGenerator $globalIdGenerator
+	 * @param Telemetry $telemetry
 	 */
 	public function __construct(
 		Config $mainConfig,
-		GlobalIdGenerator $globalIdGenerator
+		GlobalIdGenerator $globalIdGenerator,
+		Telemetry $telemetry
 	) {
 		$this->mainConfig = $mainConfig;
 		$this->globalIdGenerator = $globalIdGenerator;
+		$this->telemetry = $telemetry;
 	}
 
 	/**
@@ -142,7 +147,7 @@ class EventSerializer {
 			'stream'     => $stream,
 			'uri'        => $uri,
 			'id'         => $this->globalIdGenerator->newUUIDv4(),
-			'request_id' => WebRequest::getRequestId(),
+			'request_id' => $this->telemetry->getRequestId(),
 			'domain'     => $domain,
 		];
 

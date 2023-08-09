@@ -3,6 +3,7 @@
 use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\EventFactory;
+use MediaWiki\Http\Telemetry;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
 
@@ -44,7 +45,8 @@ return [
 			$services->getWikiPageFactory(),
 			$services->getUserFactory(),
 			$services->getContentHandlerFactory(),
-			LoggerFactory::getInstance( 'EventBus' )
+			LoggerFactory::getInstance( 'EventBus' ),
+			Telemetry::getInstance()
 		);
 	}
 

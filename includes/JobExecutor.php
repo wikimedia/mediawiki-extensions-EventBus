@@ -11,11 +11,11 @@ use Config;
 use DeferredUpdates;
 use Exception;
 use Liuggio\StatsdClient\Factory\StatsdDataFactoryInterface;
+use MediaWiki\Http\Telemetry;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
 use MWExceptionHandler;
 use Psr\Log\LoggerInterface;
-use WebRequest;
 use Wikimedia\Rdbms\DBError;
 use Wikimedia\Rdbms\ILBFactory;
 use Wikimedia\ScopedCallback;
@@ -60,8 +60,13 @@ class JobExecutor {
 		] );
 
 		$lbFactory = MediaWikiServices::getInstance()->getDBLoadBalancerFactory();
+		$telemetry = Telemetry::getInstance();
 
-		WebRequest::overrideRequestId( $job->getRequestId() );
+		if ( $job->getRequestId() !== null ) {
+			$telemetry->overrideRequestId( $job->getRequestId() );
+		} else {
+			$telemetry->regenerateRequestId();
+		}
 		// Clear out title cache data from prior snapshots
 		MediaWikiServices::getInstance()->getLinkCache()->clear();
 

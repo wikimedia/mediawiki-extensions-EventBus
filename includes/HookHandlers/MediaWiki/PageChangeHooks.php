@@ -37,6 +37,7 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySeriali
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Hook\ArticleRevisionVisibilitySetHook;
 use MediaWiki\Hook\PageMoveCompleteHook;
+use MediaWiki\Http\Telemetry;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\Page\Hook\PageDeleteCompleteHook;
 use MediaWiki\Page\Hook\PageDeleteHook;
@@ -200,7 +201,7 @@ class PageChangeHooks implements
 		$userEntitySerializer = new UserEntitySerializer( $userFactory, $userGroupManager );
 
 		$this->pageChangeEventSerializer = new PageChangeEventSerializer(
-			new EventSerializer( $mainConfig, $globalIdGenerator ),
+			new EventSerializer( $mainConfig, $globalIdGenerator, Telemetry::getInstance() ),
 			new PageEntitySerializer( $mainConfig, $titleFormatter ),
 			$userEntitySerializer,
 			new RevisionEntitySerializer(

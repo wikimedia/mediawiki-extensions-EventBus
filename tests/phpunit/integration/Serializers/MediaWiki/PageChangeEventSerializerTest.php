@@ -6,6 +6,7 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
+use MediaWiki\Http\Telemetry;
 use MediaWiki\Revision\MutableRevisionRecord;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\RevisionStore;
@@ -78,12 +79,16 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		$globalIdGenerator = $this->createMock( GlobalIdGenerator::class );
 		$globalIdGenerator->method( 'newUUIDv4' )->willReturn( self::MOCK_UUID );
 
+		$telemetry = $this->createMock( Telemetry::class );
+		$telemetry->method( 'getRequestId' )->willReturn( 'requestid' );
+
 		$this->userFactory = $this->getServiceContainer()->getUserFactory();
 		$this->revisionStore = $this->getServiceContainer()->getRevisionStore();
 
 		$this->eventSerializer = new EventSerializer(
 			$config,
-			$globalIdGenerator
+			$globalIdGenerator,
+			$telemetry
 		);
 
 		$this->pageEntitySerializer = new PageEntitySerializer(

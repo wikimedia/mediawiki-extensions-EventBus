@@ -39,9 +39,13 @@ class EventSerializerTest extends MediaWikiUnitTestCase {
 		$globalIdGenerator = $this->createMock( GlobalIdGenerator::class );
 		$globalIdGenerator->method( 'newUUIDv4' )->willReturn( self::MOCK_UUID );
 
+		$telemetry = $this->createMock( \MediaWiki\Http\Telemetry::class );
+		$telemetry->method( 'getRequestId' )->willReturn( 'requestid' );
+
 		$this->eventSerializer = new EventSerializer(
 			$config,
-			$globalIdGenerator
+			$globalIdGenerator,
+			$telemetry
 		);
 
 		$this->setUpHasRun = true;

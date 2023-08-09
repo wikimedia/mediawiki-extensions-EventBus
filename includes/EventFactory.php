@@ -9,6 +9,7 @@ use MediaWiki\Block\Restriction\Restriction;
 use MediaWiki\CommentFormatter\CommentFormatter;
 use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Content\IContentHandlerFactory;
+use MediaWiki\Http\Telemetry;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Page\PageReferenceValue;
 use MediaWiki\Page\WikiPageFactory;
@@ -27,7 +28,6 @@ use MWUnknownContentModelException;
 use Psr\Log\LoggerInterface;
 use TitleFormatter;
 use UIDGenerator;
-use WebRequest;
 
 /**
  * Used to create events of particular types.
@@ -82,6 +82,8 @@ class EventFactory {
 	/** @var LoggerInterface */
 	private $logger;
 
+	private Telemetry $telemetry;
+
 	/**
 	 * @param ServiceOptions $serviceOptions
 	 * @param string $dbDomain
@@ -94,6 +96,7 @@ class EventFactory {
 	 * @param UserFactory $userFactory
 	 * @param IContentHandlerFactory $contentHandlerFactory
 	 * @param LoggerInterface $logger
+	 * @param Telemetry $telemetry
 	 */
 	public function __construct(
 		ServiceOptions $serviceOptions,
@@ -106,7 +109,8 @@ class EventFactory {
 		WikiPageFactory $wikiPageFactory,
 		UserFactory $userFactory,
 		IContentHandlerFactory $contentHandlerFactory,
-		LoggerInterface $logger
+		LoggerInterface $logger,
+		Telemetry $telemetry
 	) {
 		$serviceOptions->assertRequiredOptions( self::CONSTRUCTOR_OPTIONS );
 		$this->options = $serviceOptions;
@@ -120,6 +124,7 @@ class EventFactory {
 		$this->userFactory = $userFactory;
 		$this->contentHandlerFactory = $contentHandlerFactory;
 		$this->logger = $logger;
+		$this->telemetry = $telemetry;
 	}
 
 	/**
@@ -349,7 +354,7 @@ class EventFactory {
 			'$schema' => $schema,
 			'meta' => [
 				'uri'        => $uri,
-				'request_id' => WebRequest::getRequestId(),
+				'request_id' => $this->telemetry->getRequestId(),
 				'id'         => UIDGenerator::newUUIDv4(),
 				'dt'         => $dt ?? wfTimestamp( TS_ISO_8601 ),
 				'domain'     => $domain,
@@ -1145,7 +1150,7 @@ class EventFactory {
 		if ( isset( $event['params']['requestId'] ) ) {
 			$event['meta']['request_id'] = $event['params']['requestId'];
 		} else {
-			$event['meta']['request_id'] = WebRequest::getRequestId();
+			$event['meta']['request_id'] = $this->telemetry->getRequestId();
 		}
 
 		$this->signEvent( $event );
