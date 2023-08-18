@@ -20,7 +20,7 @@ use MediaWiki\User\UserIdentityValue;
  */
 class EventFactoryTest extends MediaWikiIntegrationTestCase {
 
-	private const MOCK_PAGE_TITLE = 'Test';
+	private const MOCK_PAGE_TITLE = 'EventFactoryTest';
 	private const MOCK_PAGE_ID = 23;
 
 	private static function revisionProperties( $rowOverrides = [] ) {
@@ -157,12 +157,8 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$revision->setSize( 46 );
 		$revision->setUser( UserIdentityValue::newAnonymous( '111.0.1.2' ) );
 
-		if ( array_key_exists( 'parent_id', $rowOverrides ) ) {
-			if ( $rowOverrides['parent_id'] !== null ) {
-				$revision->setParentId( $rowOverrides['parent_id'] );
-			}
-		} else {
-			$revision->setParentId( 1 );
+		if ( isset( $rowOverrides['parent_id'] ) ) {
+			$revision->setParentId( $rowOverrides['parent_id'] );
 		}
 
 		$comment = CommentStoreComment::newUnsavedComment(
@@ -645,7 +641,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createRevisionCreateEvent(
 			'mediawiki.revision-create',
-			$this->createMutableRevisionFromArray()
+			$this->createMutableRevisionFromArray( [ 'parent_id' => 123456 ] )
 		);
 
 		$this->assertIsArray( $event, 'Returned event should be of type array' );
@@ -653,10 +649,12 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	}
 
 	public function testRevisionCreationEventContentChangeExists() {
+		// Make sure that the page exists, so we can use its latest revision as parent.
+		$page = $this->getExistingTestPage( self::MOCK_PAGE_TITLE );
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createRevisionCreateEvent(
 			'mediawiki.revision-create',
-			$this->createMutableRevisionFromArray()
+			$this->createMutableRevisionFromArray( [ 'parent_id' => $page->getLatest() ] )
 		);
 
 		$this->assertIsArray( $event, 'Returned event should be of type array' );
@@ -806,16 +804,21 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	}
 
 	public function testPageUndeleteEvent() {
+		$page = $this->getExistingTestPage( self::MOCK_PAGE_TITLE );
 		$expectedRevId = 123;
-		$revisionRecord = self::createMutableRevisionFromArray( [ 'id' => $expectedRevId ] );
+		$revisionRecord = $this->createMutableRevisionFromArray( [
+			'id' => $expectedRevId,
+			'parent_id' => $page->getLatest()
+		] );
 		/** @var EventFactory $eventFactory */
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
+		$oldPageID = $page->getId() + 42;
 		$event = $eventFactory->createPageUndeleteEvent(
 			'mediawiki.page-undelete',
 			UserIdentityValue::newRegistered( 1, 'Test_User' ),
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
+			$page->getTitle(),
 			'testreason',
-			1,
+			$oldPageID,
 			$revisionRecord
 		);
 		$this->assertIsArray( $event, 'array', 'Returned event should be of type array' );
@@ -826,7 +829,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 			"'page_title' incorrect value" );
 		$this->assertArrayHasKey( 'prior_state', $event, "'prior_state' key missing" );
 		$this->assertArrayHasKey( 'page_id', $event['prior_state'], "'page_id' key missing" );
-		$this->assertSame( 1, $event['prior_state']['page_id'],
+		$this->assertSame( $oldPageID, $event['prior_state']['page_id'],
 			"'prior_state/page_id' incorrect value" );
 		$this->assertArrayHasKey( 'comment', $event, "'comment' key missing" );
 		$this->assertEquals( 'testreason', $event['comment'],
