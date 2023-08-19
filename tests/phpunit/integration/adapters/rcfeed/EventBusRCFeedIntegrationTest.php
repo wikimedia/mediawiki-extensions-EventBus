@@ -1,6 +1,7 @@
 <?php
 
 use MediaWiki\Extension\EventBus\Adapters\RCFeed\EventBusRCFeedFormatter;
+use MediaWiki\Title\Title;
 
 /**
  * @group medium
