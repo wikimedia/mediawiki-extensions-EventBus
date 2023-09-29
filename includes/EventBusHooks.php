@@ -28,15 +28,26 @@ use Campaign;
 use DeferredUpdates;
 use ManualLogEntry;
 use MediaWiki\Block\DatabaseBlock;
+use MediaWiki\ChangeTags\Hook\ChangeTagsAfterUpdateTagsHook;
 use MediaWiki\Deferred\LinksUpdate\LinksTable;
 use MediaWiki\Deferred\LinksUpdate\LinksUpdate;
+use MediaWiki\Hook\ArticleRevisionVisibilitySetHook;
+use MediaWiki\Hook\BlockIpCompleteHook;
+use MediaWiki\Hook\LinksUpdateCompleteHook;
+use MediaWiki\Hook\PageMoveCompleteHook;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\MediaWikiServices;
+use MediaWiki\Page\Hook\ArticleProtectCompleteHook;
+use MediaWiki\Page\Hook\ArticlePurgeHook;
+use MediaWiki\Page\Hook\PageDeleteCompleteHook;
+use MediaWiki\Page\Hook\PageUndeleteCompleteHook;
 use MediaWiki\Page\ProperPageIdentity;
 use MediaWiki\Permissions\Authority;
+use MediaWiki\Revision\Hook\RevisionRecordInsertedHook;
 use MediaWiki\Revision\RevisionLookup;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Storage\EditResult;
+use MediaWiki\Storage\Hook\PageSaveCompleteHook;
 use MediaWiki\Title\Title;
 use MediaWiki\User\UserIdentity;
 use RecentChange;
@@ -51,7 +62,19 @@ use WikiPage;
  * 	or even better, put them in your own extension instead of in EventBus.
  *  (e.g. Campaign hooks should move elsewhere.)
  */
-class EventBusHooks {
+class EventBusHooks implements
+	PageSaveCompleteHook,
+	PageMoveCompleteHook,
+	PageDeleteCompleteHook,
+	PageUndeleteCompleteHook,
+	ArticleRevisionVisibilitySetHook,
+	ArticlePurgeHook,
+	BlockIpCompleteHook,
+	LinksUpdateCompleteHook,
+	ArticleProtectCompleteHook,
+	ChangeTagsAfterUpdateTagsHook,
+	RevisionRecordInsertedHook
+{
 
 	/**
 	 * @return RevisionLookup
@@ -93,7 +116,7 @@ class EventBusHooks {
 	 * @param int $archivedRevisionCount Number of revisions archived during the deletion
 	 * @return true|void
 	 */
-	public static function onPageDeleteComplete(
+	public function onPageDeleteComplete(
 		ProperPageIdentity $page,
 		Authority $deleter,
 		string $reason,
@@ -144,7 +167,7 @@ class EventBusHooks {
 	 *        This will have multiple page IDs if there was more than one deleted page with the same page title.
 	 * @return void This hook must not abort, it must return no value
 	 */
-	public static function onPageUndeleteComplete(
+	public function onPageUndeleteComplete(
 		ProperPageIdentity $page,
 		Authority $restorer,
 		string $reason,
@@ -153,7 +176,7 @@ class EventBusHooks {
 		int $restoredRevisionCount,
 		bool $created,
 		array $restoredPageIds
-	) {
+	): void {
 		$stream = 'mediawiki.page-undelete';
 		$eventBus = EventBus::getInstanceForStream( $stream );
 		$eventBusFactory = $eventBus->getFactory();
@@ -186,14 +209,14 @@ class EventBusHooks {
 	 * @param string $reason reason for the move
 	 * @param RevisionRecord $newRevisionRecord revision created by the move
 	 */
-	public static function onPageMoveComplete(
-		LinkTarget $oldTitle,
-		LinkTarget $newTitle,
-		UserIdentity $userIdentity,
-		int $pageid,
-		int $redirid,
-		string $reason,
-		RevisionRecord $newRevisionRecord
+	public function onPageMoveComplete(
+		$oldTitle,
+		$newTitle,
+		$userIdentity,
+		$pageid,
+		$redirid,
+		$reason,
+		$newRevisionRecord
 	) {
 		$stream = 'mediawiki.page-move';
 		$eventBus = EventBus::getInstanceForStream( $stream );
@@ -227,10 +250,10 @@ class EventBusHooks {
 	 *              bits have changed for each revision.  This array is of the form
 	 *              [id => ['oldBits' => $oldBits, 'newBits' => $newBits], ... ]
 	 */
-	public static function onArticleRevisionVisibilitySet(
-		Title $title,
-		array $revIds,
-		array $visibilityChangeMap
+	public function onArticleRevisionVisibilitySet(
+		$title,
+		$revIds,
+		$visibilityChangeMap
 	) {
 		$stream = 'mediawiki.revision-visibility-change';
 		$events = [];
@@ -298,7 +321,7 @@ class EventBusHooks {
 	 *
 	 * @param WikiPage $wikiPage
 	 */
-	public static function onArticlePurge( WikiPage $wikiPage ) {
+	public function onArticlePurge( $wikiPage ) {
 		self::sendResourceChangedEvent( $wikiPage->getTitle(), [ 'purge' ] );
 	}
 
@@ -316,13 +339,13 @@ class EventBusHooks {
 	 * @param RevisionRecord $revisionRecord
 	 * @param EditResult $editResult
 	 */
-	public static function onPageSaveComplete(
-		WikiPage $wikiPage,
-		UserIdentity $userIdentity,
-		string $summary,
-		int $flags,
-		RevisionRecord $revisionRecord,
-		EditResult $editResult
+	public function onPageSaveComplete(
+		$wikiPage,
+		$userIdentity,
+		$summary,
+		$flags,
+		$revisionRecord,
+		$editResult
 	) {
 		if ( $editResult->isNullEdit() ) {
 			self::sendResourceChangedEvent( $wikiPage->getTitle(), [ 'null_edit' ] );
@@ -345,7 +368,7 @@ class EventBusHooks {
 	 *
 	 * @param RevisionRecord $revisionRecord RevisionRecord that has just been inserted
 	 */
-	public static function onRevisionRecordInserted( RevisionRecord $revisionRecord ) {
+	public function onRevisionRecordInserted( $revisionRecord ) {
 		self::sendRevisionCreateEvent(
 			'mediawiki.revision-create',
 			$revisionRecord
@@ -387,10 +410,10 @@ class EventBusHooks {
 	 * @param DatabaseBlock|null $previousBlock the previous block state for the block target.
 	 *        null if this is a new block target.
 	 */
-	public static function onBlockIpComplete(
-		DatabaseBlock $block,
-		User $user,
-		?DatabaseBlock $previousBlock
+	public function onBlockIpComplete(
+		$block,
+		$user,
+		$previousBlock
 	) {
 		$stream = 'mediawiki.user-blocks-change';
 		$eventBus = EventBus::getInstanceForStream( 'mediawiki.user-blocks-change' );
@@ -414,9 +437,10 @@ class EventBusHooks {
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/LinksUpdateComplete
 	 *
 	 * @param LinksUpdate $linksUpdate the update object
+	 * @param mixed $ticket
 	 */
-	public static function onLinksUpdateComplete(
-		LinksUpdate $linksUpdate
+	public function onLinksUpdateComplete(
+		$linksUpdate, $ticket
 	) {
 		$addedProps = $linksUpdate->getAddedProperties();
 		$removedProps = $linksUpdate->getRemovedProperties();
@@ -501,10 +525,10 @@ class EventBusHooks {
 	 * @param string[] $protect set of new restrictions details
 	 * @param string $reason the reason for page protection
 	 */
-	public static function onArticleProtectComplete(
-		WikiPage $wikiPage,
-		User $user,
-		array $protect,
+	public function onArticleProtectComplete(
+		$wikiPage,
+		$user,
+		$protect,
 		$reason
 	) {
 		$stream = 'mediawiki.page-restrictions-change';
@@ -545,16 +569,16 @@ class EventBusHooks {
 	 * @param User|null $user User who performed the tagging when the tagging is subsequent
 	 * to the action, or null
 	 */
-	public static function onChangeTagsAfterUpdateTags(
-		array $addedTags,
-		array $removedTags,
-		array $prevTags,
+	public function onChangeTagsAfterUpdateTags(
+		$addedTags,
+		$removedTags,
+		$prevTags,
 		$rc_id,
 		$rev_id,
 		$log_id,
 		$params,
-		?RecentChange $rc,
-		?User $user
+		$rc,
+		$user
 	) {
 		if ( $rev_id === null ) {
 			// We're only interested for revision (edits) tags for now.

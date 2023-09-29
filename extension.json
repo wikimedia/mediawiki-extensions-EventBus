@@ -65,39 +65,42 @@
 				"RedirectStore",
 				"PageStore"
 			]
+		},
+		"main": {
+			"class": "MediaWiki\\Extension\\EventBus\\EventBusHooks"
 		}
 	},
 	"Hooks": {
 		"PageSaveComplete": [
-			"MediaWiki\\Extension\\EventBus\\EventBusHooks::onPageSaveComplete",
+			"main",
 			"mediawiki_page_change"
 		],
 		"PageMoveComplete": [
-			"MediaWiki\\Extension\\EventBus\\EventBusHooks::onPageMoveComplete",
+			"main",
 			"mediawiki_page_change"
 		],
 		"PageDelete": [
 			"mediawiki_page_change"
 		],
 		"PageDeleteComplete": [
-			"MediaWiki\\Extension\\EventBus\\EventBusHooks::onPageDeleteComplete",
+			"main",
 			"mediawiki_page_change"
 		],
 		"PageUndeleteComplete": [
-			"MediaWiki\\Extension\\EventBus\\EventBusHooks::onPageUndeleteComplete",
+			"main",
 			"mediawiki_page_change"
 		],
 		"ArticleRevisionVisibilitySet": [
-			"MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticleRevisionVisibilitySet",
+			"main",
 			"mediawiki_page_change"
 		],
-		"ArticlePurge": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticlePurge",
-		"BlockIpComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onBlockIpComplete",
-		"LinksUpdateComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onLinksUpdateComplete",
-		"ArticleProtectComplete": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onArticleProtectComplete",
-		"ChangeTagsAfterUpdateTags": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onChangeTagsAfterUpdateTags",
+		"ArticlePurge": "main",
+		"BlockIpComplete": "main",
+		"LinksUpdateComplete": "main",
+		"ArticleProtectComplete": "main",
+		"ChangeTagsAfterUpdateTags": "main",
 		"CentralNoticeCampaignChange": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onCentralNoticeCampaignChange",
-		"RevisionRecordInserted": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onRevisionRecordInserted"
+		"RevisionRecordInserted": "main"
 	},
 	"RestRoutes": [
 		{
