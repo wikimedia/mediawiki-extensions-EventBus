@@ -66,6 +66,9 @@
 				"PageStore"
 			]
 		},
+		"mediawiki_campaign_change": {
+			"class": "MediaWiki\\Extension\\EventBus\\HookHandlers\\MediaWiki\\CampaignChangeHooks"
+		},
 		"main": {
 			"class": "MediaWiki\\Extension\\EventBus\\EventBusHooks"
 		}
@@ -99,7 +102,7 @@
 		"LinksUpdateComplete": "main",
 		"ArticleProtectComplete": "main",
 		"ChangeTagsAfterUpdateTags": "main",
-		"CentralNoticeCampaignChange": "MediaWiki\\Extension\\EventBus\\EventBusHooks::onCentralNoticeCampaignChange",
+		"CentralNoticeCampaignChange": "mediawiki_campaign_change",
 		"RevisionRecordInserted": "main"
 	},
 	"RestRoutes": [
