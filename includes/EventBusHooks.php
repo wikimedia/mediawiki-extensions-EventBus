@@ -240,6 +240,7 @@ class EventBusHooks implements
 
 	/**
 	 * Called when changing visibility of one or more revisions of an article.
+	 * Produces mediawiki.revision-visibility-change events.
 	 *
 	 * @see https://www.mediawiki.org/wiki/Manual:Hooks/ArticleRevisionVisibilitySet
 	 *
@@ -258,11 +259,11 @@ class EventBusHooks implements
 		$stream = 'mediawiki.revision-visibility-change';
 		$events = [];
 		$eventBus = EventBus::getInstanceForStream( $stream );
+		// https://phabricator.wikimedia.org/T321411
 		$performer = RequestContext::getMain()->getUser();
 		$performer->loadFromId();
 
-		// Create a  event
-		// for each revId that was changed.
+		// Create an event for each revId that was changed.
 		foreach ( $revIds as $revId ) {
 			// Read from primary since due to replication lag the updated field visibility
 			// might still not be available on a replica and we are at risk of leaking
@@ -291,10 +292,29 @@ class EventBusHooks implements
 			} else {
 				$eventBusFactory = $eventBus->getFactory();
 				$eventBusFactory->setCommentFormatter( MediaWikiServices::getInstance()->getCommentFormatter() );
+
+				// If this revision is 'suppressed' AKA restricted, then the person performing
+				// 'RevisionDelete' should not be visible in public data.
+				// https://phabricator.wikimedia.org/T342487
+				//
+				// NOTE: This event stream tries to match the visibility of MediaWiki core logs,
+				// where regular delete/revision events are public, and suppress/revision events
+				// are private. In MediaWiki core logs, private events are fully hidden from
+				// the public.  Here, we need to produce a 'private' event to the
+				// mediawiki.revision-visibility-change stream, to indicate to consumers that
+				// they should also 'suppress' the revision.  When this is done, we need to
+				// make sure that we do not reproduce the data that has been suppressed
+				// in the event itself.  E.g. if the username of the editor of the revision has been
+				// suppressed, we should not include any information about that editor in the event.
+				$performerForEvent =
+					$visibilityChangeMap[$revId]['newBits'] & RevisionRecord::DELETED_RESTRICTED ?
+					null :
+					$performer;
+
 				$events[] = $eventBusFactory->createRevisionVisibilityChangeEvent(
 					$stream,
 					$revision,
-					$performer,
+					$performerForEvent,
 					$visibilityChangeMap[$revId]
 				);
 			}

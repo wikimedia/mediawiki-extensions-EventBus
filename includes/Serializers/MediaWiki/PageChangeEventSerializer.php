@@ -130,7 +130,7 @@ class PageChangeEventSerializer {
 	 * @param string $page_change_kind
 	 * @param string $dt
 	 * @param WikiPage $wikiPage
-	 * @param User $performer
+	 * @param User|null $performer
 	 * @param RevisionRecord|null $currentRevision
 	 * @param RedirectTarget|null $redirectTarget
 	 * @param string|null $comment
@@ -140,7 +140,7 @@ class PageChangeEventSerializer {
 		string $page_change_kind,
 		string $dt,
 		WikiPage $wikiPage,
-		User $performer,
+		?User $performer,
 		?RevisionRecord $currentRevision = null,
 		?RedirectTarget $redirectTarget = null,
 		?string $comment = null
@@ -153,8 +153,11 @@ class PageChangeEventSerializer {
 			# But for now, the best place to get it is from WikiMap, which ultimately uses globals.
 			'wiki_id' => WikiMap::getCurrentWikiId(),
 			'page' => $this->pageEntitySerializer->toArray( $wikiPage, $redirectTarget ),
-			'performer' => $this->userEntitySerializer->toArray( $performer )
 		];
+
+		if ( isset( $performer ) ) {
+			$eventAttrs['performer'] = $this->userEntitySerializer->toArray( $performer );
+		}
 
 		if ( $comment !== null ) {
 			$eventAttrs['comment'] = $comment;
@@ -311,7 +314,7 @@ class PageChangeEventSerializer {
 	 *
 	 * @param string $stream
 	 * @param WikiPage $wikiPage
-	 * @param User $performer
+	 * @param User|null $performer
 	 * @param RevisionRecord $currentRevision
 	 * @param string $reason
 	 * @param string|null $eventTimestamp
@@ -327,7 +330,7 @@ class PageChangeEventSerializer {
 	public function toDeleteEvent(
 		string $stream,
 		WikiPage $wikiPage,
-		User $performer,
+		?User $performer,
 		RevisionRecord $currentRevision,
 		string $reason,
 		?string $eventTimestamp = null,
@@ -436,7 +439,7 @@ class PageChangeEventSerializer {
 	 *
 	 * @param string $stream
 	 * @param WikiPage $wikiPage
-	 * @param User $performer
+	 * @param User|null $performer
 	 * @param RevisionRecord $currentRevision
 	 * @param int $priorVisibilityBitfield
 	 * @param string|null $eventTimestamp
@@ -445,7 +448,7 @@ class PageChangeEventSerializer {
 	public function toVisibilityChangeEvent(
 		string $stream,
 		WikiPage $wikiPage,
-		User $performer,
+		?User $performer,
 		RevisionRecord $currentRevision,
 		int $priorVisibilityBitfield,
 		?string $eventTimestamp = null

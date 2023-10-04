@@ -360,8 +360,11 @@ class PageChangeHooks implements
 		int $archivedRevisionCount
 	) {
 		$wikiPage = $this->wikiPageFactory->newFromTitle( $page );
+		$isSuppression = $logEntry->getType() === 'suppress';
 
-		$performer = $this->userFactory->newFromAuthority( $deleter );
+		// Don't set performer in the event if this delete suppresses the page from other admins.
+		// https://phabricator.wikimedia.org/T342487
+		$performer = $isSuppression ? null : $this->userFactory->newFromAuthority( $deleter );
 
 		$event = $this->pageChangeEventSerializer->toDeleteEvent(
 			$this->streamName,
@@ -372,7 +375,7 @@ class PageChangeHooks implements
 			$logEntry->getTimestamp(),
 			$archivedRevisionCount,
 			$this->deletedPageRedirectTarget[$page->getId()] ?? null,
-			$logEntry->getType() === 'suppress'
+			$isSuppression
 		);
 
 		$this->sendEvents( $this->streamName, [ $event ] );
@@ -422,6 +425,10 @@ class PageChangeHooks implements
 		$revIds,
 		$visibilityChangeMap
 	) {
+		// https://phabricator.wikimedia.org/T321411
+		$performer = RequestContext::getMain()->getUser();
+		$performer->loadFromId();
+
 		// Only send an event if the visible-ness of the current revision has changed.
 		foreach ( $revIds as $revId ) {
 			// Read from primary since due to replication lag the updated field visibility
@@ -478,18 +485,33 @@ class PageChangeHooks implements
 
 				$wikiPage = $this->wikiPageFactory->newFromTitle( $title );
 
-				// https://phabricator.wikimedia.org/T321411
-				$performer = RequestContext::getMain()->getUser();
-				$performer->loadFromId();
+				// If this revision is 'suppressed' AKA restricted, then the person performing
+				// 'RevisionDelete' should not be visible in public data.
+				// https://phabricator.wikimedia.org/T342487
+				//
+				// NOTE: This event stream tries to match the visibility of MediaWiki core logs,
+				// where regular delete/revision events are public, and suppress/revision events
+				// are private. In MediaWiki core logs, private events are fully hidden from
+				// the public.  Here, we need to produce a 'private' event to the
+				// mediawiki.page_change stream, to indicate to consumers that
+				// they should also 'suppress' the revision.  When this is done, we need to
+				// make sure that we do not reproduce the data that has been suppressed
+				// in the event itself.  E.g. if the username of the editor of the revision has been
+				// suppressed, we should not include any information about that editor in the event.
+				$performerForEvent =
+					$visibilityChanges['newBits'] & RevisionRecord::DELETED_RESTRICTED ?
+						null :
+						$performer;
 
 				$event = $this->pageChangeEventSerializer->toVisibilityChangeEvent(
 					$this->streamName,
 					$wikiPage,
-					$performer,
+					$performerForEvent,
 					$revisionRecord,
 					$visibilityChanges['oldBits'],
 					// NOTE: ArticleRevisionVisibilitySet hook does not give us a proper event time.
 					// The best we can do is use the current timestamp :(
+					// https://phabricator.wikimedia.org/T321411
 					wfTimestampNow()
 				);
 

@@ -327,28 +327,28 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 			[ 'added_tag_1', 'added_tag_2' ],
 			[],
 			[ 'added_tag_1', 'added_tag_2' ],
-			null,
+			new UserIdentityValue( 1, 'Test_User' ),
 		];
 		yield 'Add new tags to existing tags' => [
 			[ 'existing_tag_1' ],
 			[ 'added_tag_1' ],
 			[],
 			[ 'existing_tag_1', 'added_tag_1' ],
-			null,
+			new UserIdentityValue( 1, 'Test_User' ),
 		];
 		yield 'Remove tags from existing tags' => [
 			[ 'existing_tag_1', 'existing_tag_2' ],
 			[],
 			[ 'existing_tag_2' ],
 			[ 'existing_tag_1' ],
-			null,
+			new UserIdentityValue( 1, 'Test_User' ),
 		];
 		yield 'Duplicated tags' => [
 			[ 'existing_tag_1' ],
 			[ 'existing_tag_1' ],
 			[],
 			[ 'existing_tag_1' ],
-			null,
+			new UserIdentityValue( 1, 'Test_User' ),
 		];
 		yield 'Explicit user' => [
 			[ 'existing_tag_1' ],
@@ -383,7 +383,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	}
 
 	public static function provideRevisionVisibilityChange() {
-		yield 'Add all suppression' => [
+		yield 'Add all suppression, restricting to oversighters only' => [
 			[
 				'newBits' => RevisionRecord::SUPPRESSED_ALL,
 				'oldBits' => 0
@@ -443,7 +443,15 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	) {
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$revisionRecord = $this->createMutableRevisionFromArray();
-		$performer = UserIdentityValue::newRegistered( 2, 'Real_Performer' );
+
+		// NOTE: This is the logic that EventBusHooks uses to decide if performer
+		// should be in the event.  We don't have a great integration test for hooks
+		// right now.
+		// If we make one, this test should be moved there, so the actual code is tested.
+		$performer = $visibilityChanges['newBits'] & RevisionRecord::DELETED_RESTRICTED ?
+			null :
+			UserIdentityValue::newRegistered( 2, 'Real_Performer' );
+
 		$event = $eventFactory->createRevisionVisibilityChangeEvent(
 			'mediawiki.revision-visibility-change',
 			$revisionRecord,
@@ -456,8 +464,19 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$this->assertNotNull( $event['prior_state'], "'prior_state' exist'" );
 		$this->assertArrayEquals( $expectedVisibilityObject, $event['visibility'] );
 		$this->assertArrayEquals( $expectedPriorVisibility, $event['prior_state']['visibility'] );
-		$this->assertEquals( $performer->getName(), $event['performer']['user_text'],
-			"'user_text' inccorect value" );
+
+		// If revision is suppressed, performer should not be present in event.
+		// https://phabricator.wikimedia.org/T342487
+		if ( $visibilityChanges['newBits'] & RevisionRecord::DELETED_RESTRICTED ) {
+			$this->assertArrayNotHasKey(
+				'performer',
+				$event,
+				"'performer' should not be set for suppressed/restricted revisions"
+			);
+		} else {
+			$this->assertEquals( $performer->getName(), $event['performer']['user_text'],
+				"'user_text' incorrect value" );
+		}
 	}
 
 	public function testPageMoveEvent() {
