@@ -83,7 +83,7 @@ class RevisionEntitySerializer {
 		}
 
 		// Include this revision's visibility settings.
-		$revAttrs = $revAttrs + self::bitsToVisibilityAttrs( $revisionRecord->getVisibility() );
+		$revAttrs += self::bitsToVisibilityAttrs( $revisionRecord->getVisibility() );
 
 		// Include info about the revision content slots, as long as slots are not empty.
 		// Note that this DOES NOT include actual content bodies,
