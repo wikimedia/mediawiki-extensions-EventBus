@@ -192,7 +192,7 @@ class EventBus {
 		if ( !$this->shouldSendEvent( $type ) ) {
 			return "Events of type '$type' are not enqueueable";
 		}
-		if ( empty( $events ) ) {
+		if ( !$events ) {
 			// Logstash doesn't like the args, because they could be of various types
 			$context = [ 'exception' => new Exception() ];
 			self::logger()->error( 'Must call send with at least 1 event. Aborting send.', $context );
@@ -287,12 +287,12 @@ class EventBus {
 	public static function serializeEvents( $events ) {
 		try {
 			$serializedEvents = FormatJson::encode( $events, false, FormatJson::ALL_OK );
-			if ( empty( $serializedEvents ) ) {
+			if ( !$serializedEvents ) {
 				// Something failed. Let's figure out exactly which one.
 				$bad = [];
 				foreach ( $events as $event ) {
 					$result = FormatJson::encode( $event, false, FormatJson::ALL_OK );
-					if ( empty( $result ) ) {
+					if ( !$result ) {
 						$bad[] = $event;
 					}
 				}

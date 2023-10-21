@@ -441,14 +441,14 @@ class EventBusHooks implements
 	) {
 		$addedProps = $linksUpdate->getAddedProperties();
 		$removedProps = $linksUpdate->getRemovedProperties();
-		$arePropsEmpty = empty( $removedProps ) && empty( $addedProps );
+		$arePropsEmpty = !$removedProps && !$addedProps;
 
 		$addedLinks = $linksUpdate->getPageReferenceArray( 'pagelinks', LinksTable::INSERTED );
 		$addedExternalLinks = $linksUpdate->getAddedExternalLinks();
 		$removedLinks = $linksUpdate->getPageReferenceArray( 'pagelinks', LinksTable::DELETED );
 		$removedExternalLinks = $linksUpdate->getRemovedExternalLinks();
-		$areLinksEmpty = empty( $removedLinks ) && empty( $addedLinks )
-			&& empty( $removedExternalLinks ) && empty( $addedExternalLinks );
+		$areLinksEmpty = !$removedLinks && !$addedLinks
+			&& !$removedExternalLinks && !$addedExternalLinks;
 
 		if ( $arePropsEmpty && $areLinksEmpty ) {
 			return;

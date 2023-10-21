@@ -89,7 +89,7 @@ class RevisionEntitySerializer {
 		// Note that this DOES NOT include actual content bodies,
 		// just metadata about the content in each slot.
 		$contentSlots = $this->revisionSlotsToArray( $revisionRecord->getSlots() );
-		if ( !empty( $contentSlots ) ) {
+		if ( $contentSlots ) {
 			$revAttrs['content_slots'] = $contentSlots;
 		}
 

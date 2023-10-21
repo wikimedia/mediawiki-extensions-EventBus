@@ -849,14 +849,14 @@ class EventFactory {
 			$attrs['performer'] = $this->createPerformerAttrs( $user );
 		}
 
-		if ( !empty( $addedProps ) ) {
+		if ( $addedProps ) {
 			$attrs['added_properties'] = array_map(
 				[ EventBus::class, 'replaceBinaryValues' ],
 				$addedProps
 			);
 		}
 
-		if ( !empty( $removedProps ) ) {
+		if ( $removedProps ) {
 			$attrs['removed_properties'] = array_map(
 				[ EventBus::class, 'replaceBinaryValues' ],
 				$removedProps
@@ -932,7 +932,7 @@ class EventFactory {
 			];
 		};
 
-		if ( !empty( $addedLinks ) || !empty( $addedExternalLinks ) ) {
+		if ( $addedLinks || $addedExternalLinks ) {
 			$addedLinks = $addedLinks === null ? [] : $addedLinks;
 			$addedExternalLinks = $addedExternalLinks === null ? [] : $addedExternalLinks;
 
@@ -943,7 +943,7 @@ class EventFactory {
 			$attrs['added_links'] = $addedLinks;
 		}
 
-		if ( !empty( $removedLinks ) || !empty( $removedExternalLinks ) ) {
+		if ( $removedLinks || $removedExternalLinks ) {
 			$removedLinks = $removedLinks === null ? [] : $removedLinks;
 			$removedExternalLinks = $removedExternalLinks === null ? [] : $removedExternalLinks;
 			$removedLinks = array_map(
