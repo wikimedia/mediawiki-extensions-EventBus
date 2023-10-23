@@ -142,7 +142,6 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		?string $comment = null,
 		?array $eventAttrs = null
 	): array {
-		$performer = $performer ?? $wikiPage->getRevisionRecord()->getUser();
 		$currentRevision = $currentRevision ?? $wikiPage->getRevisionRecord();
 		$eventTimestamp = $eventTimestamp ?? $wikiPage->getRevisionRecord()->getTimestamp();
 
@@ -151,18 +150,25 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			$commentAttrs['comment'] = $comment;
 		}
 
+		# If performer is not set, don't set performer in expected result.
+		$performerArray = $performer ?
+			[ 'performer' => $this->userEntitySerializer->toArray( $performer ) ] :
+			[];
+
 		return array_merge_recursive(
 			$this->eventSerializer->createEvent(
 				PageChangeEventSerializer::PAGE_CHANGE_SCHEMA_URI,
 				self::MOCK_STREAM_NAME,
 				$this->pageEntitySerializer->canonicalPageURL( $wikiPage ),
-				[
-					'wiki_id' => WikiMap::getCurrentWikiId(),
-					'dt' => EventSerializer::timestampToDt( $eventTimestamp ),
-					'page' => $this->pageEntitySerializer->toArray( $wikiPage ),
-					'performer' => $this->userEntitySerializer->toArray( $performer ),
-					'revision' => $this->revisionEntitySerializer->toArray( $currentRevision ),
-				]
+				array_merge_recursive(
+					[
+						'wiki_id' => WikiMap::getCurrentWikiId(),
+						'dt' => EventSerializer::timestampToDt( $eventTimestamp ),
+						'page' => $this->pageEntitySerializer->toArray( $wikiPage ),
+						'revision' => $this->revisionEntitySerializer->toArray( $currentRevision ),
+					],
+					$performerArray
+				),
 			),
 			$commentAttrs,
 			$eventAttrs
@@ -205,7 +211,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 
 		$expected = $this->createExpectedPageChangeEvent(
 			$wikiPage0,
-			null,
+			$wikiPage0->getRevisionRecord()->getUser(),
 			null,
 			null,
 			null,
@@ -245,7 +251,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 
 		$expected = $this->createExpectedPageChangeEvent(
 			$wikiPage0,
-			null,
+			$wikiPage0->getRevisionRecord()->getUser(),
 			null,
 			null,
 			null,
@@ -398,7 +404,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 
 		$expected = $this->createExpectedPageChangeEvent(
 			$wikiPage0,
-			$this->getTestUser()->getUser(),
+			null,
 			null,
 			$eventTimestamp,
 			$reason,
@@ -431,7 +437,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		$actual = $this->pageChangeEventSerializer->toDeleteEvent(
 			self::MOCK_STREAM_NAME,
 			$wikiPage0,
-			$this->getTestUser()->getUser(),
+			null,
 			$currentRevisionRecord,
 			$reason,
 			$eventTimestamp,
@@ -489,8 +495,6 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			$oldPageId,
 		);
 
-		//
-
 		$this->assertEventEquals( $expected, $actual );
 	}
 
@@ -515,9 +519,16 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		$revisionRecord->setVisibility( RevisionRecord::DELETED_COMMENT | RevisionRecord::DELETED_USER );
 		$newDeleted = $revisionRecord->getVisibility();
 
+		// NOTE: This is the logic that PageChangeHooks uses to decide if performer
+		// should be in the event.  We don't have a great integration test for hooks
+		// right now.
+		// If we make one, this test should be moved there, so the actual code is tested.
+		$performerForEvent = $newDeleted & RevisionRecord::DELETED_RESTRICTED ?
+			null : $this->getTestUser()->getUser();
+
 		$expected = $this->createExpectedPageChangeEvent(
 			$wikiPage0,
-			$this->getTestUser()->getUser(),
+			$performerForEvent,
 			$revisionRecord,
 			$eventTimestamp,
 			null,
@@ -536,7 +547,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		$actual = $this->pageChangeEventSerializer->toVisibilityChangeEvent(
 			self::MOCK_STREAM_NAME,
 			$wikiPage0,
-			$this->getTestUser()->getUser(),
+			$performerForEvent,
 			$revisionRecord,
 			$oldDeleted,
 			$eventTimestamp

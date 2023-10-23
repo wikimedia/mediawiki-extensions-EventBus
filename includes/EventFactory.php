@@ -231,10 +231,8 @@ class EventFactory {
 			$attrs['rev_content_format'] = $contentFormat;
 		}
 
-		if ( $performer ) {
+		if ( isset( $performer ) ) {
 			$attrs['performer'] = $this->createPerformerAttrs( $performer );
-		} elseif ( $revision->getUser() ) {
-			$attrs['performer'] = $this->createPerformerAttrs( $revision->getUser() );
 		}
 
 		// It is possible that the $revision object does not have any content
@@ -729,12 +727,7 @@ class EventFactory {
 		array $removedTags,
 		?UserIdentity $user
 	) {
-		$attrs = $this->createRevisionRecordAttrs( $revisionRecord );
-
-		// If the user changing the tags is provided, override the performer in the event
-		if ( $user !== null ) {
-			$attrs['performer'] = $this->createPerformerAttrs( $user );
-		}
+		$attrs = $this->createRevisionRecordAttrs( $revisionRecord, $user );
 
 		$newTags = array_values(
 			array_unique( array_diff( array_merge( $prevTags, $addedTags ), $removedTags ) )
@@ -789,7 +782,7 @@ class EventFactory {
 		$stream,
 		RevisionRecord $revisionRecord
 	) {
-		$attrs = $this->createRevisionRecordAttrs( $revisionRecord );
+		$attrs = $this->createRevisionRecordAttrs( $revisionRecord, $revisionRecord->getUser() );
 		$attrs['dt'] = self::createDTAttr( $revisionRecord->getTimestamp() );
 		// Only add to revision-create for now
 		$attrs['rev_slots'] = $this->createSlotRecordsAttrs( $revisionRecord->getSlots() );
@@ -1236,7 +1229,7 @@ class EventFactory {
 		$recommendationType,
 		RevisionRecord $revisionRecord
 	) {
-		$attrs = $this->createRevisionRecordAttrs( $revisionRecord );
+		$attrs = $this->createRevisionRecordAttrs( $revisionRecord, $revisionRecord->getUser() );
 		$attrs['recommendation_type'] = $recommendationType;
 
 		return $this->createEvent(
