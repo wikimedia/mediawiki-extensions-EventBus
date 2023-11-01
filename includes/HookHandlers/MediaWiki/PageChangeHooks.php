@@ -24,6 +24,7 @@ namespace MediaWiki\Extension\EventBus\HookHandlers\MediaWiki;
 use Config;
 use DeferredUpdates;
 use Exception;
+use IDBAccessObject;
 use InvalidArgumentException;
 use ManualLogEntry;
 use MediaWiki\Content\ContentHandlerFactory;
@@ -300,7 +301,9 @@ class PageChangeHooks implements
 		$reason,
 		$revision
 	) {
-		$wikiPage = $this->wikiPageFactory->newFromID( $pageid );
+		// While we have $newTitle, serialization is going to ask for that information from the WikiPage.
+		// We have to read latest to ensure we are seeing the moved page.
+		$wikiPage = $this->wikiPageFactory->newFromID( $pageid, IDBAccessObject::READ_LATEST );
 
 		if ( $wikiPage == null ) {
 			throw new InvalidArgumentException( "No page moved from '$oldTitle' to '$newTitle' "
