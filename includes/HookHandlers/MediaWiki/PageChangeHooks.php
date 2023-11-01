@@ -59,6 +59,7 @@ use RequestContext;
 use StatusValue;
 use TitleFormatter;
 use Wikimedia\UUID\GlobalIdGenerator;
+use WikiPage;
 
 /**
  * HookHandler for sending mediawiki/page/change events
@@ -545,11 +546,18 @@ class PageChangeHooks implements
 		PageLookup $pageLookup,
 		RedirectLookup $redirectLookup
 	): ?RedirectTarget {
-		$redirectSourcePageReference = $pageLookup->getPageByReference( $page );
+		if ( $page instanceof WikiPage ) {
+			// RedirectLookup doesn't support reading from the primary db, but we
+			// need the value from the new edit. Fetch directly through WikiPage which
+			// was updated with the new value as part of saving the new revision.
+			$redirectLinkTarget = $page->getRedirectTarget();
+		} else {
+			$redirectSourcePageReference = $pageLookup->getPageByReference( $page, $pageLookup::READ_LATEST );
 
-		$redirectLinkTarget = $redirectSourcePageReference != null && $redirectSourcePageReference->isRedirect()
-			? $redirectLookup->getRedirectTarget( $redirectSourcePageReference )
-			: null;
+			$redirectLinkTarget = $redirectSourcePageReference != null && $redirectSourcePageReference->isRedirect()
+				? $redirectLookup->getRedirectTarget( $redirectSourcePageReference )
+				: null;
+		}
 
 		if ( $redirectLinkTarget != null ) {
 			if ( !$redirectLinkTarget->isExternal() ) {
