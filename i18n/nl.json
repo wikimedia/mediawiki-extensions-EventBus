@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"McDutchie"
+		]
+	},
+	"eventbus-desc": "Geeft wijzigingsinformatie door aan een RESTful-gebeurtenisservice"
+}
