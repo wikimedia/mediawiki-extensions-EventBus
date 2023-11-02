@@ -526,6 +526,18 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		$performerForEvent = $newDeleted & RevisionRecord::DELETED_RESTRICTED ?
 			null : $this->getTestUser()->getUser();
 
+		// NOTE: This is the logic that EventBusHooks uses to decide if performer
+		// should be in the event.  We don't have a great integration test for hooks
+		// right now.
+		// If we make one, this test should be moved there, so the actual code is tested.
+		$isSecretChange =
+			$newDeleted & RevisionRecord::DELETED_RESTRICTED ||
+			$oldDeleted & RevisionRecord::DELETED_RESTRICTED;
+
+		$performerForEvent = $isSecretChange ?
+			null :
+			$this->getTestUser()->getUser();
+
 		$expected = $this->createExpectedPageChangeEvent(
 			$wikiPage0,
 			$performerForEvent,

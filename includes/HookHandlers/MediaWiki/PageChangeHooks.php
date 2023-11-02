@@ -367,12 +367,12 @@ class PageChangeHooks implements
 
 		// Don't set performer in the event if this delete suppresses the page from other admins.
 		// https://phabricator.wikimedia.org/T342487
-		$performer = $isSuppression ? null : $this->userFactory->newFromAuthority( $deleter );
+		$performerForEvent = $isSuppression ? null : $this->userFactory->newFromAuthority( $deleter );
 
 		$event = $this->pageChangeEventSerializer->toDeleteEvent(
 			$this->streamName,
 			$wikiPage,
-			$performer,
+			$performerForEvent,
 			$deletedRev,
 			$reason,
 			$logEntry->getTimestamp(),
@@ -501,10 +501,10 @@ class PageChangeHooks implements
 				// make sure that we do not reproduce the data that has been suppressed
 				// in the event itself.  E.g. if the username of the editor of the revision has been
 				// suppressed, we should not include any information about that editor in the event.
-				$performerForEvent =
-					$visibilityChanges['newBits'] & RevisionRecord::DELETED_RESTRICTED ?
-						null :
-						$performer;
+				$performerForEvent = self::isSecretRevisionVisibilityChange(
+					$visibilityChangeMap[$revId]['oldBits'],
+					$visibilityChangeMap[$revId]['newBits']
+				) ? null : $performer;
 
 				$event = $this->pageChangeEventSerializer->toVisibilityChangeEvent(
 					$this->streamName,
@@ -523,6 +523,27 @@ class PageChangeHooks implements
 				break;
 			}
 		}
+	}
+
+	/**
+	 * This function returns true if the visibility bits between the change require the
+	 * info about the change to be redacted.
+	 * https://phabricator.wikimedia.org/T342487
+	 *
+	 * Info about a visibility change is secret (in the secret MW action log)
+	 * if the revision was either previously or currently is being suppressed.
+	 * The admin performing the action should be hidden in both cases.
+	 * The admin performing the action should only be shown if the change is not
+	 * affecting the revision's suppression status.
+	 * https://phabricator.wikimedia.org/T342487#9292715
+	 *
+	 * @param int $oldBits
+	 * @param int $newBits
+	 * @return bool
+	 */
+	public static function isSecretRevisionVisibilityChange( int $oldBits, int $newBits ) {
+		return $oldBits & RevisionRecord::DELETED_RESTRICTED ||
+			$newBits & RevisionRecord::DELETED_RESTRICTED;
 	}
 
 	/**

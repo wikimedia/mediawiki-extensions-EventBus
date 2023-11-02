@@ -492,7 +492,7 @@ class EventFactory {
 	/**
 	 * Create a page delete event message
 	 * @param string $stream the stream to send an event to
-	 * @param UserIdentity $user
+	 * @param UserIdentity|null $user
 	 * @param int $id
 	 * @param LinkTarget $title
 	 * @param bool $is_redirect
@@ -503,7 +503,7 @@ class EventFactory {
 	 */
 	public function createPageDeleteEvent(
 		$stream,
-		UserIdentity $user,
+		?UserIdentity $user,
 		$id,
 		LinkTarget $title,
 		$is_redirect,
@@ -515,7 +515,6 @@ class EventFactory {
 		$attrs = [
 			// Common Mediawiki entity fields
 			'database'           => $this->dbDomain,
-			'performer'          => $this->createPerformerAttrs( $user ),
 
 			// page entity fields
 			'page_id'            => $id,
@@ -523,6 +522,10 @@ class EventFactory {
 			'page_namespace'     => $title->getNamespace(),
 			'page_is_redirect'   => $is_redirect,
 		];
+
+		if ( $user ) {
+			$attrs['performer'] = $this->createPerformerAttrs( $user );
+		}
 
 		if ( $headRevision !== null && $headRevision->getId() !== null ) {
 			$attrs['rev_id'] = $headRevision->getId();
