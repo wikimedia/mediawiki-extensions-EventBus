@@ -30,6 +30,7 @@ use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\ChangeTags\Hook\ChangeTagsAfterUpdateTagsHook;
 use MediaWiki\Deferred\LinksUpdate\LinksTable;
 use MediaWiki\Deferred\LinksUpdate\LinksUpdate;
+use MediaWiki\Extension\EventBus\HookHandlers\MediaWiki\PageChangeHooks;
 use MediaWiki\Hook\ArticleRevisionVisibilitySetHook;
 use MediaWiki\Hook\BlockIpCompleteHook;
 use MediaWiki\Hook\LinksUpdateCompleteHook;
@@ -126,13 +127,18 @@ class EventBusHooks implements
 			'mediawiki.page-suppress' : 'mediawiki.page-delete';
 		$eventbus = EventBus::getInstanceForStream( $stream );
 
+		// Don't set performer in the event if this delete suppresses the page from other admins.
+		// https://phabricator.wikimedia.org/T342487
+		$performerForEvent = $logEntry->getType() == 'suppress' ? null : $deleter->getUser();
+
 		$eventBusFactory = $eventbus->getFactory();
 		$eventBusFactory->setCommentFormatter( MediaWikiServices::getInstance()->getCommentFormatter() );
 		$title = Title::castFromPageIdentity( $page );
 		Assert::postcondition( $title !== null, '$page can be cast to a LinkTarget' );
+
 		$event = $eventBusFactory->createPageDeleteEvent(
 			$stream,
-			$deleter->getUser(),
+			$performerForEvent,
 			$pageID,
 			$title,
 			$title->isRedirect(),
@@ -178,6 +184,7 @@ class EventBusHooks implements
 		$eventBus = EventBus::getInstanceForStream( $stream );
 		$eventBusFactory = $eventBus->getFactory();
 		$eventBusFactory->setCommentFormatter( MediaWikiServices::getInstance()->getCommentFormatter() );
+
 		$event = $eventBusFactory->createPageUndeleteEvent(
 			$stream,
 			$restorer->getUser(),
@@ -298,15 +305,15 @@ class EventBusHooks implements
 				// where regular delete/revision events are public, and suppress/revision events
 				// are private. In MediaWiki core logs, private events are fully hidden from
 				// the public.  Here, we need to produce a 'private' event to the
-				// mediawiki.revision-visibility-change stream, to indicate to consumers that
+				// mediawiki.page_change stream, to indicate to consumers that
 				// they should also 'suppress' the revision.  When this is done, we need to
 				// make sure that we do not reproduce the data that has been suppressed
 				// in the event itself.  E.g. if the username of the editor of the revision has been
 				// suppressed, we should not include any information about that editor in the event.
-				$performerForEvent =
-					$visibilityChangeMap[$revId]['newBits'] & RevisionRecord::DELETED_RESTRICTED ?
-					null :
-					$performer;
+				$performerForEvent = PageChangeHooks::isSecretRevisionVisibilityChange(
+					$visibilityChangeMap[$revId]['oldBits'],
+					$visibilityChangeMap[$revId]['newBits']
+				) ? null : $performer;
 
 				$events[] = $eventBusFactory->createRevisionVisibilityChangeEvent(
 					$stream,

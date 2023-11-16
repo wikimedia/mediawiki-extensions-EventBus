@@ -448,14 +448,18 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		// should be in the event.  We don't have a great integration test for hooks
 		// right now.
 		// If we make one, this test should be moved there, so the actual code is tested.
-		$performer = $visibilityChanges['newBits'] & RevisionRecord::DELETED_RESTRICTED ?
+		$isSecretChange =
+			$visibilityChanges['newBits'] & RevisionRecord::DELETED_RESTRICTED ||
+			$visibilityChanges['oldBits'] & RevisionRecord::DELETED_RESTRICTED;
+
+		$performerForEvent = $isSecretChange ?
 			null :
 			UserIdentityValue::newRegistered( 2, 'Real_Performer' );
 
 		$event = $eventFactory->createRevisionVisibilityChangeEvent(
 			'mediawiki.revision-visibility-change',
 			$revisionRecord,
-			$performer,
+			$performerForEvent,
 			$visibilityChanges
 		);
 
@@ -467,14 +471,17 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 
 		// If revision is suppressed, performer should not be present in event.
 		// https://phabricator.wikimedia.org/T342487
-		if ( $visibilityChanges['newBits'] & RevisionRecord::DELETED_RESTRICTED ) {
+		if (
+			$visibilityChanges['newBits'] & RevisionRecord::DELETED_RESTRICTED ||
+			$visibilityChanges['oldBits'] & RevisionRecord::DELETED_RESTRICTED
+		) {
 			$this->assertArrayNotHasKey(
 				'performer',
 				$event,
 				"'performer' should not be set for suppressed/restricted revisions"
 			);
 		} else {
-			$this->assertEquals( $performer->getName(), $event['performer']['user_text'],
+			$this->assertEquals( $performerForEvent->getName(), $event['performer']['user_text'],
 				"'user_text' incorrect value" );
 		}
 	}
