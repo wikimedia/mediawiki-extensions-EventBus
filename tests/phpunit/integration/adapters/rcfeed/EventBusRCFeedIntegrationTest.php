@@ -1,6 +1,7 @@
 <?php
 
 use MediaWiki\Extension\EventBus\Adapters\RCFeed\EventBusRCFeedFormatter;
+use MediaWiki\SpecialPage\SpecialPage;
 use MediaWiki\Title\Title;
 
 /**

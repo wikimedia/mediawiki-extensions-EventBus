@@ -21,13 +21,13 @@
 
 namespace MediaWiki\Extension\EventBus\HookHandlers\MediaWiki;
 
-use Config;
-use DeferredUpdates;
 use Exception;
 use IDBAccessObject;
 use InvalidArgumentException;
 use ManualLogEntry;
+use MediaWiki\Config\Config;
 use MediaWiki\Content\ContentHandlerFactory;
+use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\Redirects\RedirectTarget;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
@@ -52,12 +52,12 @@ use MediaWiki\Permissions\Authority;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\RevisionStore;
 use MediaWiki\Storage\Hook\PageSaveCompleteHook;
+use MediaWiki\Title\TitleFormatter;
 use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
 use Psr\Log\LoggerInterface;
 use RequestContext;
 use StatusValue;
-use TitleFormatter;
 use Wikimedia\UUID\GlobalIdGenerator;
 use WikiPage;
 

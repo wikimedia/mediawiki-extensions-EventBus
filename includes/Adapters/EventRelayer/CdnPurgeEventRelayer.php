@@ -2,12 +2,12 @@
 
 namespace MediaWiki\Extension\EventBus\Adapters\EventRelayer;
 
-use EventRelayer;
 use InvalidArgumentException;
 use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\MediaWikiServices;
-use MWTimestamp;
+use MediaWiki\Utils\MWTimestamp;
 use Wikimedia\Assert\Assert;
+use Wikimedia\EventRelayer\EventRelayer;
 
 /**
  * @package MediaWiki\Extension\EventBus

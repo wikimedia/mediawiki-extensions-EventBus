@@ -24,8 +24,8 @@ use MediaWiki\Extension\EventBus\Redirects\RedirectTarget;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Revision\RevisionRecord;
+use MediaWiki\User\User;
 use MediaWiki\WikiMap\WikiMap;
-use User;
 use Wikimedia\Assert\Assert;
 use WikiPage;
 

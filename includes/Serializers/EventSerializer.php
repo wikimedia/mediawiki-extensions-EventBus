@@ -20,7 +20,7 @@
  */
 namespace MediaWiki\Extension\EventBus\Serializers;
 
-use Config;
+use MediaWiki\Config\Config;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\WikiMap\WikiMap;
 use Wikimedia\UUID\GlobalIdGenerator;

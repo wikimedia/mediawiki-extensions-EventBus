@@ -2,7 +2,7 @@
 
 namespace MediaWiki\Extension\EventBus\Adapters\Monolog;
 
-use DeferredUpdates;
+use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Extension\EventBus\EventBus;
 use Monolog\Handler\AbstractProcessingHandler;
 use Monolog\Logger;

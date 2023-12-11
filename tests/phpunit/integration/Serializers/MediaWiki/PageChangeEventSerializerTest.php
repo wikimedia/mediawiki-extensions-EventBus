@@ -1,5 +1,6 @@
 <?php
 
+use MediaWiki\Config\HashConfig;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageChangeEventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
@@ -10,6 +11,7 @@ use MediaWiki\Http\Telemetry;
 use MediaWiki\Revision\MutableRevisionRecord;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\RevisionStore;
+use MediaWiki\User\User;
 use MediaWiki\User\UserFactory;
 use MediaWiki\WikiMap\WikiMap;
 use Wikimedia\UUID\GlobalIdGenerator;

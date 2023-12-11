@@ -23,10 +23,10 @@ namespace MediaWiki\Extension\EventBus\HookHandlers\MediaWiki;
 
 use Campaign;
 use CentralNoticeCampaignChangeHook;
-use DeferredUpdates;
+use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Extension\EventBus\EventBus;
+use MediaWiki\User\User;
 use UnexpectedValueException;
-use User;
 
 class CampaignChangeHooks implements CentralNoticeCampaignChangeHook {
 

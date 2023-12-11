@@ -21,10 +21,10 @@
 namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
+use MediaWiki\User\User;
 use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
 use MediaWiki\User\UserIdentity;
-use User;
 use Wikimedia\Assert\Assert;
 
 /**

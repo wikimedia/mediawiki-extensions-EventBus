@@ -3,6 +3,7 @@
 use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\Block\Restriction\NamespaceRestriction;
 use MediaWiki\Block\Restriction\PageRestriction;
+use MediaWiki\CommentStore\CommentStoreComment;
 use MediaWiki\Extension\EventBus\EventFactory;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Page\PageReference;
@@ -11,6 +12,7 @@ use MediaWiki\Revision\MutableRevisionRecord;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\SlotRecord;
 use MediaWiki\Title\Title;
+use MediaWiki\Title\TitleValue;
 use MediaWiki\User\UserIdentity;
 use MediaWiki\User\UserIdentityValue;
 

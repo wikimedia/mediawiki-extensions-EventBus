@@ -20,11 +20,11 @@
  */
 namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
-use Config;
+use MediaWiki\Config\Config;
 use MediaWiki\Extension\EventBus\Redirects\RedirectTarget;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Page\PageRecord;
-use TitleFormatter;
+use MediaWiki\Title\TitleFormatter;
 use WikiPage;
 
 /**

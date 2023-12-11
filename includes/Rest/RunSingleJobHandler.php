@@ -20,16 +20,16 @@
 
 namespace MediaWiki\Extension\EventBus\Rest;
 
-use Config;
 use Job;
 use JobRunner;
+use MediaWiki\Config\Config;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\Rest\Handler;
 use MediaWiki\Rest\HttpException;
 use MediaWiki\Rest\Validator\BodyValidator;
 use MediaWiki\Rest\Validator\Validator;
 use Psr\Log\LoggerInterface;
-use ReadOnlyMode;
+use Wikimedia\Rdbms\ReadOnlyMode;
 
 /**
  * Class RunSingleJobHandler

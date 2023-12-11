@@ -7,10 +7,10 @@
 
 namespace MediaWiki\Extension\EventBus;
 
-use Config;
-use DeferredUpdates;
 use Exception;
 use Liuggio\StatsdClient\Factory\StatsdDataFactoryInterface;
+use MediaWiki\Config\Config;
+use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;

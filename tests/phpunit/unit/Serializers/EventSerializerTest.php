@@ -1,5 +1,6 @@
 <?php
 
+use MediaWiki\Config\HashConfig;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use Wikimedia\UUID\GlobalIdGenerator;
 

@@ -19,6 +19,7 @@ use MediaWiki\Revision\RevisionStore;
 use MediaWiki\Revision\SlotRecord;
 use MediaWiki\Revision\SuppressedDataException;
 use MediaWiki\Title\Title;
+use MediaWiki\Title\TitleFormatter;
 use MediaWiki\User\UserEditTracker;
 use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
@@ -26,7 +27,6 @@ use MediaWiki\User\UserIdentity;
 use MediaWiki\WikiMap\WikiMap;
 use MWUnknownContentModelException;
 use Psr\Log\LoggerInterface;
-use TitleFormatter;
 use UIDGenerator;
 
 /**

@@ -1,5 +1,6 @@
 <?php
 
+use MediaWiki\Deferred\CdnCacheUpdate;
 use MediaWiki\Extension\EventBus\Adapters\EventRelayer\CdnPurgeEventRelayer;
 use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\Extension\EventBus\EventBusFactory;

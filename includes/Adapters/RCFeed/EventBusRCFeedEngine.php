@@ -2,8 +2,8 @@
 
 namespace MediaWiki\Extension\EventBus\Adapters\RCFeed;
 
-use DeferredUpdates;
 use FormattedRCFeed;
+use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Extension\EventBus\EventBus;
 
 /**

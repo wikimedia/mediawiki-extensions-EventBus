@@ -24,10 +24,10 @@
 
 namespace MediaWiki\Extension\EventBus;
 
-use DeferredUpdates;
 use ManualLogEntry;
 use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\ChangeTags\Hook\ChangeTagsAfterUpdateTagsHook;
+use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Deferred\LinksUpdate\LinksTable;
 use MediaWiki\Deferred\LinksUpdate\LinksUpdate;
 use MediaWiki\Extension\EventBus\HookHandlers\MediaWiki\PageChangeHooks;
@@ -49,10 +49,10 @@ use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Storage\EditResult;
 use MediaWiki\Storage\Hook\PageSaveCompleteHook;
 use MediaWiki\Title\Title;
+use MediaWiki\User\User;
 use MediaWiki\User\UserIdentity;
 use RecentChange;
 use RequestContext;
-use User;
 use Wikimedia\Assert\Assert;
 use WikiPage;
 
