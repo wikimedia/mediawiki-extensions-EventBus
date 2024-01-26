@@ -24,6 +24,7 @@
 
 namespace MediaWiki\Extension\EventBus;
 
+use IDBAccessObject;
 use ManualLogEntry;
 use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\ChangeTags\Hook\ChangeTagsAfterUpdateTagsHook;
@@ -77,7 +78,7 @@ class EventBusHooks implements
 	/**
 	 * @return RevisionLookup
 	 */
-	private static function getRevisionLookup() {
+	private static function getRevisionLookup(): RevisionLookup {
 		return MediaWikiServices::getInstance()->getRevisionLookup();
 	}
 
@@ -273,7 +274,7 @@ class EventBusHooks implements
 			// might still not be available on a replica and we are at risk of leaking
 			// just suppressed data.
 			$revision = self::getRevisionLookup()
-				->getRevisionById( $revId, RevisionLookup::READ_LATEST );
+				->getRevisionById( $revId, IDBAccessObject::READ_LATEST );
 
 			// If the page is deleted simultaneously (null $revision) or if
 			// this revId is not in the $visibilityChangeMap, then we can't

@@ -440,7 +440,7 @@ class PageChangeHooks implements
 			// just suppressed data.
 			$revisionRecord = $this->revisionStore->getRevisionById(
 				$revId,
-				RevisionStore::READ_LATEST
+				IDBAccessObject::READ_LATEST
 			);
 
 			if ( $revisionRecord === null ) {
@@ -573,7 +573,7 @@ class PageChangeHooks implements
 			// was updated with the new value as part of saving the new revision.
 			$redirectLinkTarget = $page->getRedirectTarget();
 		} else {
-			$redirectSourcePageReference = $pageLookup->getPageByReference( $page, $pageLookup::READ_LATEST );
+			$redirectSourcePageReference = $pageLookup->getPageByReference( $page, IDBAccessObject::READ_LATEST );
 
 			$redirectLinkTarget = $redirectSourcePageReference != null && $redirectSourcePageReference->isRedirect()
 				? $redirectLookup->getRedirectTarget( $redirectSourcePageReference )
