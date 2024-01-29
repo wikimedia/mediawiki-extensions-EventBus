@@ -137,7 +137,7 @@ set `$wgEnableEventBus = "TYPE_NONE"`.
 
 
 ### EventBusStreamNamesMap config
-HookHandlers/Mediawiki/PageChangeHooks.php adds a config `EventBusStreamNamesMap` that
+HookHandlers/MediaWiki/PageChangeHooks.php adds a config `EventBusStreamNamesMap` that
 maps from internal logical names of streams to the actual stream name that will be produced.
 This allows developers to vary the stream name used for e.g. 'mediawiki.page_change' in testing
 and staging environments.  Perhaps you want to produce page change events to a release candidate

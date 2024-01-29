@@ -60,7 +60,7 @@ class UserEntitySerializer {
 
 	/**
 	 * Given a User or UserIdentity $user, returns an array suitable for
-	 * use as a mediawiki/state/entity/user JSON object in other Mediawiki
+	 * use as a mediawiki/state/entity/user JSON object in other MediaWiki
 	 * state/entity schemas.
 	 * @param User|UserIdentity $user
 	 * @return array

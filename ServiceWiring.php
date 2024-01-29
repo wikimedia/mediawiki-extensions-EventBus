@@ -10,7 +10,7 @@ use MediaWiki\MediaWikiServices;
 return [
 	'EventBus.EventBusFactory' => static function ( MediaWikiServices $services ): EventBusFactory {
 		if ( ExtensionRegistry::getInstance()->isLoaded( 'EventStreamConfig' ) ) {
-			// Mediawiki\Extension\EventStreamConfig\StreamConfigs instance.
+			// MediaWiki\Extension\EventStreamConfig\StreamConfigs instance.
 			$streamConfigs = $services->get( 'EventStreamConfig.StreamConfigs' );
 		} else {
 			// If null, EventBus will always use EventServiceDefault

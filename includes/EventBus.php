@@ -431,7 +431,7 @@ class EventBus {
 	/**
 	 * @param string|null $eventServiceName
 	 * 		The name of a key in the EventServices config looked up via
-	 * 		MediawikiServices::getInstance()->getMainConfig()->get('EventServices').
+	 * 		MediaWikiServices::getInstance()->getMainConfig()->get('EventServices').
 	 * 		The EventService config is keyed by service name, and should at least contain
 	 * 		a 'url' entry pointing at the event service endpoint events should be
 	 * 		POSTed to. They can also optionally contain a 'timeout' entry specifying

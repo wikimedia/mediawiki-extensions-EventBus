@@ -203,7 +203,7 @@ class EventFactory {
 	) {
 		$linkTarget = $revision->getPageAsLinkTarget();
 		$attrs = [
-			// Common Mediawiki entity fields
+			// Common MediaWiki entity fields
 			'database'           => $this->dbDomain,
 
 			// revision entity fields
@@ -292,7 +292,7 @@ class EventFactory {
 
 	/**
 	 * Given a UserIdentity $user, returns an array suitable for
-	 * use as the performer JSON object in various Mediawiki
+	 * use as the performer JSON object in various MediaWiki
 	 * entity schemas.
 	 * @param UserIdentity $user
 	 * @return array
@@ -513,7 +513,7 @@ class EventFactory {
 	) {
 		// Create a mediawiki page delete event.
 		$attrs = [
-			// Common Mediawiki entity fields
+			// Common MediaWiki entity fields
 			'database'           => $this->dbDomain,
 
 			// page entity fields
@@ -571,7 +571,7 @@ class EventFactory {
 	) {
 		// Create a mediawiki page undelete event.
 		$attrs = [
-			// Common Mediawiki entity fields
+			// Common MediaWiki entity fields
 			'database'           => $this->dbDomain,
 			'performer'          => $this->createPerformerAttrs( $performer ),
 
@@ -642,7 +642,7 @@ class EventFactory {
 		}
 
 		$attrs = [
-			// Common Mediawiki entity fields
+			// Common MediaWiki entity fields
 			'database'           => $this->dbDomain,
 			'performer'          => $this->createPerformerAttrs( $user ),
 
@@ -828,9 +828,9 @@ class EventFactory {
 		$revId,
 		$pageId
 	) {
-		// Create a mediawiki page delete event.
+		// Create a MediaWiki page delete event.
 		$attrs = [
-			// Common Mediawiki entity fields
+			// Common MediaWiki entity fields
 			'database'           => $this->dbDomain,
 
 			// page entity fields
@@ -892,7 +892,7 @@ class EventFactory {
 	) {
 		// Create a mediawiki page delete event.
 		$attrs = [
-			// Common Mediawiki entity fields
+			// Common MediaWiki entity fields
 			'database'           => $this->dbDomain,
 
 			// page entity fields
@@ -972,7 +972,7 @@ class EventFactory {
 		?DatabaseBlock $previousBlock
 	) {
 		$attrs = [
-			// Common Mediawiki entity fields:
+			// Common MediaWiki entity fields:
 			'database'           => $this->dbDomain,
 			'performer'          => $this->createPerformerAttrs( $user ),
 		];
@@ -1038,9 +1038,9 @@ class EventFactory {
 		$reason,
 		array $protect
 	) {
-		// Create a mediawiki page restrictions change event.
+		// Create a MediaWiki page restrictions change event.
 		$attrs = [
-			// Common Mediawiki entity fields
+			// Common MediaWiki entity fields
 			'database'           => $this->dbDomain,
 			'performer'          => $this->createPerformerAttrs( $user ),
 
