@@ -31,6 +31,7 @@ use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
 use MultiHttpClient;
 use Psr\Log\LoggerInterface;
+use RuntimeException;
 use Wikimedia\Assert\Assert;
 
 class EventBus {
@@ -194,7 +195,7 @@ class EventBus {
 		}
 		if ( !$events ) {
 			// Logstash doesn't like the args, because they could be of various types
-			$context = [ 'exception' => new Exception() ];
+			$context = [ 'exception' => new RuntimeException() ];
 			self::logger()->error( 'Must call send with at least 1 event. Aborting send.', $context );
 			return "Provided event list is empty";
 		}
@@ -260,7 +261,7 @@ class EventBus {
 				$context = [
 					'raw_events' => self::prepareEventsForLogging( $body ),
 					'service_response' => $res,
-					'exception' => new Exception(),
+					'exception' => new RuntimeException(),
 				];
 				self::logger()->error( "Unable to deliver all events: {$message}", $context );
 
@@ -297,7 +298,7 @@ class EventBus {
 					}
 				}
 				$context = [
-					'exception' => new Exception(),
+					'exception' => new RuntimeException(),
 					'json_last_error' => json_last_error_msg(),
 					// Use PHP serialization since that will *always* work.
 					'events' => serialize( $bad ),
