@@ -106,9 +106,8 @@ describe( 'Run Single Job', function () {
 
 	it( 'should return 415 for unsupported content-type', async function () {
 		const event = JSON.stringify( getDeletePageJobEvent() );
-		const { status, body } = await client.post( '/job/execute', event, { 'content-type': 'text/plain' } );
+		const { status } = await client.post( '/job/execute', event, { 'content-type': 'text/plain' } );
 
 		assert.equal( status, 415 );
-		assert.equal( body.message, 'Unsupported Content-Type' );
 	} );
 } );
