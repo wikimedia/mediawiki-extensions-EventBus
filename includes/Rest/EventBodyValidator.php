@@ -54,11 +54,14 @@ class EventBodyValidator implements BodyValidator {
 			!isset( $event['params'] )
 		) {
 			$missingParams = [];
-			if ( !isset( $event['database'] ) ) { $missingParams[] = 'database';
+			if ( !isset( $event['database'] ) ) {
+				$missingParams[] = 'database';
 			}
-			if ( !isset( $event['type'] ) ) { $missingParams[] = 'type';
+			if ( !isset( $event['type'] ) ) {
+				$missingParams[] = 'type';
 			}
-			if ( !isset( $event['params'] ) ) { $missingParams[] = 'params';
+			if ( !isset( $event['params'] ) ) {
+				$missingParams[] = 'params';
 			}
 			throw new HttpException( 'Invalid event received', 400, [ 'missing_params' => $missingParams ] );
 		}

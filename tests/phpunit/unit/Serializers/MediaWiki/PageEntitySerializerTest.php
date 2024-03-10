@@ -55,7 +55,7 @@ class PageEntitySerializerTest extends MediaWikiUnitTestCase {
 			'ArticlePath' => self::MOCK_ARTICLE_PATH
 		] );
 
-		$titleFormatter = $this->createMock( TitleFormatter::Class );
+		$titleFormatter = $this->createMock( TitleFormatter::class );
 		$titleFormatter->method( 'getPrefixedDBkey' )->will( new class() implements Stub {
 			public function invoke( Invocation $invocation ) {
 				if ( $invocation->getParameters()[0] instanceof LinkTarget ) {
@@ -74,7 +74,7 @@ class PageEntitySerializerTest extends MediaWikiUnitTestCase {
 			$titleFormatter
 		);
 
-		$this->wikiPage = $this->createMock( WikiPage::Class );
+		$this->wikiPage = $this->createMock( WikiPage::class );
 		$this->wikiPage->method( 'getId' )->willReturn( self::MOCK_PAGE_ID );
 		$this->wikiPage->method( 'getTitle' )->willReturn(
 			Title::newFromLinkTarget( new TitleValue( 0, self::MOCK_PAGE_TITLE ) )
@@ -134,7 +134,7 @@ class PageEntitySerializerTest extends MediaWikiUnitTestCase {
 
 		$wikiPage = $this->wikiPage;
 
-		$wikiPageRedirectPage = $this->createMock( WikiPage::Class );
+		$wikiPageRedirectPage = $this->createMock( WikiPage::class );
 		$wikiPageRedirectPage->method( 'getId' )->willReturn( self::MOCK_REDIRECT_PAGE_ID );
 		$wikiPageRedirectPage->method( 'getTitle' )->willReturn(
 			Title::newFromLinkTarget( new TitleValue( 0, self::MOCK_REDIRECT_PAGE_TITLE ) )

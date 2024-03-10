@@ -219,7 +219,7 @@ class EventBus {
 			}
 
 			if ( strlen( $serializedEvents ) > $this->maxBatchByteSize ) {
-				$body = $this->partitionEvents( $events,  strlen( $serializedEvents ) );
+				$body = $this->partitionEvents( $events, strlen( $serializedEvents ) );
 			} else {
 				$body = $serializedEvents;
 			}

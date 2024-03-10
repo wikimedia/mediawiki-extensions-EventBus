@@ -62,7 +62,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 
 	private function assertPageProperties( $event, $rowOverrides = [] ) {
 		$row = self::revisionProperties( $rowOverrides );
-		$this->assertEquals( $row['page'],  $event['page_id'], "'page_id' incorrect value" );
+		$this->assertEquals( $row['page'], $event['page_id'], "'page_id' incorrect value" );
 		$this->assertEquals( self::MOCK_PAGE_TITLE, $event['page_title'],
 			"'page_title' incorrect value" );
 		$this->assertSame( 0, $event['page_namespace'], "'page_namespace' incorrect value" );
@@ -876,7 +876,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$this->assertIsArray( $event, 'array', 'Returned event should be of type array' );
 		$this->assertArrayHasKey( 'tags', $event, "'tags' key missing" );
 		$this->assertArrayHasKey( '0', $event['tags'], "'tags/0' key missing" );
-		$this->assertArrayHasKey( '1', $event['tags'],  "'tags/1' key missing" );
+		$this->assertArrayHasKey( '1', $event['tags'], "'tags/1' key missing" );
 		$this->assertEquals( 'tag0', $event['tags']['0'], "'tags/0' incorrect value" );
 		$this->assertEquals( 'tag1', $event['tags']['1'], "'tags/1' incorrect value" );
 		$this->assertStream( $event, 'resource_change' );

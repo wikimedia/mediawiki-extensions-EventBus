@@ -122,7 +122,7 @@ class EventSerializer {
 			$eventAttrs,
 			[
 				'$schema' => $schema,
-				'meta' => $this->createMeta( $stream,  $uri, $domain, $metaDt )
+				'meta' => $this->createMeta( $stream, $uri, $domain, $metaDt )
 			]
 		);
 	}

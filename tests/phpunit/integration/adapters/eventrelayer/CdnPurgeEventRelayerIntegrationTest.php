@@ -57,7 +57,7 @@ class CdnPurgeEventRelayerIntegrationTest extends MediaWikiIntegrationTestCase {
 			[ 'getInstanceForStream' ]
 		);
 		$mockEventBusFactory->method( 'getInstanceForStream' )->willReturn( $mockEventBus );
-		$this->setService( 'EventBus.EventBusFactory',  $mockEventBusFactory );
+		$this->setService( 'EventBus.EventBusFactory', $mockEventBusFactory );
 		CdnCacheUpdate::purge( [ $fakeUrl ] );
 	}
 }
