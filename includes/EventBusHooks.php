@@ -605,6 +605,11 @@ class EventBusHooks implements
 			return;
 		}
 
+		if ( !$user && $rc ) {
+			// If no user was explicitly given, fall back to the user who performed the change.
+			$user = $rc->getPerformerIdentity();
+		}
+
 		$stream = 'mediawiki.revision-tags-change';
 		$eventBus = $this->eventBusFactory->getInstanceForStream( $stream );
 		$eventBusFactory = $eventBus->getFactory();
