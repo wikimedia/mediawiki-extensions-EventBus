@@ -183,6 +183,8 @@ class EventBusFactoryIntegrationTest extends MediaWikiIntegrationTestCase {
 
 		// EventBus behavior is different if EventStreamConfig is loaded.
 		if ( $useStreamConfigs ) {
+			MWDebug::filterDeprecationForTest( '/calling with ServiceOptions is deprecated/' );
+
 			$streamConfigsOptions = new ServiceOptions(
 				StreamConfigs::CONSTRUCTOR_OPTIONS,
 				$mwConfig
