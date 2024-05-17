@@ -11,6 +11,7 @@ use MediaWiki\Http\Telemetry;
 use MediaWiki\Revision\MutableRevisionRecord;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\RevisionStore;
+use MediaWiki\Title\Title;
 use MediaWiki\User\User;
 use MediaWiki\User\UserFactory;
 use MediaWiki\WikiMap\WikiMap;
@@ -209,7 +210,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	 * @covers ::toCreateEvent
 	 */
 	public function testCreatePageChangeCreateEvent() {
-		$wikiPage0 = $this->getExistingTestPage( 'MyPageToEdit' );
+		$wikiPage0 = $this->getExistingTestPage( Title::newFromText( 'MyPageToEdit', $this->getDefaultWikitextNS() ) );
 
 		$expected = $this->createExpectedPageChangeEvent(
 			$wikiPage0,
@@ -240,7 +241,9 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	 * @covers ::toEditEvent
 	 */
 	public function testCreatePageChangeEditEvent() {
-		$wikiPage0 = $this->getExistingTestPage( 'MyPageToCreate' );
+		$wikiPage0 = $this->getExistingTestPage(
+			Title::newFromText( 'MyPageToCreate', $this->getDefaultWikitextNS() )
+		);
 
 		// Make an edit so the page has at least 2 revisions, so the parent revision
 		// will be represented properly.
@@ -292,7 +295,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	public function testCreatePageChangeMoveEvent() {
 		$oldTitleText = 'MyPageToMove';
 		$newTitleText = 'Renamed_MyPageToMove';
-		$wikiPage0 = $this->getExistingTestPage( $newTitleText );
+		$wikiPage0 = $this->getExistingTestPage( Title::newFromText( $newTitleText, $this->getDefaultWikitextNS() ) );
 
 		// Make an edit to the 'moved page', to make it look like a revision was created
 		// due to a page move.
@@ -308,7 +311,9 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		// Move the page!
 		$reason = 'test move event';
 
-		$createdRedirectPage = $this->getExistingTestPage( $oldTitleText );
+		$createdRedirectPage = $this->getExistingTestPage(
+			Title::newFromText( $oldTitleText, $this->getDefaultWikitextNS() )
+		);
 
 		$parentRevisionRecord = $this->revisionStore->getRevisionById(
 			$wikiPage0->getRevisionRecord()->getParentId()
@@ -352,7 +357,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	 * @covers ::toDeleteEvent
 	 */
 	public function testCreatePageChangeDeleteEvent() {
-		$wikiPage0 = $this->getExistingTestPage( 'MyDeletedPage' );
+		$wikiPage0 = $this->getExistingTestPage( Title::newFromText( 'MyDeletedPage', $this->getDefaultWikitextNS() ) );
 		$reason = 'test delete event';
 
 		// Use the current revision timestamp just for having a timestamp to test.
@@ -395,7 +400,9 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	 * @covers ::toDeleteEvent
 	 */
 	public function testCreatePageChangeDeleteEventWithPageSuppression() {
-		$wikiPage0 = $this->getExistingTestPage( 'MyDeletedAndSuppressedPage' );
+		$wikiPage0 = $this->getExistingTestPage(
+			Title::newFromText( 'MyDeletedAndSuppressedPage', $this->getDefaultWikitextNS() )
+		);
 		$reason = 'test delete event with page suppression';
 
 		// Use the current revision timestamp just for having a timestamp to test.
@@ -460,7 +467,9 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	 */
 	public function testCreatePageChangeUndeleteEvent() {
 		// No need to actually delete and undelete to run test.
-		$wikiPage0 = $this->getExistingTestPage( 'MyUndeletedPage' );
+		$wikiPage0 = $this->getExistingTestPage(
+			Title::newFromText( 'MyUndeletedPage', $this->getDefaultWikitextNS() )
+		);
 		$reason = 'test undelete event';
 
 		// For testing purposes, assume the pageId as changed.
@@ -505,7 +514,9 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	 */
 	public function testCreatePageChangeVisibilityEvent() {
 		// No need to actually delete and undelete to run test.
-		$wikiPage0 = $this->getExistingTestPage( 'MyPageToChangeVisibility' );
+		$wikiPage0 = $this->getExistingTestPage(
+			Title::newFromText( 'MyPageToChangeVisibility', $this->getDefaultWikitextNS() )
+		);
 
 		// Use the current revision timestamp for the event just for having a timestamp in it.
 		$eventTimestamp = $wikiPage0->getRevisionRecord()->getTimestamp();
