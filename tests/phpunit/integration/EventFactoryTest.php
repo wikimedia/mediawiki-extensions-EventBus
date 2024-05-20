@@ -513,7 +513,9 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	}
 
 	public function testPageMoveEventWithRedirectPageId() {
-		$redirect = $this->getExistingTestPage( __FUNCTION__ . '/redirect' );
+		$redirect = $this->getExistingTestPage(
+			Title::newFromText( __FUNCTION__ . '/redirect', $this->getDefaultWikitextNS() )
+		);
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createPageMoveEvent(
 			'mediawiki.page-move',
@@ -679,7 +681,9 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 
 	public function testRevisionCreationEventContentChangeExists() {
 		// Make sure that the page exists, so we can use its latest revision as parent.
-		$page = $this->getExistingTestPage( self::MOCK_PAGE_TITLE );
+		$page = $this->getExistingTestPage(
+			Title::newFromText( self::MOCK_PAGE_TITLE, $this->getDefaultWikitextNS() )
+		);
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createRevisionCreateEvent(
 			'mediawiki.revision-create',
@@ -833,7 +837,8 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	}
 
 	public function testPageUndeleteEvent() {
-		$page = $this->getExistingTestPage( self::MOCK_PAGE_TITLE );
+		$title = Title::newFromText( self::MOCK_PAGE_TITLE, $this->getDefaultWikitextNS() );
+		$page = $this->getExistingTestPage( $title );
 		$expectedRevId = 123;
 		$revisionRecord = $this->createMutableRevisionFromArray( [
 			'id' => $expectedRevId,
@@ -854,7 +859,8 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$this->assertArrayHasKey( 'page_title', $event, "'page_title' key missing" );
 		$this->assertArrayHasKey( 'rev_id', $event, "'rev_id' key missing" );
 		$this->assertSame( $expectedRevId, $event['rev_id'], "'rev_id' mismatch" );
-		$this->assertEquals( self::MOCK_PAGE_TITLE, $event['page_title'],
+		$this->assertEquals(
+			$title->getFullText(), $event['page_title'],
 			"'page_title' incorrect value" );
 		$this->assertArrayHasKey( 'prior_state', $event, "'prior_state' key missing" );
 		$this->assertArrayHasKey( 'page_id', $event['prior_state'], "'page_id' key missing" );

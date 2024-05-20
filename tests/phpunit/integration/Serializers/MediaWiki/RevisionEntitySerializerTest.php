@@ -4,6 +4,7 @@ use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
+use MediaWiki\Title\Title;
 
 /**
  * @coversDefaultClass \MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer
@@ -66,7 +67,9 @@ class RevisionEntitySerializerTest extends MediaWikiIntegrationTestCase {
 	 * @covers ::toArray
 	 */
 	public function testToArray() {
-		$wikiPage = $this->getExistingTestPage( self::MOCK_PAGE_TITLE );
+		$wikiPage = $this->getExistingTestPage(
+			Title::newFromText( self::MOCK_PAGE_TITLE, $this->getDefaultWikitextNS() )
+		);
 
 		$revisionRecord = $wikiPage->getRevisionRecord();
 
