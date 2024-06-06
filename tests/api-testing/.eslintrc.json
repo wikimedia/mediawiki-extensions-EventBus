@@ -11,6 +11,8 @@
 		"ecmaVersion": 2018
 	},
 	"rules": {
-		"camelcase": "off"
+		"camelcase": "off",
+		"es-x/no-arrow-functions": "warn",
+		"prefer-arrow-callback": "warn"
 	}
 }
