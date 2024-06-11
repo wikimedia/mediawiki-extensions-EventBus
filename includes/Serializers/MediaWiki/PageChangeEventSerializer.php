@@ -289,11 +289,11 @@ class PageChangeEventSerializer {
 		// (Page moves create a new revision of a page).
 		$priorStateAttrs = [];
 
-		// Add page.page_title prior_state info.
-		// Only add the old page_title to prior_state,
-		// as the page_id and namespace have not changed.
+		// Include old page_title and namespace to prior_state, these are primary
+		// arguments to the move. Skip page_id as it could not have changed.
 		$priorStateAttrs['page'] = [
-			'page_title' => $this->pageEntitySerializer->formatLinkTarget( $oldTitle )
+			'page_title' => $this->pageEntitySerializer->formatLinkTarget( $oldTitle ),
+			'namespace_id' => $oldTitle->getNamespace(),
 		];
 
 		// add parent revision info in prior_state, since a page move creates a new revision.

@@ -332,6 +332,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 				'prior_state' => [
 					'page' => [
 						'page_title' => $this->pageEntitySerializer->formatLinkTarget( $oldTitle ),
+						'namespace_id' => $oldTitle->getNamespace(),
 					],
 					'revision' => $this->revisionEntitySerializer->toArray( $parentRevisionRecord )
 				]
