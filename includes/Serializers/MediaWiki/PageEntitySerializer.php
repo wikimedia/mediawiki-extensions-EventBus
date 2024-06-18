@@ -71,7 +71,7 @@ class PageEntitySerializer {
 				'namespace_id' => $redirectLinkTarget->getNamespace(),
 			];
 			$redirectPageIdentity = $redirectTarget->getPage();
-			if ( $redirectPageIdentity->exists() ) {
+			if ( $redirectPageIdentity != null && $redirectPageIdentity->exists() ) {
 				$redirect['page_id'] = $redirectPageIdentity->getId();
 				if ( $redirectPageIdentity instanceof PageRecord ) {
 					$redirect['is_redirect'] = $redirectPageIdentity->isRedirect();
