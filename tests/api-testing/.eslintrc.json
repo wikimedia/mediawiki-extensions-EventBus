@@ -13,6 +13,7 @@
 	"rules": {
 		"camelcase": "off",
 		"es-x/no-arrow-functions": "warn",
-		"prefer-arrow-callback": "warn"
+		"prefer-arrow-callback": "warn",
+		"space-before-function-paren": "warn"
 	}
 }
