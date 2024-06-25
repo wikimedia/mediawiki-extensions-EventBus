@@ -61,15 +61,6 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 		$anonUser = $userFactory->newAnonymous( self::MOCK_ANON_IP );
 		$anonUserIdentity = UserIdentityValue::newAnonymous( self::MOCK_ANON_IP );
 		$regUser = $this->getTestUser()->getUser();
-		$autoCreateTempUser = $this->getConfVar( 'AutoCreateTempUser' );
-		$autoCreateTempUser = $autoCreateTempUser['enabled'] ?? false;
-		$registeredUserGroups = [
-			'*',
-			'user',
-			$autoCreateTempUser ? 'named' : false,
-			'autoconfirmed'
-		];
-		$registeredUserGroups = array_values( array_filter( $registeredUserGroups ) );
 		$this->toArrayProviders = [
 			'Anonymous User' => [
 				$anonUser,
@@ -97,7 +88,7 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 				$regUser,
 				[
 					'user_text' => $regUser->getName(),
-					'groups' => $registeredUserGroups,
+					'groups' => [ '*', 'user', 'autoconfirmed' ],
 					'is_bot' => false,
 					'is_registered' => true,
 					'is_system' => false,
