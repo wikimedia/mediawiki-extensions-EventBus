@@ -27,6 +27,7 @@ use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Extension\EventStreamConfig\StreamConfigs;
 use MultiHttpClient;
 use Psr\Log\LoggerInterface;
+use Wikimedia\Stats\StatsFactory;
 
 /**
  * Creates appropriate EventBus instance based on stream config.
@@ -115,6 +116,9 @@ class EventBusFactory {
 	 */
 	private LoggerInterface $logger;
 
+	/** @var ?StatsFactory wf:Stats factory instance */
+	private ?StatsFactory $statsFactory;
+
 	/**
 	 * @var array
 	 */
@@ -126,13 +130,15 @@ class EventBusFactory {
 	 * @param EventFactory $eventFactory
 	 * @param MultiHttpClient $http
 	 * @param LoggerInterface $logger
+	 * @param StatsFactory|null $statsFactory
 	 */
 	public function __construct(
 		ServiceOptions $options,
 		?StreamConfigs $streamConfigs,
 		EventFactory $eventFactory,
 		MultiHttpClient $http,
-		LoggerInterface $logger
+		LoggerInterface $logger,
+		?StatsFactory $statsFactory = null
 	) {
 		$options->assertRequiredOptions( self::CONSTRUCTOR_OPTIONS );
 
@@ -140,10 +146,12 @@ class EventBusFactory {
 		$this->eventServiceDefault = $options->get( 'EventServiceDefault' );
 		$this->enableEventBus = $options->get( 'EnableEventBus' );
 		$this->maxBatchByteSize = $options->get( 'EventBusMaxBatchByteSize' );
+
 		$this->streamConfigs = $streamConfigs;
 		$this->eventFactory = $eventFactory;
 		$this->http = $http;
 		$this->logger = $logger;
+		$this->statsFactory = $statsFactory;
 
 		// Save a 'disabled' non producing EventBus instance that sets
 		// the allowed event type to TYPE_NONE. No
@@ -156,7 +164,9 @@ class EventBusFactory {
 			self::EVENT_SERVICE_DISABLED_NAME,
 			$this->maxBatchByteSize,
 			0,
-			false
+			false,
+			self::EVENT_SERVICE_DISABLED_NAME,
+			$this->statsFactory
 		);
 	}
 
@@ -201,7 +211,9 @@ class EventBusFactory {
 				$url,
 				$this->maxBatchByteSize,
 				$timeout,
-				$forwardXClientIP
+				$forwardXClientIP,
+				$eventServiceName,
+				$this->statsFactory
 			);
 			return $this->eventBusInstances[$eventServiceName];
 		} else {
