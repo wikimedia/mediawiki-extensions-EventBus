@@ -27,6 +27,7 @@ namespace MediaWiki\Extension\EventBus;
 use Exception;
 use FormatJson;
 use InvalidArgumentException;
+use MediaWiki\Context\RequestContext;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
 use MultiHttpClient;
@@ -225,15 +226,17 @@ class EventBus {
 			}
 		}
 
-		$reqs = array_map( function ( $body ) {
+		$originalRequest = RequestContext::getMain()->getRequest();
+
+		$reqs = array_map( function ( $body ) use ( $originalRequest ) {
 			$req = [
 				'url'		=> $this->url,
 				'method'	=> 'POST',
 				'body'		=> $body,
 				'headers'	=> [ 'content-type' => 'application/json' ]
 			];
-			if ( $this->forwardXClientIP && isset( $_SERVER['HTTP_X_CLIENT_IP'] ) ) {
-				$req['headers']['x-client-ip'] = $_SERVER['HTTP_X_CLIENT_IP'];
+			if ( $this->forwardXClientIP ) {
+				$req['headers']['x-client-ip'] = $originalRequest->getIP();
 			}
 			return $req;
 		}, is_array( $body ) ? $body : [ $body ] );
