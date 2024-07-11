@@ -235,9 +235,18 @@ class EventBus {
 	 * @throws Exception
 	 */
 	public function send( $events, $type = self::TYPE_EVENT ) {
+		// Label metrics by event type name. If the lookup fails,
+		// fall back to labeling with the $type id parameter. Unknown or invalid ids
+		// will be reported by the `events_are_not_enqueable` metric, which
+		// fires when an event type does not belong to this EventBus instance allow list.
+		// It should not be possible to supply a $type that does not belong
+		// to EVENT_TYPE_NAME. Falling back to a numerical id is just a guard
+		// to help us spot eventual bugs.
+		$eventType = array_search( $type, self::EVENT_TYPE_NAMES );
+		$eventType = ( $eventType === false ) ? $type : $eventType;
 		// Label metrics with the EventBus declared default service host.
 		// In the future, for streams that declare one, use the one provided by EventStreamConfig instead.
-		$baseMetricLabels = [ "function_name" => "send", "event_type" => $type,
+		$baseMetricLabels = [ "function_name" => "send", "event_type" => $eventType,
 			"event_service_name" => $this->eventServiceName, "event_service_uri" => $this->url ];
 
 		if ( !$this->shouldSendEvent( $type ) ) {
