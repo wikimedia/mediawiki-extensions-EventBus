@@ -22,11 +22,11 @@ namespace MediaWiki\Extension\EventBus\Rest;
 
 use Job;
 use JobRunner;
+use LogicException;
 use MediaWiki\Config\Config;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\Rest\Handler;
 use MediaWiki\Rest\HttpException;
-use MediaWiki\Rest\Validator\BodyValidator;
 use MediaWiki\Rest\Validator\Validator;
 use Psr\Log\LoggerInterface;
 use Wikimedia\Rdbms\ReadOnlyMode;
@@ -82,12 +82,20 @@ class RunSingleJobHandler extends Handler {
 	}
 
 	/**
-	 * @return array|mixed
+	 * @return array
 	 * @throws HttpException
 	 */
 	public function execute() {
+		$event = $this->getRequest()->getParsedBody();
+
+		if ( $event === null ) {
+			throw new LogicException( 'No parsed body found, should have failed in parseBodyData()' );
+		}
+
+		$job = $this->makeJob( $event );
+
 		// execute the job
-		$response = $this->executeJob( $this->getValidatedBody() );
+		$response = $this->executeJob( $job );
 		if ( $response['status'] === true ) {
 			return $response;
 		} else {
@@ -111,19 +119,12 @@ class RunSingleJobHandler extends Handler {
 		return $result;
 	}
 
-	/**
-	 * Fetch the BodyValidator
-	 * @param string $contentType Content type of the request.
-	 * @return BodyValidator
-	 * @throws HttpException
-	 */
-	public function getBodyValidator( $contentType ) {
-		if ( $contentType !== 'application/json' ) {
-			throw new HttpException( "Unsupported Content-Type",
-				415,
-				[ 'content_type' => $contentType ]
-			);
-		}
-		return new EventBodyValidator( $this->config->get( 'SecretKey' ), $this->logger );
+	private function makeJob( array $event ): Job {
+		$validator = new EventBodyValidator(
+			$this->config->get( 'SecretKey' ),
+			$this->logger
+		);
+		return $validator->validateEvent( $event );
 	}
+
 }
