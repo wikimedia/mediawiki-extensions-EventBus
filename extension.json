@@ -54,6 +54,7 @@
 			"class": "MediaWiki\\Extension\\EventBus\\HookHandlers\\MediaWiki\\PageChangeHooks",
 			"services": [
 				"EventBus.EventBusFactory",
+				"EventBus.StreamNameMapper",
 				"MainConfig",
 				"GlobalIdGenerator",
 				"UserGroupManager",
@@ -67,7 +68,10 @@
 			]
 		},
 		"mediawiki_campaign_change": {
-			"class": "MediaWiki\\Extension\\EventBus\\HookHandlers\\MediaWiki\\CampaignChangeHooks"
+			"class": "MediaWiki\\Extension\\EventBus\\HookHandlers\\MediaWiki\\CampaignChangeHooks",
+			"services": [
+				"EventBus.StreamNameMapper"
+			]
 		},
 		"main": {
 			"class": "MediaWiki\\Extension\\EventBus\\EventBusHooks"

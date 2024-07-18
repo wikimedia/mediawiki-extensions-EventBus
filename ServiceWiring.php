@@ -3,6 +3,7 @@
 use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\EventFactory;
+use MediaWiki\Extension\EventBus\StreamNameMapper;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
@@ -49,6 +50,13 @@ return [
 			LoggerFactory::getInstance( 'EventBus' ),
 			Telemetry::getInstance()
 		);
-	}
+	},
+
+	'EventBus.StreamNameMapper' => static function ( MediaWikiServices $services ): StreamNameMapper {
+		return new StreamNameMapper(
+			$services->getMainConfig()
+				->get( StreamNameMapper::STREAM_NAMES_MAP_CONFIG_KEY )
+		);
+	},
 
 ];

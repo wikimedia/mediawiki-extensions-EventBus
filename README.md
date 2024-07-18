@@ -70,7 +70,6 @@ EventBus also supports some per stream configuration. These settings are
 defined in the `producers.mediawiki_eventbus` stream config setting for a
 stream.
 
-
 #### Destination Event Intake servive
 
 The event service name setting (and other settings for EventBus) for a
@@ -112,7 +111,6 @@ If EventStreamConfig is not enabled (`$wgEventStreams` is undefined), then
 all streams are considered 'enabled' and will be produced to the
 `$wgEventServiceDefault`.
 
-
 If EventStreamConfig is enabled, then all declared streams are enabled by
 default and will be produced by `EventBus` instances to the destination
 event intake service as defined above.
@@ -151,24 +149,23 @@ events, perhaps in testing environments, you can set `$wgEnableEventBus =
 "TYPE_NONE"`.
 
 ### EventBusStreamNamesMap config
+`StreamNameMapper` adds a config `EventBusStreamNamesMap` that maps from the
+default names of streams to the actual stream name that will be produced. This
+allows wikis with special considerations, such as access restricted wikis in
+the same cluster as public wikis, to produce their events to a separate stream
+such that the public streams will not leak private details. This additionally
+allows developers to vary the stream name used for e.g.
+'mediawiki.page_change.v1' in testing and staging environments.  Perhaps you
+want to produce page change events to a release candidate stream before
+promoting it to 'production'.  The mapper will translate
+'mediawiki.page_change.v1', hardcoded in the hook handler, to the stream name
+to produce. It will be looked up in config from
+`EventBusStreamNamesMap['mediawiki.page_change.v1']`, and default to the
+provided name.
 
-HookHandlers/MediaWiki/PageChangeHooks.php adds a config
-`EventBusStreamNamesMap` that maps from internal logical names of streams
-to the actual stream name that will be produced. This allows developers to
-vary the stream name used for e.g. 'mediawiki.page_change' in testing and
-staging environments. Perhaps you want to produce page change events to a
-release candidate stream before promoting it to 'production'. Instead of
-having 'mediawiki.page_change.v1' hardcoded into the hook handler, the
-stream name to produce will be looked up in config from
-`EventBusStreamNamesMap['mediawiki_page_change']`, defaulting to
-'mediawiki.page_change.v1'.
-
-Any HookHandlers that produce events should support configuring the stream
-name that they produce to using `EventBusStreamNamesMap` in this way.
-
-TODO: The logic to look up the stream name to produce should be DRYed into
-its own location the next time we add a new HookHandler here.
-
+Any HookHandlers that produce events should inject the 'EventBus.StreamNameMapper'
+service from the service container and use it to support configuring the stream
+name that they produce to.
 
 ## EventBus HookHandlers and generated events
 
@@ -186,7 +183,6 @@ event objects.
 Each single stream that is produced by this extension should have its own
 HookHandler class that is solely responsible for producing events to that
 stream.
-
 
 ## EventBus RCFeed
 

@@ -37,6 +37,7 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
+use MediaWiki\Extension\EventBus\StreamNameMapper;
 use MediaWiki\Hook\ArticleRevisionVisibilitySetHook;
 use MediaWiki\Hook\PageMoveCompleteHook;
 use MediaWiki\Http\Telemetry;
@@ -82,31 +83,6 @@ class PageChangeHooks implements
 	ArticleRevisionVisibilitySetHook
 {
 
-	/**
-	 * Key in $mainConfig which will be used to map from EventBus owned 'stream names'
-	 * to the names of the stream in EventStreamConfig.
-	 * This config can be used to override the name of the stream that this
-	 * HookHandler will produce.  This is mostly useful for testing and staging.
-	 * NOTE: Logic to look up stream names for EventBus HookHandlers
-	 * probably belongs elsewhere.  See README.md for more info.
-	 */
-	public const STREAM_NAMES_MAP_CONFIG_KEY = 'EventBusStreamNamesMap';
-
-	/**
-	 * Key in STREAM_NAMES_MAP_CONFIG_KEY that maps to the name of the stream in EventStreamConfig
-	 * that this HookHandler will produce to.  This is mostly useful for testing and staging;
-	 * in normal operation this does not need to be set and PAGE_CHANGE_STREAM_NAME_DEFAULT will be used.
-	 */
-	private const STREAM_NAMES_MAP_PAGE_CHANGE_KEY = 'mediawiki_page_change';
-
-	/**
-	 * Default value for the mediawiki page_change stream.
-	 * This is used unless STREAM_NAMES_MAP_PAGE_CHANGE_KEY is set in
-	 * STREAM_NAMES_MAP_CONFIG_KEY in $mainConfig.
-	 * Note that this is a versioned stream name.
-	 * The version suffix should match the stream's schema's major version.
-	 * See: https://wikitech.wikimedia.org/wiki/Event_Platform/Stream_Configuration#Stream_versioning
-	 */
 	public const PAGE_CHANGE_STREAM_NAME_DEFAULT = 'mediawiki.page_change.v1';
 
 	/**
@@ -164,6 +140,7 @@ class PageChangeHooks implements
 
 	/**
 	 * @param EventBusFactory $eventBusFactory
+	 * @param StreamNameMapper $streamNameMapper
 	 * @param Config $mainConfig
 	 * @param GlobalIdGenerator $globalIdGenerator
 	 * @param UserGroupManager $userGroupManager
@@ -177,6 +154,7 @@ class PageChangeHooks implements
 	 */
 	public function __construct(
 		EventBusFactory $eventBusFactory,
+		StreamNameMapper $streamNameMapper,
 		Config $mainConfig,
 		GlobalIdGenerator $globalIdGenerator,
 		UserGroupManager $userGroupManager,
@@ -190,13 +168,8 @@ class PageChangeHooks implements
 	) {
 		$this->logger = LoggerFactory::getInstance( self::class );
 
-		// If EventBusStreamNamesMap is set, then get it out of mainConfig, else use an empty array.
-		$streamNamesMap = $mainConfig->has( self::STREAM_NAMES_MAP_CONFIG_KEY ) ?
-			$mainConfig->get( self::STREAM_NAMES_MAP_CONFIG_KEY ) : [];
-		// Get the name of the page change stream this HookHandler should produce,
-		// otherwise use PAGE_CHANGE_STREAM_NAME_DEFAULT
-		$this->streamName = $streamNamesMap[self::STREAM_NAMES_MAP_PAGE_CHANGE_KEY]
-			?? self::PAGE_CHANGE_STREAM_NAME_DEFAULT;
+		$this->streamName = $streamNameMapper->resolve(
+			self::PAGE_CHANGE_STREAM_NAME_DEFAULT );
 
 		$this->eventBusFactory = $eventBusFactory;
 

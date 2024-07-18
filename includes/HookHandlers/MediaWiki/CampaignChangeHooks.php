@@ -25,10 +25,16 @@ use Campaign;
 use CentralNoticeCampaignChangeHook;
 use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Extension\EventBus\EventBus;
+use MediaWiki\Extension\EventBus\StreamNameMapper;
 use MediaWiki\User\User;
 use UnexpectedValueException;
 
 class CampaignChangeHooks implements CentralNoticeCampaignChangeHook {
+	private StreamNameMapper $streamNameMapper;
+
+	public function __construct( StreamNameMapper $streamNameMapper ) {
+		$this->streamNameMapper = $streamNameMapper;
+	}
 
 	/**
 	 * Handle CentralNoticeCampaignChange hook. Send an event corresponding to the type
@@ -71,7 +77,8 @@ class CampaignChangeHooks implements CentralNoticeCampaignChangeHook {
 					return;
 				}
 
-				$stream = 'mediawiki.centralnotice.campaign-create';
+				$stream = $this->streamNameMapper->resolve(
+					'mediawiki.centralnotice.campaign-create' );
 				$eventBus = EventBus::getInstanceForStream( $stream );
 				$eventFactory = $eventBus->getFactory();
 				$event = $eventFactory->createCentralNoticeCampaignCreateEvent(
@@ -89,7 +96,8 @@ class CampaignChangeHooks implements CentralNoticeCampaignChangeHook {
 					return;
 				}
 
-				$stream = 'mediawiki.centralnotice.campaign-change';
+				$stream = $this->streamNameMapper->resolve(
+					'mediawiki.centralnotice.campaign-change' );
 				$eventBus = EventBus::getInstanceForStream( $stream );
 				$eventFactory = $eventBus->getFactory();
 				$event = $eventFactory->createCentralNoticeCampaignChangeEvent(
@@ -104,7 +112,8 @@ class CampaignChangeHooks implements CentralNoticeCampaignChangeHook {
 				break;
 
 			case 'removed':
-				$stream = 'mediawiki.centralnotice.campaign-delete';
+				$stream = $this->streamNameMapper->resolve(
+					'mediawiki.centralnotice.campaign-delete' );
 				$eventBus = EventBus::getInstanceForStream( $stream );
 				$eventFactory = $eventBus->getFactory();
 				$event = $eventFactory->createCentralNoticeCampaignDeleteEvent(
