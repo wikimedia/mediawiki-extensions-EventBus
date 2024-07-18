@@ -366,11 +366,16 @@ class EventBus {
 				self::logger()->error( "Unable to deliver all events: {$message}", $context );
 
 				if ( isset( $res['body'] ) ) {
-					try {
-						$failedEvents = FormatJson::decode( $res['body'], true );
-
+					// We expect the event service to return an array of objects
+					// in the response body.
+					// FormatJson::decode will return `null` if the message failed to parse.
+					// If anything other than an array is parsed we treat it as unexpected
+					// behaviour, and log the response at error severity.
+					// See https://phabricator.wikimedia.org/T370428
+					$failedEvents = FormatJson::decode( $res['body'], true );
+					if ( is_array( $failedEvents ) ) {
 						foreach ( $failedEvents as $failureKind => $failureList ) {
-							// $$failureList should not be null. This is just a guard against what the intake
+							// $failureList should not be null. This is just a guard against what the intake
 							// service returns (or the behavior of different json parsing methods - possibly).
 							$numFailedEvents = count( $failureList ?? [] );
 							$this->incrementMetricByValue( "outgoing_events_failed_total",
@@ -382,19 +387,23 @@ class EventBus {
 							foreach ( $failureList as $failurePayload ) {
 								// TODO: can we assume that `error` messages can always be parsed?
 								// Exception handling is expensive. This will need profiling.
-								// At this point of execution, events have already been submitted to EventGate,
-								// and the client should not experience latency.
+								// At this point of execution, events have already been submitted to
+								// to the event service, and the client should not experience latency.
 								$event = FormatJson::decode( $failurePayload['event'], true );
-									$streamName = $event['meta']['stream'] ?? self::STREAM_UNKNOWN_NAME;
-									$this->incrementMetricByValue( "outgoing_events_failed_by_stream_total",
-										1,
-											$baseMetricLabels,
-											[ "stream_name" => $streamName, "failure_kind" => $failureKind ]
-									);
+								if ( $event === null ) {
+									self::logger()->error( "Unable to parse error messages from
+											the event service response body.", $context );
+								}
+								$streamName = $event['meta']['stream'] ?? self::STREAM_UNKNOWN_NAME;
+								$this->incrementMetricByValue( "outgoing_events_failed_by_stream_total",
+									1,
+									$baseMetricLabels,
+									[ "stream_name" => $streamName, "failure_kind" => $failureKind ]
+								);
 							}
 						}
-					} catch ( RuntimeException $e ) {
-						// silence the exception. We already reported it in context.
+					} else {
+						self::logger()->error( "Invalid event service response body", $context );
 					}
 				}
 				$results[] = "Unable to deliver all events: $message";
