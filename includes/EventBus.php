@@ -36,10 +36,6 @@ use RuntimeException;
 use Wikimedia\Assert\Assert;
 use Wikimedia\Stats\StatsFactory;
 
-// Feature flag to enable instrumentation on Beta
-// https://wikitech.wikimedia.org/wiki/Nova_Resource:Deployment-prep/How_code_is_updated#My_code_introduces_a_feature_that_is_not_yet_ready_for_production,_should_I_wait_to_merge_in_master?
-$wgEnableEventBusInstrumentation = false;
-
 class EventBus {
 
 	/**
@@ -212,6 +208,8 @@ class EventBus {
 	 * @return void
 	 */
 	private function incrementMetricByValue( string $metricName, int $value, ...$labels ): void {
+		// Feature flag to enable instrumentation on Beta
+		// https://wikitech.wikimedia.org/wiki/Nova_Resource:Deployment-prep/How_code_is_updated#My_code_introduces_a_feature_that_is_not_yet_ready_for_production,_should_I_wait_to_merge_in_master?
 		global $wgEnableEventBusInstrumentation;
 		if ( $wgEnableEventBusInstrumentation && isset( $this->statsFactory ) ) {
 			$metric = $this->statsFactory->getCounter( $metricName );
