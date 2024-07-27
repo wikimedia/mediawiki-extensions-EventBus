@@ -5,7 +5,6 @@ use MediaWiki\Extension\EventBus\Adapters\EventRelayer\CdnPurgeEventRelayer;
 use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\MainConfigNames;
-use MediaWiki\MediaWikiServices;
 
 /**
  * @covers \MediaWiki\Extension\EventBus\Adapters\EventRelayer\CdnPurgeEventRelayer
@@ -31,7 +30,7 @@ class CdnPurgeEventRelayerIntegrationTest extends MediaWikiIntegrationTestCase {
 	 */
 	public function testSendsProperPurge() {
 		$fakeUrl = 'https://fake.wiki/url/for/testing';
-		$eventFactory = MediaWikiServices::getInstance()
+		$eventFactory = $this->getServiceContainer()
 			->getService( 'EventBus.EventBusFactory' )
 			->getInstanceForStream( 'test-resource-purge' )
 			->getFactory();
