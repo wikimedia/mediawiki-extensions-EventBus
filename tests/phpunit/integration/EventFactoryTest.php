@@ -6,6 +6,7 @@ use MediaWiki\Block\Restriction\PageRestriction;
 use MediaWiki\CommentStore\CommentStoreComment;
 use MediaWiki\Extension\EventBus\EventFactory;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
+use MediaWiki\MainConfigNames;
 use MediaWiki\Page\PageReference;
 use MediaWiki\Page\PageReferenceValue;
 use MediaWiki\Revision\MutableRevisionRecord;
@@ -137,7 +138,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 
 	protected function setUp(): void {
 		parent::setUp();
-		$this->setMwGlobals( [ 'wgArticlePath' => '/wiki/$1' ] );
+		$this->overrideConfigValue( MainConfigNames::ArticlePath, '/wiki/$1' );
 	}
 
 	/**

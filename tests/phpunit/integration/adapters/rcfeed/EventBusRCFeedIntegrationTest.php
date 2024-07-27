@@ -1,6 +1,7 @@
 <?php
 
 use MediaWiki\Extension\EventBus\Adapters\RCFeed\EventBusRCFeedFormatter;
+use MediaWiki\MainConfigNames;
 use MediaWiki\SpecialPage\SpecialPage;
 use MediaWiki\Title\Title;
 
@@ -14,21 +15,21 @@ class EventBusRCFeedIntegrationTest extends MediaWikiIntegrationTestCase {
 
 	protected function setUp(): void {
 		parent::setUp();
-		$this->setMwGlobals( [
-			'wgCanonicalServer' => 'https://example.org',
-			'wgServerName' => 'example.org',
-			'wgScriptPath' => '/w',
-			'wgArticlePath' => '/wiki/$1',
-			'wgDBname' => 'example',
-			'wgDBprefix' => $this->dbPrefix(),
-			'wgRCFeeds' => [],
-			'wgEventStreams' => [
+		$this->overrideConfigValues( [
+			MainConfigNames::CanonicalServer => 'https://example.org',
+			MainConfigNames::ServerName => 'example.org',
+			MainConfigNames::ScriptPath => '/w',
+			MainConfigNames::ArticlePath => '/wiki/$1',
+			MainConfigNames::DBname => 'example',
+			MainConfigNames::DBprefix => $this->dbPrefix(),
+			MainConfigNames::RCFeeds => [],
+			'EventStreams' => [
 				EventBusRCFeedFormatter::STREAM => [
 					'stream' => EventBusRCFeedFormatter::STREAM,
 					'destination_event_service' => 'test_eventbus_instance'
 				]
 			],
-			'wgEventServices' => [
+			'EventServices' => [
 				'test_eventbus_instance' => [
 					'url' => 'http://test_event_bus_instance/test_url'
 				],
@@ -92,12 +93,10 @@ class EventBusRCFeedIntegrationTest extends MediaWikiIntegrationTestCase {
 				return true;
 			} ) );
 
-		$this->setMwGlobals( [
-			'wgRCFeeds' => [
-				'myfeed' => [
-					'class' => $feed,
-					'formatter' => EventBusRCFeedFormatter::class,
-				],
+		$this->overrideConfigValue( MainConfigNames::RCFeeds, [
+			'myfeed' => [
+				'class' => $feed,
+				'formatter' => EventBusRCFeedFormatter::class,
 			],
 		] );
 		$logpage = SpecialPage::getTitleFor( 'Log', 'move' );

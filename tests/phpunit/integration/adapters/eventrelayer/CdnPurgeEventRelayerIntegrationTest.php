@@ -4,6 +4,7 @@ use MediaWiki\Deferred\CdnCacheUpdate;
 use MediaWiki\Extension\EventBus\Adapters\EventRelayer\CdnPurgeEventRelayer;
 use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\Extension\EventBus\EventBusFactory;
+use MediaWiki\MainConfigNames;
 use MediaWiki\MediaWikiServices;
 
 /**
@@ -13,10 +14,10 @@ class CdnPurgeEventRelayerIntegrationTest extends MediaWikiIntegrationTestCase {
 
 	protected function setUp(): void {
 		parent::setUp();
-		$this->setMwGlobals( [
-			'wgHTCPRouting' => false,
-			'wgCdnServers' => false,
-			'wgEventRelayerConfig' => [
+		$this->overrideConfigValues( [
+			MainConfigNames::HTCPRouting => false,
+			MainConfigNames::CdnServers => false,
+			'EventRelayerConfig' => [
 				'cdn-url-purges' => [
 					'class' => CdnPurgeEventRelayer::class,
 					'stream' => 'test-resource-purge'
