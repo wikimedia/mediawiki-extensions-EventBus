@@ -264,7 +264,8 @@ class EventBus {
 		if ( is_string( $events ) ) {
 			// TODO: is $events ever passed as a string? We should refactor this block and simplify the union type.
 			// Debug metric. How often is the `$events` param a string?
-			$this->incrementMetricByValue( "events_is_string",
+			$this->incrementMetricByValue(
+				"events_is_string",
 				1,
 				$baseMetricLabels
 			);
@@ -278,11 +279,12 @@ class EventBus {
 					// TODO can we assume $decodeEvents will also have meta.stream set?
 					// coerce to null for tests compat
 					$streamName = $event['meta']['stream'] ?? self::STREAM_UNKNOWN_NAME;
-						$this->incrementMetricByValue( "outgoing_events_total",
-							1,
-							$baseMetricLabels,
-							[ "stream_name" => $streamName ]
-						);
+					$this->incrementMetricByValue(
+						"outgoing_events_total",
+						1,
+						$baseMetricLabels,
+						[ "stream_name" => $streamName ]
+					);
 				}
 			} else {
 				$body = $events;
@@ -299,11 +301,12 @@ class EventBus {
 			}
 			foreach ( $events as $event ) {
 				$streamName = $event['meta']['stream'] ?? self::STREAM_UNKNOWN_NAME;
-					$this->incrementMetricByValue( "outgoing_events_total",
-						1,
-						$baseMetricLabels,
-						[ "stream_name" => $streamName ]
-					);
+				$this->incrementMetricByValue(
+					"outgoing_events_total",
+					1,
+					$baseMetricLabels,
+					[ "stream_name" => $streamName ]
+				);
 			}
 
 			if ( strlen( $serializedEvents ) > $this->maxBatchByteSize ) {
@@ -345,7 +348,8 @@ class EventBus {
 			$res = $response['response'];
 			$code = $res['code'];
 
-			$this->incrementMetricByValue( "event_service_response_total",
+			$this->incrementMetricByValue(
+				"event_service_response_total",
 				1,
 				$baseMetricLabels,
 				[ "status_code" => $code ]
@@ -376,27 +380,27 @@ class EventBus {
 							// $failureList should not be null. This is just a guard against what the intake
 							// service returns (or the behavior of different json parsing methods - possibly).
 							$numFailedEvents = count( $failureList ?? [] );
-							$this->incrementMetricByValue( "outgoing_events_failed_total",
+							$this->incrementMetricByValue(
+								"outgoing_events_failed_total",
 								$numFailedEvents,
 								$baseMetricLabels,
 								[ "failure_kind" => $failureKind ]
 							);
 
+							// Extract the stream name of each event that failed
+							// and increment the outgoing_events_failed_by_stream_total metric.
 							foreach ( $failureList as $failurePayload ) {
-								// TODO: can we assume that `error` messages can always be parsed?
-								// Exception handling is expensive. This will need profiling.
-								// At this point of execution, events have already been submitted to
-								// to the event service, and the client should not experience latency.
-								$event = FormatJson::decode( $failurePayload['event'], true );
-								if ( $event === null ) {
-									self::logger()->error( "Unable to parse error messages from
-											the event service response body.", $context );
-								}
-								$streamName = $event['meta']['stream'] ?? self::STREAM_UNKNOWN_NAME;
-								$this->incrementMetricByValue( "outgoing_events_failed_by_stream_total",
+								$failedEvent = $failurePayload['event'];
+								$failedStreamName =
+									is_array( $failedEvent ) && isset( $failedEvent['meta']['stream'] ) ?
+										$failedEvent['meta']['stream'] :
+										self::STREAM_UNKNOWN_NAME;
+
+								$this->incrementMetricByValue(
+									"outgoing_events_failed_by_stream_total",
 									1,
 									$baseMetricLabels,
-									[ "stream_name" => $streamName, "failure_kind" => $failureKind ]
+									[ "stream_name" => $failedStreamName, "failure_kind" => $failureKind ]
 								);
 							}
 						}
@@ -407,7 +411,8 @@ class EventBus {
 				$results[] = "Unable to deliver all events: $message";
 			} else {
 				// 201, 202 all events have been accepted (but not necessarily persisted).
-				$this->incrementMetricByValue( "outgoing_events_accepted_total",
+				$this->incrementMetricByValue(
+					"outgoing_events_accepted_total",
 					$numEvents,
 					$baseMetricLabels,
 					[ "status_code" => $code ]
