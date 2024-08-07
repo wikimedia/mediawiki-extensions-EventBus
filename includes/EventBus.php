@@ -76,10 +76,11 @@ class EventBus {
 
 	/** @const int Default HTTP request timeout in seconds */
 	private const DEFAULT_REQUEST_TIMEOUT = 10;
+
 	/** @const string fallback stream name to use when the `meta.stream` field is
 	 * not set in events payload.
 	 */
-	private const STREAM_UNKNOWN_NAME = "__stream_unknown__";
+	public const STREAM_UNKNOWN_NAME = "__stream_unknown__";
 
 	/** @var LoggerInterface instance for all EventBus instances */
 	private static $logger;
@@ -122,7 +123,7 @@ class EventBus {
 	 * @param bool $forwardXClientIP Whether the X-Client-IP header should be forwarded
 	 *   to the intake service, if present
 	 * @param string $eventServiceName TODO: pass the event service name so that it can be used
-	 * 	 to label metrics. This is a hack put in place while refactoring efforts on this class are
+	 *     to label metrics. This is a hack put in place while refactoring efforts on this class are
 	 *   ongoing. This variable is used to label metrics in send().
 	 * @param ?StatsFactory|null $statsFactory wf:Stats factory instance
 	 */
@@ -222,7 +223,21 @@ class EventBus {
 	}
 
 	/**
-	 * Deliver an array of events to the remote service.
+	 * Deliver an array of events to the remote event intake service.
+	 *
+	 * Statslib metrics emitted by this method:
+	 *
+	 * - events_outgoing_total
+	 * - events_outgoing_by_stream_total
+	 * - events_accepted_total
+	 * - events_failed_total
+	 * - events_failed_by_stream_total
+	 * - event_service_response_total
+	 * - event_batch_not_enqueable_total
+	 * - event_batch_is_string_total
+	 * - event_batch_not_serializable_total
+	 * - event_batch_partitioned_total
+	 *     (incremented if $events had to be paratitioned and sent in multiple POST requests)
 	 *
 	 * @param array|string $events the events to send.
 	 * @param int $type the type of the event being sent.
@@ -241,12 +256,20 @@ class EventBus {
 		$eventType = ( $eventType === false ) ? $type : $eventType;
 		// Label metrics with the EventBus declared default service host.
 		// In the future, for streams that declare one, use the one provided by EventStreamConfig instead.
-		$baseMetricLabels = [ "function_name" => "send", "event_type" => $eventType,
-			"event_service_name" => $this->eventServiceName, "event_service_uri" => $this->url ];
+		$baseMetricLabels = [
+			"function_name" => "send",
+			"event_type" => $eventType,
+			"event_service_name" => $this->eventServiceName,
+			"event_service_uri" => $this->url
+		];
 
 		if ( !$this->shouldSendEvent( $type ) ) {
 			// Debug metric. How often is the `$events` param not enqueable?
-			$this->incrementMetricByValue( "events_are_not_enqueable", 1, $baseMetricLabels );
+			$this->incrementMetricByValue(
+				"event_batch_not_enqueable_total",
+				1,
+				$baseMetricLabels
+			);
 			return "Events of type '$type' are not enqueueable";
 		}
 		if ( !$events ) {
@@ -256,80 +279,114 @@ class EventBus {
 			return "Provided event list is empty";
 		}
 
-		$numEvents = 0;
-		// If we already have a JSON string of events, just use it as the body.
+		// Historically, passing a JSON string has been supported, but we'd like to deprecate this feature.
+		// This was done to avoid having extra encode+decode steps if the caller already has a JSON string.
+		// But, we end up decoding always anyway, to properly increment metrics.
 		if ( is_string( $events ) ) {
 			// TODO: is $events ever passed as a string? We should refactor this block and simplify the union type.
 			// Debug metric. How often is the `$events` param a string?
 			$this->incrementMetricByValue(
-				"events_is_string",
+				"event_batch_is_string_total",
 				1,
 				$baseMetricLabels
 			);
-			if ( strlen( $events ) > $this->maxBatchByteSize ) {
-				$decodeEvents = FormatJson::decode( $events, true );
-				$numEvents = count( $decodeEvents );
-				$body = $this->partitionEvents( $decodeEvents, strlen( $events ) );
-				// We have no guarantee that all events passed to send() will declare the
-				// same meta.stream. Iterate over the array an increment the counter by stream.
-				foreach ( $decodeEvents as $event ) {
-					// TODO can we assume $decodeEvents will also have meta.stream set?
-					// coerce to null for tests compat
-					$streamName = $event['meta']['stream'] ?? self::STREAM_UNKNOWN_NAME;
-					$this->incrementMetricByValue(
-						"outgoing_events_total",
-						1,
-						$baseMetricLabels,
-						[ "stream_name" => $streamName ]
-					);
-				}
-			} else {
-				$body = $events;
-			}
-		} else {
-			$numEvents = count( $events );
-			self::validateJSONSerializable( $events );
-			// Else serialize the array of events to a JSON string.
-			$serializedEvents = self::serializeEvents( $events );
-			// If not $body, then something when wrong.
-			// serializeEvents has already logged, so we can just return.
-			if ( !$serializedEvents ) {
-				return "Unable to serialize events";
-			}
-			foreach ( $events as $event ) {
-				$streamName = $event['meta']['stream'] ?? self::STREAM_UNKNOWN_NAME;
-				$this->incrementMetricByValue(
-					"outgoing_events_total",
-					1,
-					$baseMetricLabels,
-					[ "stream_name" => $streamName ]
-				);
+
+			$decodedEvents = FormatJson::decode( $events, true );
+
+			if ( $decodedEvents === null ) {
+				$context = [
+					'exception' => new RuntimeException(),
+					'raw_events' => self::prepareEventsForLogging( $events )
+				];
+				self::logger()->error( 'Failed decoding events from JSON string.', $context );
+				return "Failed decoding events from JSON string";
 			}
 
-			if ( strlen( $serializedEvents ) > $this->maxBatchByteSize ) {
-				$body = $this->partitionEvents( $events, strlen( $serializedEvents ) );
-			} else {
-				$body = $serializedEvents;
-			}
+			$events = $decodedEvents;
 		}
 
+		// Code below expects that $events is a numeric array of event assoc arrays.
+		if ( !array_key_exists( 0, $events ) ) {
+			$events = [ $events ];
+		}
+		$outgoingEventsCount = count( $events );
+
+		// Increment events_outgoing_total
+		// NOTE: We could just use events_outgoing_by_stream_total and sum,
+		//       but below we want to emit an events_accepted_total.
+		//       In the case of a 207 partial success, we don't know
+		//       the stream names of the successful events
+		//       (without diffing the response from the event service and $events).
+		//       For consistency, we both events_outgoing_total and events_outgoing_by_stream_total.
+		$this->incrementMetricByValue(
+			"events_outgoing_total",
+			$outgoingEventsCount,
+			$baseMetricLabels,
+		);
+
+		// Increment events_outgoing_by_stream_total for each stream
+		$eventsByStream = self::groupEventsByStream( $events );
+		foreach ( $eventsByStream as $streamName => $eventsForStreamName ) {
+			$this->incrementMetricByValue(
+				"events_outgoing_by_stream_total",
+				count( $eventsForStreamName ),
+				$baseMetricLabels,
+				[ "stream_name" => $streamName ]
+			);
+		}
+
+		// validateJSONSerializable only logs if any part of the event is not serializable.
+		// It does not return anything or raise any exceptions.
+		self::validateJSONSerializable( $events );
+		// Serialize the array of events to a JSON string.
+		$serializedEvents = self::serializeEvents( $events );
+		if ( !$serializedEvents ) {
+			$this->incrementMetricByValue(
+				"event_batch_not_serializable_total",
+				1,
+				$baseMetricLabels
+			);
+			// serializeEvents has already logged, so we can just return.
+			return "Unable to serialize events";
+		}
+
+		// If the body would be too big, partition it into multiple bodies.
+		if ( strlen( $serializedEvents ) > $this->maxBatchByteSize ) {
+			$postBodies = $this->partitionEvents( $events, strlen( $serializedEvents ) );
+			// Measure the number of times we partition events into more than one batch.
+			$this->incrementMetricByValue(
+				"event_batch_partitioned_total",
+				1,
+				$baseMetricLabels
+			);
+		} else {
+			$postBodies = [ $serializedEvents ];
+		}
+
+		// Most of the time $postBodies will be a single element array, and we
+		// will only need to send one POST request.
+		// When the size is too large, $events will have been partitioned into
+		// multiple $postBodies, for which each will be sent as its own POST request.
 		$originalRequest = RequestContext::getMain()->getRequest();
+		$requests = array_map(
+			function ( $postBody ) use ( $originalRequest ) {
+				$req = [
+					'url' => $this->url,
+					'method' => 'POST',
+					'body' => $postBody,
+					'headers' => [ 'content-type' => 'application/json' ]
+				];
+				if ( $this->forwardXClientIP ) {
+					$req['headers']['x-client-ip'] = $originalRequest->getIP();
+				}
+				return $req;
+			},
+			$postBodies
+		);
 
-		$reqs = array_map( function ( $body ) use ( $originalRequest ) {
-			$req = [
-				'url'		=> $this->url,
-				'method'	=> 'POST',
-				'body'		=> $body,
-				'headers'	=> [ 'content-type' => 'application/json' ]
-			];
-			if ( $this->forwardXClientIP ) {
-				$req['headers']['x-client-ip'] = $originalRequest->getIP();
-			}
-			return $req;
-		}, is_array( $body ) ? $body : [ $body ] );
-
+		// Do the POST requests.
 		$responses = $this->http->runMulti(
-			$reqs,
+			$requests,
 			[
 				'reqTimeout' => $this->timeout
 			]
@@ -341,7 +398,7 @@ class EventBus {
 		// 400: no events accepted: all failed schema validation.
 		// 500: no events accepted: at least one caused an error, but some might have been invalid.
 		$results = [];
-		foreach ( $responses as $response ) {
+		foreach ( $responses as $i => $response ) {
 			$res = $response['response'];
 			$code = $res['code'];
 
@@ -356,9 +413,10 @@ class EventBus {
 				$message = empty( $res['error'] ) ?
 					(string)$code . ': ' . (string)$res['reason'] : $res['error'];
 				// Limit the maximum size of the logged context to 8 kilobytes as that's where logstash
-				// truncates the JSON anyway
+				// truncates the JSON anyway.
 				$context = [
-					'raw_events' => self::prepareEventsForLogging( $body ),
+					// $responses[$i] corresponds with $postBodies[$i]
+					'raw_events' => self::prepareEventsForLogging( $postBodies[$i] ),
 					'service_response' => $res,
 					'exception' => new RuntimeException(),
 				];
@@ -371,33 +429,67 @@ class EventBus {
 					// If anything other than an array is parsed we treat it as unexpected
 					// behaviour, and log the response at error severity.
 					// See https://phabricator.wikimedia.org/T370428
-					$failedEvents = FormatJson::decode( $res['body'], true );
-					if ( is_array( $failedEvents ) ) {
-						foreach ( $failedEvents as $failureKind => $failureList ) {
-							// $failureList should not be null. This is just a guard against what the intake
+
+					// $failureInfosByKind should look like:
+					// {
+					// 	  "<failure_kind">: [
+					// 		{ ..., "event": {<failed event here>}, "context": {<failure context here>},
+					//		{ ... }
+					//    ],
+					// }
+					$failureInfosByKind = FormatJson::decode( $res['body'], true );
+					if ( is_array( $failureInfosByKind ) ) {
+						foreach ( $failureInfosByKind as $failureKind => $failureInfos ) {
+							// $failureInfos should not be null or empty.
+							// This is just a guard against what the intake
 							// service returns (or the behavior of different json parsing methods - possibly).
-							$numFailedEvents = count( $failureList ?? [] );
+							// https://www.mediawiki.org/wiki/Manual:Coding_conventions/PHP#empty()
+							if ( !isset( $failureInfos ) || $failureInfos === [] ) {
+								continue;
+							}
+
+							$failedEventsCount = count( $failureInfos );
+
+							// increment events_failed_total
 							$this->incrementMetricByValue(
-								"outgoing_events_failed_total",
-								$numFailedEvents,
+								"events_failed_total",
+								$failedEventsCount,
 								$baseMetricLabels,
-								[ "failure_kind" => $failureKind ]
+								[
+									"failure_kind" => $failureKind,
+									"status_code" => $code,
+								]
+							);
+							// increment events_accepted_total as the difference between
+							// $outgoingEventsCount and $failedEventsCount
+							$this->incrementMetricByValue(
+								"events_accepted_total",
+								$outgoingEventsCount - $failedEventsCount,
+								$baseMetricLabels,
+								[
+									"failure_kind" => $failureKind,
+									"status_code" => $code,
+								]
 							);
 
-							// Extract the stream name of each event that failed
-							// and increment the outgoing_events_failed_by_stream_total metric.
-							foreach ( $failureList as $failurePayload ) {
-								$failedEvent = $failurePayload['event'];
-								$failedStreamName =
-									is_array( $failedEvent ) && isset( $failedEvent['meta']['stream'] ) ?
-										$failedEvent['meta']['stream'] :
-										self::STREAM_UNKNOWN_NAME;
-
+							// Increment events_failed_by_stream_total per stream.
+							$failedEvents = array_map(
+								static function ( $failureStatus ) {
+									return $failureStatus['event'] ?? null;
+								},
+								$failureInfos
+							);
+							$failedEventsByStream = self::groupEventsByStream( $failedEvents );
+							foreach ( $failedEventsByStream as $streamName => $failedEventsForStream ) {
 								$this->incrementMetricByValue(
-									"outgoing_events_failed_by_stream_total",
-									1,
+									"events_failed_by_stream_total",
+									count( $failedEventsForStream ),
 									$baseMetricLabels,
-									[ "stream_name" => $failedStreamName, "failure_kind" => $failureKind ]
+									[
+										"failure_kind" => $failureKind,
+										"status_code" => $code,
+										"stream_name" => $streamName,
+									]
 								);
 							}
 						}
@@ -409,8 +501,8 @@ class EventBus {
 			} else {
 				// 201, 202 all events have been accepted (but not necessarily persisted).
 				$this->incrementMetricByValue(
-					"outgoing_events_accepted_total",
-					$numEvents,
+					"events_accepted_total",
+					$outgoingEventsCount,
 					$baseMetricLabels,
 					[ "status_code" => $code ]
 				);
@@ -425,6 +517,33 @@ class EventBus {
 	}
 
 	// == static helper functions below ==
+
+	/**
+	 * Given an event assoc array, extracts the stream name from meta.stream,
+	 * or returns STREAM_NAME_UNKNOWN
+	 * @param array|null $event
+	 * @return mixed|string
+	 */
+	public static function getStreamNameFromEvent( ?array $event ) {
+		return is_array( $event ) && isset( $event['meta']['stream'] ) ?
+			$event['meta']['stream'] :
+			self::STREAM_UNKNOWN_NAME;
+	}
+
+	/**
+	 * Given an assoc array of events, this returns them grouped by stream name.
+	 * @param array $events
+	 * @return array
+	 */
+	public static function groupEventsByStream( array $events ): array {
+		$groupedEvents = [];
+		foreach ( $events as $event ) {
+			$streamName = self::getStreamNameFromEvent( $event );
+			$groupedEvents[$streamName] ??= [];
+			$groupedEvents[$streamName][] = $event;
+		}
+		return $groupedEvents;
+	}
 
 	/**
 	 * Serializes $events array to a JSON string.  If FormatJson::encode()
@@ -579,22 +698,22 @@ class EventBus {
 
 	/**
 	 * @param string|null $eventServiceName
-	 * 		The name of a key in the EventServices config looked up via
-	 * 		MediaWikiServices::getInstance()->getMainConfig()->get('EventServices').
-	 * 		The EventService config is keyed by service name, and should at least contain
-	 * 		a 'url' entry pointing at the event service endpoint events should be
-	 * 		POSTed to. They can also optionally contain a 'timeout' entry specifying
-	 * 		the HTTP POST request timeout, and a 'x_client_ip_forwarding_enabled' entry that can be
-	 * 		set to true if the X-Client-IP header from the originating request should be
-	 * 		forwarded to the event service. Instances are singletons identified by
-	 * 		$eventServiceName.
+	 *        The name of a key in the EventServices config looked up via
+	 *        MediaWikiServices::getInstance()->getMainConfig()->get('EventServices').
+	 *        The EventService config is keyed by service name, and should at least contain
+	 *        a 'url' entry pointing at the event service endpoint events should be
+	 *        POSTed to. They can also optionally contain a 'timeout' entry specifying
+	 *        the HTTP POST request timeout, and a 'x_client_ip_forwarding_enabled' entry that can be
+	 *        set to true if the X-Client-IP header from the originating request should be
+	 *        forwarded to the event service. Instances are singletons identified by
+	 *        $eventServiceName.
 	 *
-	 * 		NOTE: Previously, this function took a $config object instead of an
-	 * 		event service name.  This is a backwards compatible change, but because
-	 * 		there are no other users of this extension, we can do this safely.
+	 *        NOTE: Previously, this function took a $config object instead of an
+	 *        event service name.  This is a backwards compatible change, but because
+	 *        there are no other users of this extension, we can do this safely.
 	 *
-	 * @throws InvalidArgumentException if EventServices or $eventServiceName is misconfigured.
 	 * @return EventBus
+	 * @throws InvalidArgumentException if EventServices or $eventServiceName is misconfigured.
 	 */
 	public static function getInstance( $eventServiceName ) {
 		return MediaWikiServices::getInstance()

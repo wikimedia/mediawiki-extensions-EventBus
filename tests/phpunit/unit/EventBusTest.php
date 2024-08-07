@@ -37,6 +37,60 @@ class EventBusTest extends MediaWikiUnitTestCase {
 		$this->assertEquals( $expected, $events );
 	}
 
+	public function testGetStreamNameFromEvent() {
+		$event0 = [
+			"meta" => [
+				"stream" => "my_stream ",
+				"id" => "0"
+			]
+		];
+		$this->assertEquals(
+			$event0["meta"]["stream"],
+			EventBus::getStreamNameFromEvent( $event0 )
+		);
+
+		$event1 = [
+			"meta" => [
+				"id" => "1"
+			]
+		];
+
+		$this->assertEquals(
+			EventBus::STREAM_UNKNOWN_NAME,
+			EventBus::getStreamNameFromEvent( $event1 )
+		);
+	}
+
+	public function testGroupEventsByStream() {
+		$events = [
+			[
+				"meta" => [
+					"stream" => "my_stream ",
+					"id" => "0"
+				]
+			],
+			[
+				"meta" => [
+					"stream" => "my_stream ",
+					"id" => "1"
+				]
+			],
+			[
+				"meta" => [
+					"id" => "2"
+				]
+			],
+		];
+		$expected = [
+			"my_stream" => [ $events[0], $events[1] ],
+			EventBus::STREAM_UNKNOWN_NAME => [ $events[2] ]
+		];
+
+		$groupedEvents = EventBus::groupEventsByStream( $events );
+
+		$this->assertEqualsCanonicalizing( $expected, $groupedEvents );
+	}
+
 	public static function provideAllowedTypes() {
 		yield 'Nothing provided, defaults to TYPE_ALL' => [ '', EventBus::TYPE_ALL ];
 		yield 'TYPE_ALL allows everything' => [ 'TYPE_ALL', EventBus::TYPE_ALL ];
@@ -44,7 +98,7 @@ class EventBusTest extends MediaWikiUnitTestCase {
 		yield 'TYPE_JOB allows only jobs' => [ 'TYPE_JOB', EventBus::TYPE_JOB ];
 		yield 'Union types' => [ 'TYPE_EVENT|TYPE_PURGE', EventBus::TYPE_EVENT | EventBus::TYPE_PURGE ];
 		yield 'Integer support' =>
-			[ EventBus::TYPE_EVENT | EventBus::TYPE_PURGE, EventBus::TYPE_EVENT | EventBus::TYPE_PURGE ];
+		[ EventBus::TYPE_EVENT | EventBus::TYPE_PURGE, EventBus::TYPE_EVENT | EventBus::TYPE_PURGE ];
 	}
 
 	/**
@@ -81,18 +135,19 @@ class EventBusTest extends MediaWikiUnitTestCase {
 				'test.org',
 				1000000
 			);
-			$eventBus->send( 'BODY', $type );
+			$eventBus->send( '{"f1": "v1"}', $type );
 		}
 	}
 
 	public static function provideBody() {
-		yield 'Single event, under maxBatchByteSize' => [
+		yield 'Single event as string, under maxBatchByteSize' => [
 			json_encode(
 				[
 					"schema" => "/mediawiki/job/1.0.0",
 					"meta" => [
 						"uri" => "https://placeholder.invalid/wiki/Special:Badtitle",
-						"request_id" => "fc3a8587259ca5fc085ca830"
+						"request_id" => "fc3a8587259ca5fc085ca830",
+						"stream" => "my_stream"
 
 					],
 					"type" => "deletePage",
@@ -114,13 +169,14 @@ class EventBusTest extends MediaWikiUnitTestCase {
 			true
 		];
 
-		yield 'Single event, over maxBatchByteSize' => [
+		yield 'Single event as string, over maxBatchByteSize' => [
 			json_encode(
 				[
 					"schema" => "/mediawiki/job/1.0.0",
 					"meta" => [
 						"uri" => "https://placeholder.invalid/wiki/Special:Badtitle",
-						"request_id" => "fc3a8587259ca5fc085ca830"
+						"request_id" => "fc3a8587259ca5fc085ca830",
+						"stream" => "my_stream"
 
 					],
 					"type" => "deletePage",
@@ -143,15 +199,15 @@ class EventBusTest extends MediaWikiUnitTestCase {
 			true
 		];
 
-		yield "Multiple events that require partition" => [
+		yield "Multiple events as string that require partition" => [
 			json_encode(
 				[
 					[
 						"schema" => "/mediawiki/job/1.0.0",
 						"meta" => [
 							"uri" => "https://placeholder.invalid/wiki/Special:Badtitle",
-							"request_id" => "fc3a8587259ca5fc085ca830"
-
+							"request_id" => "fc3a8587259ca5fc085ca830",
+							"stream" => "my_stream"
 						],
 						"type" => "deletePage",
 						"database" => "default",
@@ -165,8 +221,8 @@ class EventBusTest extends MediaWikiUnitTestCase {
 						"schema" => "/mediawiki/job/2.0.0",
 						"meta" => [
 							"uri" => "https://placeholder.invalid/wiki/Special:Badtitle",
-							"request_id" => "2fc3a8587259ca5fc085ca830"
-
+							"request_id" => "2fc3a8587259ca5fc085ca830",
+							"stream" => "my_stream"
 						],
 						"type" => "deletePage",
 						"database" => "default",
@@ -180,8 +236,8 @@ class EventBusTest extends MediaWikiUnitTestCase {
 						"schema" => "/mediawiki/job/3.0.0",
 						"meta" => [
 							"uri" => "https://placeholder.invalid/wiki/Special:Badtitle",
-							"request_id" => "3fc3a8587259ca5fc085ca830"
-
+							"request_id" => "3fc3a8587259ca5fc085ca830",
+							"stream" => "my_stream"
 						],
 						"type" => "deletePage",
 						"database" => "default",
@@ -219,8 +275,8 @@ class EventBusTest extends MediaWikiUnitTestCase {
 					"schema" => "/mediawiki/job/111.0.0",
 					"meta" => [
 						"uri" => "https://placeholder.invalid/wiki/Special:Badtitle",
-						"request_id" => "fc3a8587259ca5fc085ca830"
-
+						"request_id" => "fc3a8587259ca5fc085ca830",
+						"stream" => "my_stream"
 					],
 					"type" => "deletePage",
 					"database" => "default",
@@ -271,7 +327,11 @@ class EventBusTest extends MediaWikiUnitTestCase {
 			EventBus::TYPE_ALL,
 			$this->createNoOpMock( EventFactory::class ),
 			'test.org',
-			300
+			300,
+			null,
+			false,
+			"test_eventbus",
+			null
 		);
 		$this->assertSame( $expectedResponse, $eventBus->send( $body, EventBus::TYPE_ALL ) );
 	}
