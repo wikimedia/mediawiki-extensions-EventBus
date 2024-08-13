@@ -19,9 +19,6 @@
 		"EnableEventBus": {
 			"value": "TYPE_NONE"
 		},
-		"EnableEventBusInstrumentation": {
-			"value": false
-		},
 		"EventServices": {
 			"value": {
 				"eventbus": {
