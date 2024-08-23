@@ -439,6 +439,10 @@ class EventBus {
 					// }
 					$failureInfosByKind = FormatJson::decode( $res['body'], true );
 					if ( is_array( $failureInfosByKind ) ) {
+						// Keep track of the total number of failed events.
+						// This will be used to calculate events_accepted_count later.
+						$failedEventsCountTotal = 0;
+
 						foreach ( $failureInfosByKind as $failureKind => $failureInfos ) {
 							// $failureInfos should not be null or empty.
 							// This is just a guard against what the intake
@@ -448,7 +452,16 @@ class EventBus {
 								continue;
 							}
 
-							$failedEventsCount = count( $failureInfos );
+							// Get the events that failed from the response.
+							$failedEvents = array_map(
+								static function ( $failureStatus ) {
+									return $failureStatus['event'] ?? null;
+								},
+								$failureInfos
+							);
+
+							$failedEventsCount = count( $failedEvents );
+							$failedEventsCountTotal += $failedEventsCount;
 
 							// increment events_failed_total
 							$this->incrementMetricByValue(
@@ -460,25 +473,8 @@ class EventBus {
 									"status_code" => $code,
 								]
 							);
-							// increment events_accepted_total as the difference between
-							// $outgoingEventsCount and $failedEventsCount
-							$this->incrementMetricByValue(
-								"events_accepted_total",
-								$outgoingEventsCount - $failedEventsCount,
-								$baseMetricLabels,
-								[
-									"failure_kind" => $failureKind,
-									"status_code" => $code,
-								]
-							);
 
-							// Increment events_failed_by_stream_total per stream.
-							$failedEvents = array_map(
-								static function ( $failureStatus ) {
-									return $failureStatus['event'] ?? null;
-								},
-								$failureInfos
-							);
+							// Group failed events by stream and increment events_failed_by_stream_total.
 							$failedEventsByStream = self::groupEventsByStream( $failedEvents );
 							foreach ( $failedEventsByStream as $streamName => $failedEventsForStream ) {
 								$this->incrementMetricByValue(
@@ -493,6 +489,16 @@ class EventBus {
 								);
 							}
 						}
+
+						// increment events_accepted_total as the difference between
+						// $outgoingEventsCount and $failedEventsCountTotal
+						$this->incrementMetricByValue(
+							"events_accepted_total",
+							$outgoingEventsCount - $failedEventsCountTotal,
+							$baseMetricLabels,
+							[ "status_code" => $code ]
+						);
+
 					} else {
 						self::logger()->error( "Invalid event service response body", $context );
 					}
