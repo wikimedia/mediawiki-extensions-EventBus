@@ -77,10 +77,10 @@ class EventBus {
 	/** @const int Default HTTP request timeout in seconds */
 	private const DEFAULT_REQUEST_TIMEOUT = 10;
 
-	/** @const string fallback stream name to use when the `meta.stream` field is
-	 * not set in events payload.
+	/** @const string fallback value to use when a prometheus metrics label value
+	 * (e.g. `meta.stream`) is not assigned.
 	 */
-	public const STREAM_UNKNOWN_NAME = "__stream_unknown__";
+	public const VALUE_UNKNOWN = "__value_unknown__";
 
 	/** @var LoggerInterface instance for all EventBus instances */
 	private static $logger;
@@ -213,6 +213,14 @@ class EventBus {
 			$metric = $this->statsFactory->getCounter( $metricName );
 			foreach ( $labels as $label ) {
 				foreach ( $label as $k => $v ) {
+					// Bug: T373086
+					if ( !isset( $v ) ) {
+						$v = self::VALUE_UNKNOWN;
+						self::logger()->warning(
+							' Initialized metric label does not have an assigned value. ',
+							[ "metric_label" => $k ]
+						);
+					}
 					$metric->setLabel( $k, $v );
 				}
 			}
@@ -533,7 +541,7 @@ class EventBus {
 	public static function getStreamNameFromEvent( ?array $event ) {
 		return is_array( $event ) && isset( $event['meta']['stream'] ) ?
 			$event['meta']['stream'] :
-			self::STREAM_UNKNOWN_NAME;
+			self::VALUE_UNKNOWN;
 	}
 
 	/**

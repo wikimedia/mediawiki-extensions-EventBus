@@ -56,7 +56,7 @@ class EventBusTest extends MediaWikiUnitTestCase {
 		];
 
 		$this->assertEquals(
-			EventBus::STREAM_UNKNOWN_NAME,
+			EventBus::VALUE_UNKNOWN,
 			EventBus::getStreamNameFromEvent( $event1 )
 		);
 	}
@@ -83,7 +83,7 @@ class EventBusTest extends MediaWikiUnitTestCase {
 		];
 		$expected = [
 			"my_stream" => [ $events[0], $events[1] ],
-			EventBus::STREAM_UNKNOWN_NAME => [ $events[2] ]
+			EventBus::VALUE_UNKNOWN => [ $events[2] ]
 		];
 
 		$groupedEvents = EventBus::groupEventsByStream( $events );
