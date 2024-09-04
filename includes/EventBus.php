@@ -400,6 +400,10 @@ class EventBus {
 			]
 		);
 
+		// Keep track of the total number of failed events.
+		// This will be used to calculate events_accepted_count later.
+		$failedEventsCountTotal = 0;
+
 		// 201: all events accepted.
 		// 202: all events accepted but not necessarily persisted. HTTP response is returned 'hastily'.
 		// 207: some but not all events accepted: either due to validation failure or error.
@@ -447,9 +451,6 @@ class EventBus {
 					// }
 					$failureInfosByKind = FormatJson::decode( $res['body'], true );
 					if ( is_array( $failureInfosByKind ) ) {
-						// Keep track of the total number of failed events.
-						// This will be used to calculate events_accepted_count later.
-						$failedEventsCountTotal = 0;
 
 						foreach ( $failureInfosByKind as $failureKind => $failureInfos ) {
 							// $failureInfos should not be null or empty.
@@ -498,30 +499,21 @@ class EventBus {
 							}
 						}
 
-						// increment events_accepted_total as the difference between
-						// $outgoingEventsCount and $failedEventsCountTotal
-						$this->incrementMetricByValue(
-							"events_accepted_total",
-							$outgoingEventsCount - $failedEventsCountTotal,
-							$baseMetricLabels,
-							[ "status_code" => $code ]
-						);
-
 					} else {
 						self::logger()->error( "Invalid event service response body", $context );
 					}
 				}
 				$results[] = "Unable to deliver all events: $message";
-			} else {
-				// 201, 202 all events have been accepted (but not necessarily persisted).
-				$this->incrementMetricByValue(
-					"events_accepted_total",
-					$outgoingEventsCount,
-					$baseMetricLabels,
-					[ "status_code" => $code ]
-				);
 			}
 		}
+
+		// increment events_accepted_total as the difference between
+		// $outgoingEventsCount and $failedEventsCountTotal (if there were any failed events).
+		$this->incrementMetricByValue(
+			"events_accepted_total",
+			$outgoingEventsCount - $failedEventsCountTotal,
+			$baseMetricLabels,
+		);
 
 		if ( $results !== [] ) {
 			return $results;
