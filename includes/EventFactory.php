@@ -11,6 +11,7 @@ use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Content\IContentHandlerFactory;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\Linker\LinkTarget;
+use MediaWiki\MediaWikiServices;
 use MediaWiki\Page\PageReferenceValue;
 use MediaWiki\Page\WikiPageFactory;
 use MediaWiki\Revision\RevisionRecord;
@@ -27,7 +28,6 @@ use MediaWiki\User\UserIdentity;
 use MediaWiki\WikiMap\WikiMap;
 use MWUnknownContentModelException;
 use Psr\Log\LoggerInterface;
-use UIDGenerator;
 
 /**
  * Used to create events of particular types.
@@ -348,12 +348,13 @@ class EventFactory {
 			$domain = $this->options->get( 'ServerName' );
 		}
 
+		$gen = MediaWikiServices::getInstance()->getGlobalIdGenerator();
 		$event = [
 			'$schema' => $schema,
 			'meta' => [
 				'uri'        => $uri,
 				'request_id' => $this->telemetry->getRequestId(),
-				'id'         => UIDGenerator::newUUIDv4(),
+				'id'         => $gen->newUUIDv4(),
 				'dt'         => $dt ?? wfTimestamp( TS_ISO_8601 ),
 				'domain'     => $domain,
 				'stream'     => $stream,
