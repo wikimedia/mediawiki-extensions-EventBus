@@ -21,11 +21,9 @@
 namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
-use MediaWiki\User\User;
 use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
 use MediaWiki\User\UserIdentity;
-use Wikimedia\Assert\Assert;
 
 /**
  * Converts a User to an array matching the fragment/mediawiki/state/entity/user schema
@@ -59,26 +57,15 @@ class UserEntitySerializer {
 	}
 
 	/**
-	 * Given a User or UserIdentity $user, returns an array suitable for
+	 * Given a UserIdentity $user, returns an array suitable for
 	 * use as a mediawiki/state/entity/user JSON object in other MediaWiki
 	 * state/entity schemas.
-	 * @param User|UserIdentity $user
+	 * @param UserIdentity $user
 	 * @return array
 	 */
-	public function toArray( $user ): array {
-		Assert::parameterType(
-			[
-				User::class,
-				UserIdentity::class,
-			],
-			$user,
-			'$user'
-		);
-
+	public function toArray( UserIdentity $user ): array {
 		// If given a UserIdentity (that is not already a User), convert to a User.
-		if ( !( $user instanceof User ) && $user instanceof UserIdentity ) {
-			$user = $this->userFactory->newFromUserIdentity( $user );
-		}
+		$user = $this->userFactory->newFromUserIdentity( $user );
 
 		$userAttrs = [
 			'user_text' => $user->getName(),
