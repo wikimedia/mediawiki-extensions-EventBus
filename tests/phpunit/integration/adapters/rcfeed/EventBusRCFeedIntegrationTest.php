@@ -1,7 +1,9 @@
 <?php
 
 use MediaWiki\Extension\EventBus\Adapters\RCFeed\EventBusRCFeedFormatter;
+use MediaWiki\Json\FormatJson;
 use MediaWiki\MainConfigNames;
+use MediaWiki\RCFeed\FormattedRCFeed;
 use MediaWiki\SpecialPage\SpecialPage;
 use MediaWiki\Title\Title;
 

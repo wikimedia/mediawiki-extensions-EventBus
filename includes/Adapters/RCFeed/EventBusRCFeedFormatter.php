@@ -2,9 +2,9 @@
 
 namespace MediaWiki\Extension\EventBus\Adapters\RCFeed;
 
-use MachineReadableRCFeedFormatter;
 use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\MediaWikiServices;
+use MediaWiki\RCFeed\MachineReadableRCFeedFormatter;
 use RecentChange;
 
 /**

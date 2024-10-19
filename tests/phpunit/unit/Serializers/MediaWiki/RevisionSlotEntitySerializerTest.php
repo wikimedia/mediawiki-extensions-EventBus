@@ -1,6 +1,8 @@
 <?php
 
 use MediaWiki\Content\IContentHandlerFactory;
+use MediaWiki\Content\TextContent;
+use MediaWiki\Content\TextContentHandler;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySerializer;
 use MediaWiki\Revision\SlotRecord;
 

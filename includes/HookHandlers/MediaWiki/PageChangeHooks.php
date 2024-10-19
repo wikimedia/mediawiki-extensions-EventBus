@@ -22,7 +22,6 @@
 namespace MediaWiki\Extension\EventBus\HookHandlers\MediaWiki;
 
 use Exception;
-use IDBAccessObject;
 use InvalidArgumentException;
 use ManualLogEntry;
 use MediaWiki\Config\Config;
@@ -59,6 +58,7 @@ use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
 use Psr\Log\LoggerInterface;
 use StatusValue;
+use Wikimedia\Rdbms\IDBAccessObject;
 use Wikimedia\UUID\GlobalIdGenerator;
 use WikiPage;
 

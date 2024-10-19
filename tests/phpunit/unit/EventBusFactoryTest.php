@@ -3,6 +3,7 @@ use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\EventFactory;
 use Psr\Log\NullLogger;
+use Wikimedia\Http\MultiHttpClient;
 use Wikimedia\TestingAccessWrapper;
 
 /**

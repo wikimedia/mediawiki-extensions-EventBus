@@ -2,9 +2,9 @@
 
 namespace MediaWiki\Extension\EventBus\Adapters\RCFeed;
 
-use FormattedRCFeed;
 use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Extension\EventBus\EventBus;
+use MediaWiki\RCFeed\FormattedRCFeed;
 
 /**
  * Emit a recent change notification via EventBus.

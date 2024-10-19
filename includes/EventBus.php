@@ -25,15 +25,15 @@
 namespace MediaWiki\Extension\EventBus;
 
 use Exception;
-use FormatJson;
 use InvalidArgumentException;
 use MediaWiki\Context\RequestContext;
+use MediaWiki\Json\FormatJson;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
-use MultiHttpClient;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Wikimedia\Assert\Assert;
+use Wikimedia\Http\MultiHttpClient;
 use Wikimedia\Stats\StatsFactory;
 
 class EventBus {

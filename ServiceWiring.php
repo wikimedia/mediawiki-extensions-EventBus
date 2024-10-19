@@ -7,6 +7,7 @@ use MediaWiki\Extension\EventBus\StreamNameMapper;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
+use MediaWiki\Registration\ExtensionRegistry;
 
 return [
 	'EventBus.EventBusFactory' => static function ( MediaWikiServices $services ): EventBusFactory {

@@ -2,6 +2,7 @@
 
 use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\Extension\EventBus\EventFactory;
+use Wikimedia\Http\MultiHttpClient;
 
 /**
  * @covers \MediaWiki\Extension\EventBus\EventBus

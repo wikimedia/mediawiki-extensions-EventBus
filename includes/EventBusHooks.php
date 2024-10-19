@@ -24,7 +24,6 @@
 
 namespace MediaWiki\Extension\EventBus;
 
-use IDBAccessObject;
 use ManualLogEntry;
 use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\ChangeTags\Hook\ChangeTagsAfterUpdateTagsHook;
@@ -55,6 +54,7 @@ use MediaWiki\User\User;
 use MediaWiki\User\UserIdentity;
 use RecentChange;
 use Wikimedia\Assert\Assert;
+use Wikimedia\Rdbms\IDBAccessObject;
 use WikiPage;
 
 /**

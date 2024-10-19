@@ -25,8 +25,8 @@ namespace MediaWiki\Extension\EventBus;
 use InvalidArgumentException;
 use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Extension\EventStreamConfig\StreamConfigs;
-use MultiHttpClient;
 use Psr\Log\LoggerInterface;
+use Wikimedia\Http\MultiHttpClient;
 use Wikimedia\Stats\StatsFactory;
 
 /**
