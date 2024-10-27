@@ -231,7 +231,7 @@ class EventFactory {
 			$attrs['rev_content_format'] = $contentFormat;
 		}
 
-		if ( isset( $performer ) ) {
+		if ( $performer !== null ) {
 			$attrs['performer'] = $this->createPerformerAttrs( $performer );
 		}
 

@@ -209,12 +209,12 @@ class EventBus {
 	 * @return void
 	 */
 	private function incrementMetricByValue( string $metricName, int $value, ...$labels ): void {
-		if ( isset( $this->statsFactory ) ) {
+		if ( $this->statsFactory !== null ) {
 			$metric = $this->statsFactory->getCounter( $metricName );
 			foreach ( $labels as $label ) {
 				foreach ( $label as $k => $v ) {
 					// Bug: T373086
-					if ( !isset( $v ) ) {
+					if ( $v === null ) {
 						$v = self::VALUE_UNKNOWN;
 						self::logger()->warning(
 							' Initialized metric label does not have an assigned value. ',
@@ -457,7 +457,7 @@ class EventBus {
 							// This is just a guard against what the intake
 							// service returns (or the behavior of different json parsing methods - possibly).
 							// https://www.mediawiki.org/wiki/Manual:Coding_conventions/PHP#empty()
-							if ( !isset( $failureInfos ) || $failureInfos === [] ) {
+							if ( $failureInfos === null || $failureInfos === [] ) {
 								continue;
 							}
 

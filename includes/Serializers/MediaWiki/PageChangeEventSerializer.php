@@ -155,7 +155,7 @@ class PageChangeEventSerializer {
 			'page' => $this->pageEntitySerializer->toArray( $wikiPage, $redirectTarget ),
 		];
 
-		if ( isset( $performer ) ) {
+		if ( $performer !== null ) {
 			$eventAttrs['performer'] = $this->userEntitySerializer->toArray( $performer );
 		}
 
