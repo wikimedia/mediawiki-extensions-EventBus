@@ -133,7 +133,7 @@ class EventBus {
 		EventFactory $eventFactory,
 		string $url,
 		int $maxBatchByteSize,
-		int $timeout = null,
+		?int $timeout = null,
 		bool $forwardXClientIP = false,
 		string $eventServiceName = EventBusFactory::EVENT_SERVICE_DISABLED_NAME,
 		?StatsFactory $statsFactory = null

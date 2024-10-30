@@ -199,7 +199,7 @@ class EventFactory {
 	 */
 	private function createRevisionRecordAttrs(
 		RevisionRecord $revision,
-		UserIdentity $performer = null
+		?UserIdentity $performer = null
 	) {
 		$linkTarget = $revision->getPageAsLinkTarget();
 		$attrs = [
@@ -334,8 +334,8 @@ class EventFactory {
 		$schema,
 		$stream,
 		array $attrs,
-		string $wiki = null,
-		string $dt = null
+		?string $wiki = null,
+		?string $dt = null
 	) {
 		if ( $wiki !== null ) {
 			$wikiRef = WikiMap::getWiki( $wiki );
