@@ -36,7 +36,6 @@ if ( $IP === false ) {
 	$IP = __DIR__ . '/../../..';
 }
 require_once "$IP/maintenance/Maintenance.php";
-require_once __DIR__ . '/../includes/Maintenance/Maintenance.php';
 
 use Exception;
 use MediaWiki\Extension\EventBus\JobExecutor;
