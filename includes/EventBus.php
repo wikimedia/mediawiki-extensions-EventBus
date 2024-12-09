@@ -676,6 +676,10 @@ class EventBus {
 		}
 	}
 
+	/**
+	 * @param int $eventType
+	 * @return int
+	 */
 	private function shouldSendEvent( $eventType ) {
 		return $this->allowedEventTypes & $eventType;
 	}

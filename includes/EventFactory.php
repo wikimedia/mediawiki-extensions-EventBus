@@ -1155,6 +1155,15 @@ class EventFactory {
 		return $event;
 	}
 
+	/**
+	 * @param string $stream
+	 * @param string $campaignName
+	 * @param UserIdentity $user
+	 * @param array $settings
+	 * @param string $summary
+	 * @param string $campaignUrl
+	 * @return array
+	 */
 	public function createCentralNoticeCampaignCreateEvent(
 		$stream,
 		$campaignName,
@@ -1174,6 +1183,16 @@ class EventFactory {
 		);
 	}
 
+	/**
+	 * @param string $stream
+	 * @param string $campaignName
+	 * @param UserIdentity $user
+	 * @param array $settings
+	 * @param array $priorState
+	 * @param string $summary
+	 * @param string $campaignUrl
+	 * @return array
+	 */
 	public function createCentralNoticeCampaignChangeEvent(
 		$stream,
 		$campaignName,
@@ -1197,6 +1216,15 @@ class EventFactory {
 		);
 	}
 
+	/**
+	 * @param string $stream
+	 * @param string $campaignName
+	 * @param UserIdentity $user
+	 * @param array $priorState
+	 * @param string $summary
+	 * @param string $campaignUrl
+	 * @return array
+	 */
 	public function createCentralNoticeCampaignDeleteEvent(
 		$stream,
 		$campaignName,
