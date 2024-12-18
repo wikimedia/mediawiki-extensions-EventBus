@@ -166,10 +166,11 @@ class PageChangeHooks implements
 		RedirectLookup $redirectLookup,
 		PageLookup $pageLookup
 	) {
-		$this->logger = LoggerFactory::getInstance( self::class );
+		$this->logger = LoggerFactory::getInstance( 'EventBus.PageChangeHooks' );
 
 		$this->streamName = $streamNameMapper->resolve(
-			self::PAGE_CHANGE_STREAM_NAME_DEFAULT );
+			self::PAGE_CHANGE_STREAM_NAME_DEFAULT
+		);
 
 		$this->eventBusFactory = $eventBusFactory;
 
@@ -280,8 +281,10 @@ class PageChangeHooks implements
 		$wikiPage = $this->wikiPageFactory->newFromID( $pageid, IDBAccessObject::READ_LATEST );
 
 		if ( $wikiPage == null ) {
-			throw new InvalidArgumentException( "No page moved from '$oldTitle' to '$newTitle' "
-				. " with ID $pageid could be found" );
+			throw new InvalidArgumentException(
+				"No page moved from '$oldTitle' to '$newTitle' "
+				. " with ID $pageid could be found"
+			);
 		}
 
 		$performer = $this->userFactory->newFromUserIdentity( $user );
