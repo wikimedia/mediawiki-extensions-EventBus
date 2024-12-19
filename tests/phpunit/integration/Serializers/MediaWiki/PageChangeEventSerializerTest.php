@@ -8,6 +8,7 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Http\Telemetry;
+use MediaWiki\MainConfigNames;
 use MediaWiki\Revision\MutableRevisionRecord;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\RevisionStore;
@@ -75,9 +76,9 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		}
 
 		$config = new HashConfig( [
-			'ServerName' => self::MOCK_SERVER_NAME,
-			'CanonicalServer' => self::MOCK_CANONICAL_SERVER,
-			'ArticlePath' => self::MOCK_ARTICLE_PATH
+			MainConfigNames::ServerName => self::MOCK_SERVER_NAME,
+			MainConfigNames::CanonicalServer => self::MOCK_CANONICAL_SERVER,
+			MainConfigNames::ArticlePath => self::MOCK_ARTICLE_PATH,
 		] );
 		$globalIdGenerator = $this->createMock( GlobalIdGenerator::class );
 		$globalIdGenerator->method( 'newUUIDv4' )->willReturn( self::MOCK_UUID );

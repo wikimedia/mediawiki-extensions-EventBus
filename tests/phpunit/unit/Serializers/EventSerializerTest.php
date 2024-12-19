@@ -2,6 +2,7 @@
 
 use MediaWiki\Config\HashConfig;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
+use MediaWiki\MainConfigNames;
 use Wikimedia\UUID\GlobalIdGenerator;
 
 /**
@@ -33,10 +34,6 @@ class EventSerializerTest extends MediaWikiUnitTestCase {
 			return;
 		}
 
-		$config = new HashConfig( [
-			'ServerName' => self::MOCK_SERVER_NAME,
-		] );
-
 		$globalIdGenerator = $this->createMock( GlobalIdGenerator::class );
 		$globalIdGenerator->method( 'newUUIDv4' )->willReturn( self::MOCK_UUID );
 
@@ -44,7 +41,7 @@ class EventSerializerTest extends MediaWikiUnitTestCase {
 		$telemetry->method( 'getRequestId' )->willReturn( 'requestid' );
 
 		$this->eventSerializer = new EventSerializer(
-			$config,
+			new HashConfig( [ MainConfigNames::ServerName => self::MOCK_SERVER_NAME ] ),
 			$globalIdGenerator,
 			$telemetry
 		);

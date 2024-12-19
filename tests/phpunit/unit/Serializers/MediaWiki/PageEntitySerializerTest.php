@@ -4,6 +4,7 @@ use MediaWiki\Config\HashConfig;
 use MediaWiki\Extension\EventBus\Redirects\RedirectTarget;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
 use MediaWiki\Linker\LinkTarget;
+use MediaWiki\MainConfigNames;
 use MediaWiki\Title\Title;
 use MediaWiki\Title\TitleFormatter;
 use MediaWiki\Title\TitleValue;
@@ -51,8 +52,8 @@ class PageEntitySerializerTest extends MediaWikiUnitTestCase {
 		}
 
 		$config = new HashConfig( [
-			'CanonicalServer' => self::MOCK_CANONICAL_SERVER,
-			'ArticlePath' => self::MOCK_ARTICLE_PATH
+			MainConfigNames::CanonicalServer => self::MOCK_CANONICAL_SERVER,
+			MainConfigNames::ArticlePath => self::MOCK_ARTICLE_PATH,
 		] );
 
 		$titleFormatter = $this->createMock( TitleFormatter::class );
