@@ -16,7 +16,6 @@ use RecentChange;
 class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 	/**
 	 * Stream name to which this event belongs.
-	 * @var string
 	 */
 	public const STREAM = 'mediawiki.recentchange';
 

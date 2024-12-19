@@ -139,7 +139,7 @@ class EventFactory {
 	/**
 	 * Creates a full user page path
 	 *
-	 * @param string $userName userName
+	 * @param string $userName
 	 * @return string
 	 */
 	private function getUserPageURL( $userName ) {

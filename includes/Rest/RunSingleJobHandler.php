@@ -31,10 +31,6 @@ use MediaWiki\Rest\Validator\Validator;
 use Psr\Log\LoggerInterface;
 use Wikimedia\Rdbms\ReadOnlyMode;
 
-/**
- * Class RunSingleJobHandler
- * @package MediaWiki\Extension\EventBus
- */
 class RunSingleJobHandler extends Handler {
 
 	/**

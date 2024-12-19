@@ -10,7 +10,6 @@ use Wikimedia\Assert\Assert;
 use Wikimedia\EventRelayer\EventRelayer;
 
 /**
- * @package MediaWiki\Extension\EventBus
  * @since 1.35
  */
 class CdnPurgeEventRelayer extends EventRelayer {
