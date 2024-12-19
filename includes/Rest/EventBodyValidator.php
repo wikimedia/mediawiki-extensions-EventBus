@@ -96,13 +96,13 @@ class EventBodyValidator {
 
 	/**
 	 * @param array $jobEvent containing the job EventBus event
-	 * @return Job|void
+	 * @return Job
 	 * @throws HttpException
 	 */
 	private function getJobFromParams( array $jobEvent ) {
 		try {
 			$jobFactory = MediaWikiServices::getInstance()->getJobFactory();
-			$job = $jobFactory->newJob( $jobEvent['type'], $jobEvent['params'] );
+			return $jobFactory->newJob( $jobEvent['type'], $jobEvent['params'] );
 		} catch ( Exception $e ) {
 			$this->throwJobErrors( [
 				'status'  => false,
@@ -110,16 +110,6 @@ class EventBodyValidator {
 				'type' => $jobEvent['type']
 			] );
 		}
-
-		if ( $job === null ) {
-			$this->throwJobErrors( [
-				'status'  => false,
-				'error' => 'Could not create a job from event',
-				'type' => $jobEvent['type']
-			] );
-		}
-
-		return $job;
 	}
 
 	/**
