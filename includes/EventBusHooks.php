@@ -236,11 +236,7 @@ class EventBusHooks implements
 			$reason
 		);
 
-		DeferredUpdates::addCallableUpdate(
-			static function () use ( $eventBus, $event ) {
-				$eventBus->send( [ $event ] );
-			}
-		);
+		DeferredUpdates::addCallableUpdate( static fn () => $eventBus->send( [ $event ] ) );
 	}
 
 	/**
@@ -418,11 +414,7 @@ class EventBusHooks implements
 			$revisionRecord
 		);
 
-		DeferredUpdates::addCallableUpdate(
-			static function () use ( $eventBus, $event ) {
-				$eventBus->send( [ $event ] );
-			}
-		);
+		DeferredUpdates::addCallableUpdate( static fn () => $eventBus->send( [ $event ] ) );
 	}
 
 	/**
@@ -446,11 +438,7 @@ class EventBusHooks implements
 		$event = $eventFactory->createUserBlockChangeEvent(
 			$stream, $user, $block, $previousBlock );
 
-		DeferredUpdates::addCallableUpdate(
-			static function () use ( $eventBus, $event ) {
-				$eventBus->send( [ $event ] );
-			}
-		);
+		DeferredUpdates::addCallableUpdate( static fn () => $eventBus->send( [ $event ] ) );
 	}
 
 	/**
@@ -571,11 +559,7 @@ class EventBusHooks implements
 			$protect
 		);
 
-		DeferredUpdates::addCallableUpdate(
-			static function () use ( $eventBus, $event ) {
-				$eventBus->send( [ $event ] );
-			}
-		);
+		DeferredUpdates::addCallableUpdate( static fn () => $eventBus->send( [ $event ] ) );
 	}
 
 	/** Called after tags have been updated with the ChangeTags::updateTags function.
@@ -629,11 +613,7 @@ class EventBusHooks implements
 			$user
 		);
 
-		DeferredUpdates::addCallableUpdate(
-			static function () use ( $eventBus, $event ) {
-				$eventBus->send( [ $event ] );
-			}
-		);
+		DeferredUpdates::addCallableUpdate( static fn () => $eventBus->send( [ $event ] ) );
 	}
 
 }
