@@ -23,6 +23,11 @@ class DBKeyLookupStub implements Stub {
 	 */
 	private $default;
 
+	/**
+	 * @param array &$lut
+	 * @param string $name
+	 * @param mixed|null $default
+	 */
 	public function __construct( array &$lut, $name, $default = null ) {
 		$this->lut = &$lut;
 		$this->name = $name;

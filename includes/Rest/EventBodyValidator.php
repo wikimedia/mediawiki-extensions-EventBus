@@ -25,6 +25,10 @@ class EventBodyValidator {
 	 */
 	private $logger;
 
+	/**
+	 * @param string $secretKey
+	 * @param LoggerInterface $logger
+	 */
 	public function __construct( $secretKey, LoggerInterface $logger ) {
 		$this->secretKey = $secretKey;
 		$this->logger = $logger;
