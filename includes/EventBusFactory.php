@@ -32,7 +32,6 @@ use Wikimedia\Stats\StatsFactory;
 /**
  * Creates appropriate EventBus instance based on stream config.
  *
- * @package MediaWiki\Extension\EventBus
  * @since 1.35
  */
 class EventBusFactory {
