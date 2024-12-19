@@ -92,7 +92,6 @@ describe( 'Run Single Job', function() {
 
 		assert.equal( status, 403 );
 		assert.equal( body.message, 'Missing mediawiki signature' );
-
 	} );
 
 	it( 'should return 403 for invalid signature', async function() {

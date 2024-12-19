@@ -33,7 +33,6 @@ use Psr\Log\LoggerInterface;
  * Used to create events of particular types.
  *
  * @deprecated since EventBus 0.5.0. Use EventSerializer and specific Serializer instances instead.
- *
  */
 class EventFactory {
 

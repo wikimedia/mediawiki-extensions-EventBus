@@ -38,7 +38,6 @@ use MediaWiki\RCFeed\FormattedRCFeed;
  * 	'class'            => 'EventBusRCFeedEngine',
  * 	'formatter'        => 'EventBusRCFeedFormatter',
  * );
- *
  */
 class EventBusRCFeedEngine extends FormattedRCFeed {
 

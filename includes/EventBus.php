@@ -451,7 +451,6 @@ class EventBus {
 					// }
 					$failureInfosByKind = FormatJson::decode( $res['body'], true );
 					if ( is_array( $failureInfosByKind ) ) {
-
 						foreach ( $failureInfosByKind as $failureKind => $failureInfos ) {
 							// $failureInfos should not be null or empty.
 							// This is just a guard against what the intake
@@ -498,7 +497,6 @@ class EventBus {
 								);
 							}
 						}
-
 					} else {
 						self::logger()->error( "Invalid event service response body", $context );
 					}
@@ -515,11 +513,7 @@ class EventBus {
 			$baseMetricLabels,
 		);
 
-		if ( $results !== [] ) {
-			return $results;
-		}
-
-		return true;
+		return $results ?: true;
 	}
 
 	// == static helper functions below ==
