@@ -249,7 +249,6 @@ class PageChangeHooks implements
 				$revisionRecord,
 				$redirectTarget
 			);
-
 		} else {
 			$event = $this->pageChangeEventSerializer->toEditEvent(
 				$this->streamName,
@@ -441,7 +440,6 @@ class PageChangeHooks implements
 			// properties of the current state of the page has changed.
 			// Emit a page change visibility_change event.
 			if ( $revisionRecord->isCurrent() ) {
-
 				$visibilityChanges = $visibilityChangeMap[$revId];
 
 				// current revision's visibility should be the same as we are given in

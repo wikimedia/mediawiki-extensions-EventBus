@@ -81,7 +81,6 @@ class EventBodyValidator {
 			if ( preg_match( '/^data:application\/octet-stream;base64,([\s\S]+)$/', $value, $match ) ) {
 				$value = base64_decode( $match[1], true );
 				if ( $value === false ) {
-
 					throw new HttpException(
 						'Parameter base64_decode() failed',
 						500,

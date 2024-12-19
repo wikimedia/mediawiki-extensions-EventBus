@@ -146,8 +146,8 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		?string $comment = null,
 		?array $eventAttrs = null
 	): array {
-		$currentRevision = $currentRevision ?? $wikiPage->getRevisionRecord();
-		$eventTimestamp = $eventTimestamp ?? $wikiPage->getRevisionRecord()->getTimestamp();
+		$currentRevision ??= $wikiPage->getRevisionRecord();
+		$eventTimestamp ??= $wikiPage->getRevisionRecord()->getTimestamp();
 
 		$commentAttrs = [];
 		if ( $comment !== null ) {

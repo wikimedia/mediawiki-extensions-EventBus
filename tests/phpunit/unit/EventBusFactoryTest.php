@@ -1,4 +1,5 @@
 <?php
+
 use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\EventFactory;
