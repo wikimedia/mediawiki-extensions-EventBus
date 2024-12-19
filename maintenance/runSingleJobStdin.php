@@ -64,7 +64,7 @@ class RunSingleJobStdin extends Maintenance {
 		try {
 			$response = $executor->execute( $event_data );
 			if ( $response['status'] === true ) {
-				$this->output( "Job executed successfully: {$event_data['message']}\n" );
+				$this->output( "Job executed successfully: {$response['message']}\n" );
 			} else {
 				if ( $response['readonly'] ) {
 					// TODO - T204154
