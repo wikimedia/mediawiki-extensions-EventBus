@@ -74,7 +74,13 @@
 			]
 		},
 		"main": {
-			"class": "MediaWiki\\Extension\\EventBus\\EventBusHooks"
+			"class": "MediaWiki\\Extension\\EventBus\\EventBusHooks",
+			"services": [
+				"EventBus.EventBusFactory",
+				"RevisionLookup",
+				"CommentFormatter",
+				"TitleFactory"
+			]
 		}
 	},
 	"Hooks": {
