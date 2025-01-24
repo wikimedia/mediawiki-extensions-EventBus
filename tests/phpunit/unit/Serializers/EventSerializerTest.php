@@ -124,7 +124,7 @@ class EventSerializerTest extends MediaWikiUnitTestCase {
 	 * @covers ::createMeta
 	 */
 	public function testCreateEvent( $expected, $args ) {
-		$actual = call_user_func_array( [ $this->eventSerializer, 'createEvent' ], $args );
+		$actual = $this->eventSerializer->createEvent( ...$args );
 
 		// remove meta.request_id from actual, it is not deterministic.
 		unset( $actual['meta']['request_id'] );
