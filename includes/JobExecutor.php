@@ -8,7 +8,6 @@
 namespace MediaWiki\Extension\EventBus;
 
 use Exception;
-use Liuggio\StatsdClient\Factory\StatsdDataFactoryInterface;
 use MediaWiki\Config\Config;
 use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Http\Telemetry;
@@ -16,16 +15,17 @@ use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
 use MWExceptionHandler;
 use Psr\Log\LoggerInterface;
+use Wikimedia\Stats\StatsFactory;
 
 class JobExecutor {
 
 	/** @var LoggerInterface instance for all JobExecutor instances */
 	private static $logger;
 
-	/** @var StatsdDataFactoryInterface instance
+	/** @var StatsFactory instance
 	 * for all JobExecutor instances
 	 */
-	private static $stats;
+	private static $statsFactory;
 
 	/**
 	 * @var Config a references to the wiki config
@@ -148,10 +148,10 @@ class JobExecutor {
 
 		// Report pure job execution timing
 		$jobDuration = microtime( true ) - $startTime;
-		self::stats()->timing(
-			"jobexecutor.{$job->getType()}.exec",
-			$jobDuration
-		);
+		self::stats()->getTiming( 'jobexecutor_exec_runtime_seconds' )
+				->setLabel( 'type', $job->getType() )
+				->copyToStatsdAt( "jobexecutor.{$job->getType()}.exec" )
+				->observeSeconds( $jobDuration );
 		$this->logger()->info( 'Finished job execution',
 			[
 				'job' => $job->toString(),
@@ -241,13 +241,13 @@ class JobExecutor {
 
 	/**
 	 * Returns a singleton stats reporter instance for all JobExecutor instances.
-	 * Use like self::stats()->increment( $key )
-	 * @return StatsdDataFactoryInterface
+	 * Use like self::stats()->getGauge()
+	 * @return StatsFactory
 	 */
 	private static function stats() {
-		if ( !self::$stats ) {
-			self::$stats = MediaWikiServices::getInstance()->getStatsdDataFactory();
+		if ( !self::$statsFactory ) {
+			self::$statsFactory = MediaWikiServices::getInstance()->getStatsFactory();
 		}
-		return self::$stats;
+		return self::$statsFactory;
 	}
 }
