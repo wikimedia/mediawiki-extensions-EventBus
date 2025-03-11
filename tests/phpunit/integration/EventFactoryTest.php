@@ -1,6 +1,5 @@
 <?php
 
-use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\Block\Restriction\NamespaceRestriction;
 use MediaWiki\Block\Restriction\PageRestriction;
 use MediaWiki\CommentStore\CommentStoreComment;
@@ -49,7 +48,6 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 
 	private static function blockProperties( $optionOverrides = [] ) {
 		$options = [
-			'address' => '127.0.0.0/24',
 			'reason' => 'crosswiki block...',
 			'timestamp' => wfTimestampNow(),
 			'expiry' => wfTimestampNow(),
@@ -60,7 +58,11 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 			'by' => UserIdentityValue::newExternal( 'm', 'MetaWikiUser' ),
 		];
 
-		return array_merge( $options, $optionOverrides );
+		$options = array_merge( $options, $optionOverrides );
+		if ( !isset( $options['targetUser'] ) && !isset( $options['address'] ) ) {
+			$options['address'] = '127.0.0.0/24';
+		}
+		return $options;
 	}
 
 	private function assertPageProperties( $event, $rowOverrides = [] ) {
@@ -901,22 +903,24 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	public static function provideNullOldBlock() {
 		yield [
 			self::blockProperties( [
-				'address' => UserIdentityValue::newRegistered( 1, 'TestUser1' ),
+				'targetUser' => UserIdentityValue::newRegistered( 1, 'TestUser1' ),
 			] ),
 		];
 	}
 
 	public function testUserBlockChangeEvent() {
-		$oldBlock = new DatabaseBlock( self::blockProperties( [
-			'address' => UserIdentityValue::newRegistered( 1, 'TestUser1' ),
+		$blockStore = $this->getServiceContainer()->getDatabaseBlockStore();
+		$oldBlock = $blockStore->newUnsaved( self::blockProperties( [
+			'targetUser' => UserIdentityValue::newRegistered( 1, 'TestUser1' ),
 		] ) );
 		$oldBlock->setRestrictions( [
 			new NamespaceRestriction( 0, NS_USER ),
 			new PageRestriction( 0, 1 )
 		] );
-		$newBlock = new DatabaseBlock( self::blockProperties( [
-			'address' => UserIdentityValue::newRegistered( 1, 'TestUser2' ),
+		$newBlock = $blockStore->newUnsaved( self::blockProperties( [
+			'targetUser' => UserIdentityValue::newRegistered( 1, 'TestUser2' ),
 		] ) );
+		/** @var EventFactory $eventFactory */
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createUserBlockChangeEvent(
 			'mediawiki.user-blocks-change',
@@ -952,8 +956,9 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		array $newBlockAttrs
 	) {
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
-		$oldBlock = new DatabaseBlock( $oldBlockAttrs );
-		$newBlock = new DatabaseBlock( $newBlockAttrs );
+		$blockStore = $this->getServiceContainer()->getDatabaseBlockStore();
+		$oldBlock = $blockStore->newUnsaved( $oldBlockAttrs );
+		$newBlock = $blockStore->newUnsaved( $newBlockAttrs );
 		$event = $eventFactory->createUserBlockChangeEvent(
 			'mediawiki.user-blocks-change',
 			UserIdentityValue::newRegistered( 1, 'Test_User' ),
@@ -973,7 +978,8 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		array $newBlockAttrs
 	) {
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
-		$newBlock = new DatabaseBlock( $newBlockAttrs );
+		$blockStore = $this->getServiceContainer()->getDatabaseBlockStore();
+		$newBlock = $blockStore->newUnsaved( $newBlockAttrs );
 		$event = $eventFactory->createUserBlockChangeEvent(
 			'mediawiki.user-blocks-change',
 			UserIdentityValue::newRegistered( 1, "Test_User" ),
