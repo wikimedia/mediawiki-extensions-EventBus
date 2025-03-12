@@ -16,6 +16,7 @@ use MediaWiki\MediaWikiServices;
 use MWExceptionHandler;
 use Psr\Log\LoggerInterface;
 use Wikimedia\Stats\StatsFactory;
+use Wikimedia\Telemetry\SpanInterface;
 
 class JobExecutor {
 
@@ -49,6 +50,12 @@ class JobExecutor {
 			$jobCreateResult['readonly'] = false;
 			return $jobCreateResult;
 		}
+
+		// Wrap job execution in a span to easily identify job types in traces.
+		$tracer = MediaWikiServices::getInstance()->getTracer();
+		$span = $tracer->createSpan( 'execute job' )
+			->setAttributes( [ 'org.wikimedia.eventbus.job.type' => $jobEvent['type'] ] );
+		$scope = $span->activate();
 
 		$job = $jobCreateResult['job'];
 		$this->logger()->debug( 'Beginning job execution', [
@@ -160,6 +167,8 @@ class JobExecutor {
 				'job_duration' => $jobDuration
 			]
 		);
+
+		$span->setSpanStatus( $status ? SpanInterface::SPAN_STATUS_OK : SpanInterface::SPAN_STATUS_ERROR );
 
 		if ( !$job->allowRetries() ) {
 			// Report success if the job doesn't allow retries
