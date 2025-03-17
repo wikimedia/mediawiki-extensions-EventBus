@@ -119,9 +119,9 @@ class JobExecutor {
 			$status = false;
 			$isReadonly = true;
 			$message = 'Database is in read-only mode';
-			MWExceptionHandler::rollbackPrimaryChangesAndLog( $e );
+			MWExceptionHandler::rollbackPrimaryChangesAndLog( $e, MWExceptionHandler::CAUGHT_BY_ENTRYPOINT );
 		} catch ( Exception $e ) {
-			MWExceptionHandler::rollbackPrimaryChangesAndLog( $e );
+			MWExceptionHandler::rollbackPrimaryChangesAndLog( $e, MWExceptionHandler::CAUGHT_BY_ENTRYPOINT );
 			$status = false;
 			$message = 'Exception executing job: '
 				. $job->toString() . ' : '
