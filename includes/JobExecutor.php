@@ -54,7 +54,8 @@ class JobExecutor {
 		// Wrap job execution in a span to easily identify job types in traces.
 		$tracer = MediaWikiServices::getInstance()->getTracer();
 		$span = $tracer->createSpan( 'execute job' )
-			->setAttributes( [ 'org.wikimedia.eventbus.job.type' => $jobEvent['type'] ] );
+			->setAttributes( [ 'org.wikimedia.eventbus.job.type' => $jobEvent['type'] ] )
+			->start();
 		$scope = $span->activate();
 
 		$job = $jobCreateResult['job'];
