@@ -281,7 +281,7 @@ class PageChangeHooks implements
 
 		if ( $wikiPage == null ) {
 			throw new InvalidArgumentException(
-				"No page moved from '$oldTitle' to '$newTitle' "
+				"No page moved from '$oldTitle' to '$newTitle'"
 				. " with ID $pageid could be found"
 			);
 		}
