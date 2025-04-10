@@ -6,6 +6,8 @@ use MediaWiki\CommentFormatter\CommentFormatter;
 use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\EventFactory;
+use MediaWiki\Extension\EventBus\HookHandlers\MediaWiki\PageChangeHooks;
+use MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress;
 use MediaWiki\Tests\MockWikiMapTrait;
 use MediaWiki\Title\Title;
 use MediaWiki\WikiMap\WikiMap;
@@ -22,24 +24,19 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	public function setUp(): void {
 		parent::setUp();
 
+		$commentFormatter = $this->createMock( CommentFormatter::class );
+		$this->setService( 'CommentFormatter', $commentFormatter );
+
 		$this->mockWikiMap();
 	}
 
-	/**
-	 * Test that the event ingress object tracks page revision updates (creation / edit)
-	 * and deletes.
-	 */
-	public function testPageCreateEditThenDelete() {
-		$pageName = Title::newFromText(
-			"TestPageCreateEditThenDelete",
-			$this->getDefaultWikitextNS()
-		);
-
-		// Flush any pending events in the queue
-		$this->runDeferredUpdates();
-
-		$commentFormatter = $this->createMock( CommentFormatter::class );
-		$this->setService( 'CommentFormatter', $commentFormatter );
+	private function mockEventBusFactory( callable $sendCallback,
+										  int $expectedNumberOfEvents,
+										  string $pageName,
+										  string $streamName
+	) {
+		$invocationCounter = $this->exactly( $expectedNumberOfEvents );
+		$capturedEvents = [];
 
 		// The spyEventBus EventBus mock is used only to test code paths triggered by the Domain
 		// Events API.
@@ -47,25 +44,27 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		// for mediawiki.page_change.v1 streams.
 		// In this test, `send` is expected to be called twice: once after a page creation,
 		// and once after the page is edited.
-		$expectedNumberOfEvents = 3;
-		$capturedEvents = [];
-
 		$spyEventBus = $this->createNoOpMock( EventBus::class, [ 'send', 'getFactory' ] );
 		$spyEventBus->expects( $this->exactly( $expectedNumberOfEvents ) )
 			->method( 'send' )
-			->willReturnCallback( function ( $events ) use ( $pageName, $expectedNumberOfEvents, &$capturedEvents ) {
-				self::assertSingleEvent( $events );
+			->willReturnCallback( function ( $events ) use ( $pageName,
+				$invocationCounter,
+				$expectedNumberOfEvents,
+				&$capturedEvents,
+				$streamName,
+				$sendCallback ) {
+					self::assertSingleEvent( $events );
 
-				$event = $events[0];
-				$capturedEvents[] = $event;
+					$event = $events[0];
+					$capturedEvents[] = $event;
 
-				self::assertEventBase( $event );
-				self::assertEventPage( $event, $pageName, $this->getDefaultWikitextNS() );
-				self::assertEventRevision( $event );
-				self::assertEventMeta( $event, $pageName );
+					self::assertEventBase( $event );
+					self::assertEventPage( $event, $pageName, $this->getDefaultWikitextNS() );
+					self::assertEventRevision( $event );
+					self::assertEventMeta( $event, $pageName, $streamName );
 
-				if ( count( $capturedEvents ) === $expectedNumberOfEvents ) {
-					self::assertEventActions( $capturedEvents );
+				if ( $invocationCounter->getInvocationCount() === $expectedNumberOfEvents ) {
+					$sendCallback( $events );
 				}
 			} );
 
@@ -82,14 +81,39 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 
 		$eventBusFactory = $this->createNoOpMock( EventBusFactory::class, [ 'getInstanceForStream' ] );
 		$eventBusFactory->method( 'getInstanceForStream' )
-			->willReturnCallback( static function ( $stream ) use ( $spyEventBus, $dummyEventBus ) {
-				if ( $stream === 'mediawiki.page_change.v1' ) {
+			->willReturnCallback( static function ( $stream ) use ( $spyEventBus,
+				$dummyEventBus,
+				$streamName ) {
+				if ( $stream === $streamName ) {
 					return $spyEventBus;
 				}
 				return $dummyEventBus;
 			} );
 
 		$this->setService( 'EventBus.EventBusFactory', $eventBusFactory );
+	}
+
+	/**
+	 * Test that the event ingress object tracks page revision updates (creation / edit)
+	 * and deletes.
+	 */
+	public function testPageCreateEditThenDelete() {
+		$pageName = Title::newFromText(
+			"TestPageCreateEditThenDelete",
+			$this->getDefaultWikitextNS()
+		);
+
+		// Flush any pending events in the queue
+		$this->runDeferredUpdates();
+
+		$sendCallback = function ( $events ) {
+			self::assertEditEventActions( $events );
+		};
+
+		$this->mockEventBusFactory( $sendCallback,
+			2,
+			$pageName,
+			PageChangeEventIngress::PAGE_CHANGE_STREAM_NAME_DEFAULT );
 
 		// Create a page
 		$this->editPage(
@@ -104,10 +128,20 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		);
 
 		// Delete the page
-		$page = $this->getExistingTestPage( $pageName );
-		$this->deletePage( $page );
+		$this->deletePageAndAssertEvent( $pageName, PageChangeHooks::PAGE_CHANGE_STREAM_NAME_DEFAULT );
 
 		$this->runDeferredUpdates();
+	}
+
+	private function deletePageAndAssertEvent( string $pageName, string $streamName ) {
+		$sendCallback = function ( $events ) {
+			self::assertDeleteActions( $events );
+		};
+
+		$this->mockEventBusFactory( $sendCallback, 1, $pageName, $streamName );
+
+		$page = $this->getExistingTestPage( $pageName );
+		$this->deletePage( $page );
 	}
 
 	private static function assertSingleEvent( $events ): void {
@@ -139,9 +173,11 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		Assert::assertEquals( 'text/x-wiki', $mainSlot['content_format'] );
 	}
 
-	private static function assertEventMeta( array $event, string $pageName ): void {
+	private static function assertEventMeta( array $event,
+											 string $pageName,
+											 string $streamName ): void {
 		Assert::assertArrayHasKey( 'meta', $event );
-		Assert::assertEquals( 'mediawiki.page_change.v1', $event['meta']['stream'] );
+		Assert::assertEquals( $streamName, $event['meta']['stream'] );
 		Assert::assertEquals(
 			Title::newFromText( $pageName )->getFullURL(),
 			$event['meta']['uri']
@@ -152,16 +188,21 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		Assert::assertEquals( $wikiReference->getDisplayName(), $event['meta']['domain'] );
 	}
 
-	private static function assertEventActions( array $events ): void {
+	private static function assertEditEventActions( array $events ): void {
+		usort( $events, static fn ( $a, $b ) => strcmp( $a['changelog_kind'], $b['changelog_kind'] ) );
+
+		Assert::assertEquals( 'insert', $events[0]['changelog_kind'] );
+		Assert::assertEquals( 'create', $events[0]['page_change_kind'] );
+
+		Assert::assertEquals( 'update', $events[1]['changelog_kind'] );
+		Assert::assertEquals( 'edit', $events[1]['page_change_kind'] );
+	}
+
+	private static function assertDeleteActions( array $events ): void {
 		usort( $events, static fn ( $a, $b ) => strcmp( $a['changelog_kind'], $b['changelog_kind'] ) );
 
 		Assert::assertEquals( 'delete', $events[0]['changelog_kind'] );
 		Assert::assertEquals( 'delete', $events[0]['page_change_kind'] );
-
-		Assert::assertEquals( 'insert', $events[1]['changelog_kind'] );
-		Assert::assertEquals( 'create', $events[1]['page_change_kind'] );
-
-		Assert::assertEquals( 'update', $events[2]['changelog_kind'] );
-		Assert::assertEquals( 'edit', $events[2]['page_change_kind'] );
 	}
+
 }

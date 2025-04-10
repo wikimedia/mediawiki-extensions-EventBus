@@ -49,6 +49,26 @@
 			"i18n"
 		]
 	},
+	"DomainEventIngresses": [
+		{
+			"class": "MediaWiki\\Extension\\EventBus\\MediaWikiEventSubscribers\\PageChangeEventIngress",
+			"services": [
+				"EventBus.EventBusFactory",
+				"EventBus.StreamNameMapper",
+				"MainConfig",
+				"GlobalIdGenerator",
+				"UserGroupManager",
+				"TitleFormatter",
+				"WikiPageFactory",
+				"UserFactory",
+				"RevisionStore",
+				"ContentHandlerFactory",
+				"RedirectStore",
+				"PageStore"
+			],
+			"events": [ "PageRevisionUpdated" ]
+		}
+	],
 	"HookHandlers": {
 		"mediawiki_page_change": {
 			"class": "MediaWiki\\Extension\\EventBus\\HookHandlers\\MediaWiki\\PageChangeHooks",
