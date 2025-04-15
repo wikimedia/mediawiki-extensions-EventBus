@@ -13,6 +13,7 @@ use MediaWiki\Page\PageReferenceValue;
 use MediaWiki\Revision\MutableRevisionRecord;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\SlotRecord;
+use MediaWiki\Tests\MockWikiMapTrait;
 use MediaWiki\Title\Title;
 use MediaWiki\Title\TitleValue;
 use MediaWiki\User\UserIdentity;
@@ -24,6 +25,7 @@ use MediaWiki\User\UserIdentityValue;
  * @group EventBus
  */
 class EventFactoryTest extends MediaWikiIntegrationTestCase {
+	use MockWikiMapTrait;
 
 	private const MOCK_PAGE_TITLE = 'EventFactoryTest';
 	private const MOCK_PAGE_ID = 23;
@@ -68,8 +70,10 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	private function assertPageProperties( $event, $rowOverrides = [] ) {
 		$row = self::revisionProperties( $rowOverrides );
 		$this->assertEquals( $row['page'], $event['page_id'], "'page_id' incorrect value" );
-		$this->assertEquals( self::MOCK_PAGE_TITLE, $event['page_title'],
-			"'page_title' incorrect value" );
+		$this->assertEquals(
+			self::MOCK_PAGE_TITLE, $event['page_title'],
+			"'page_title' incorrect value"
+		);
 		$this->assertSame( 0, $event['page_namespace'], "'page_namespace' incorrect value" );
 	}
 
@@ -91,28 +95,37 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 				]
 
 			],
-			$event['rev_slots'], false, true );
+			$event['rev_slots'], false, true
+		);
 	}
 
 	private function assertStream( $event, $expectedStream ) {
 		$this->assertArrayHasKey( 'meta', $event, "'meta' key missing" );
 		$this->assertArrayHasKey( 'stream', $event['meta'], "'.meta.stream' key missing" );
-		$this->assertEquals( $expectedStream, $event['meta']['stream'],
-			"'.meta.stream' incorrect value" );
+		$this->assertEquals(
+			$expectedStream, $event['meta']['stream'],
+			"'.meta.stream' incorrect value"
+		);
 	}
 
 	private function assertRevisionProperties( $event, $rowOverrides = [] ) {
 		$this->assertPageProperties( $event, $rowOverrides );
 		$row = self::revisionProperties( $rowOverrides );
 		$this->assertEquals( $row['id'], $event['rev_id'], "'rev_id' incorrect value" );
-		$this->assertEquals( EventFactory::createDTAttr( $row['timestamp'] ),
-			$event['rev_timestamp'], "'rev_timestamp' incorrect value" );
+		$this->assertEquals(
+			EventFactory::createDTAttr( $row['timestamp'] ),
+			$event['rev_timestamp'], "'rev_timestamp' incorrect value"
+		);
 		$this->assertEquals( $row['sha1'], $event['rev_sha1'], "'rev_sha1' incorrect value" );
 		$this->assertEquals( $row['len'], $event['rev_len'], "'rev_len' incorrect value" );
-		$this->assertEquals( $row['minor_edit'], $event['rev_minor_edit'],
-			"'rev_minor_edit' incorrect value" );
-		$this->assertEquals( $row['content']->getModel(), $event['rev_content_model'],
-			"'rev_content_model' incorrect value" );
+		$this->assertEquals(
+			$row['minor_edit'], $event['rev_minor_edit'],
+			"'rev_minor_edit' incorrect value"
+		);
+		$this->assertEquals(
+			$row['content']->getModel(), $event['rev_content_model'],
+			"'rev_content_model' incorrect value"
+		);
 	}
 
 	private function assertCommonCentralNoticeCampaignEventProperties(
@@ -122,26 +135,31 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$summary,
 		$campaignUrl
 	) {
-		$this->assertSame( $campaignName, $event[ 'campaign_name' ] );
-		$this->assertSame( $user->getName(), $event[ 'performer' ][ 'user_text' ] );
-		$this->assertSame( $summary, $event[ 'summary'] );
-		$this->assertSame( $campaignUrl, $event[ 'meta' ][ 'uri' ] );
+		$this->assertSame( $campaignName, $event['campaign_name'] );
+		$this->assertSame( $user->getName(), $event['performer']['user_text'] );
+		$this->assertSame( $summary, $event['summary'] );
+		$this->assertSame( $campaignUrl, $event['meta']['uri'] );
 	}
 
 	private function assertCentralNoticeSettings( $settingsFromEvent, $settings ) {
-		$this->assertSame( EventFactory::createDTAttr( $settings[ 'start' ] ),
-			$settingsFromEvent[ 'start_dt' ] );
+		$this->assertSame(
+			EventFactory::createDTAttr( $settings['start'] ),
+			$settingsFromEvent['start_dt']
+		);
 
-		$this->assertSame( EventFactory::createDTAttr( $settings[ 'end' ] ),
-			$settingsFromEvent[ 'end_dt' ] );
+		$this->assertSame(
+			EventFactory::createDTAttr( $settings['end'] ),
+			$settingsFromEvent['end_dt']
+		);
 
-		$this->assertSame( $settings[ 'enabled' ], $settingsFromEvent[ 'enabled' ] );
-		$this->assertSame( $settings[ 'archived' ], $settingsFromEvent[ 'archived' ] );
-		$this->assertArrayEquals( $settings[ 'banners' ], $settingsFromEvent[ 'banners' ] );
+		$this->assertSame( $settings['enabled'], $settingsFromEvent['enabled'] );
+		$this->assertSame( $settings['archived'], $settingsFromEvent['archived'] );
+		$this->assertArrayEquals( $settings['banners'], $settingsFromEvent['banners'] );
 	}
 
 	protected function setUp(): void {
 		parent::setUp();
+		$this->mockWikiMap();
 		$this->overrideConfigValue( MainConfigNames::ArticlePath, '/wiki/$1' );
 	}
 
@@ -313,18 +331,26 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$this->assertStream( $event, 'mediawiki.page-links-change' );
 		$this->assertPageProperties( $event );
 		if ( empty( $expectedAddedLinks ) ) {
-			$this->assertArrayNotHasKey( 'added_links', $event,
-				"must not have 'added_links'" );
+			$this->assertArrayNotHasKey(
+				'added_links', $event,
+				"must not have 'added_links'"
+			);
 		} else {
-			$this->assertArrayEquals( $expectedAddedLinks, $event['added_links'],
-				"'added_links' incorrect value" );
+			$this->assertArrayEquals(
+				$expectedAddedLinks, $event['added_links'],
+				"'added_links' incorrect value"
+			);
 		}
 		if ( empty( $expectedRemovedLinks ) ) {
-			$this->assertArrayNotHasKey( 'removed_links', $event,
-				"must not have 'removed_links'" );
+			$this->assertArrayNotHasKey(
+				'removed_links', $event,
+				"must not have 'removed_links'"
+			);
 		} else {
-			$this->assertArrayEquals( $expectedRemovedLinks, $event['removed_links'],
-				"'removed_links' incorrect value" );
+			$this->assertArrayEquals(
+				$expectedRemovedLinks, $event['removed_links'],
+				"'removed_links' incorrect value"
+			);
 		}
 	}
 
@@ -378,7 +404,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	) {
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$revisionRecord = $this->createMutableRevisionFromArray();
-			$event = $eventFactory->createRevisionTagsChangeEvent(
+		$event = $eventFactory->createRevisionTagsChangeEvent(
 			'mediawiki.revision-tags-change', $revisionRecord, $prevTags, $addedTags, $removedTags, $user
 		);
 		$this->assertIsArray( $event, 'Returned event should be of type array' );
@@ -488,8 +514,10 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 				"'performer' should not be set for suppressed/restricted revisions"
 			);
 		} else {
-			$this->assertEquals( $performerForEvent->getName(), $event['performer']['user_text'],
-				"'user_text' incorrect value" );
+			$this->assertEquals(
+				$performerForEvent->getName(), $event['performer']['user_text'],
+				"'user_text' incorrect value"
+			);
 		}
 	}
 
@@ -510,8 +538,10 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$this->assertPageProperties( $event );
 		$this->assertArrayHasKey( 'prior_state', $event, "'prior_state' key missing" );
 		$this->assertIsArray( $event['prior_state'], "'prior_state' should be of type array" );
-		$this->assertEquals( 'Old_Title', $event['prior_state']['page_title'],
-			"'prior_state/page_title' incorrect value" );
+		$this->assertEquals(
+			'Old_Title', $event['prior_state']['page_title'],
+			"'prior_state/page_title' incorrect value"
+		);
 		$this->assertArrayHasKey( 'comment', $event, "'comment' key missing" );
 		$this->assertArrayHasKey( 'parsedcomment', $event, "'parsedcomment' key missing" );
 		$this->assertEquals( 'Comment', $event['comment'], "'comment' incorrect value" );
@@ -583,8 +613,10 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		);
 
 		$this->assertIsArray( $event, 'Returned event should be of type array' );
-		$this->assertArrayNotHasKey( 'performer', $event,
-			"'performer' key should not be present" );
+		$this->assertArrayNotHasKey(
+			'performer', $event,
+			"'performer' key should not be present"
+		);
 	}
 
 	public function testPageLinksChangeEvent() {
@@ -640,8 +672,10 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		);
 
 		$this->assertIsArray( $event, 'Returned event should be of type array' );
-		$this->assertArrayNotHasKey( 'performer', $event,
-			"'performer' key should not be present" );
+		$this->assertArrayNotHasKey(
+			'performer', $event,
+			"'performer' key should not be present"
+		);
 	}
 
 	public function testRevisionCreationEvent() {
@@ -669,8 +703,10 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		);
 
 		$this->assertIsArray( $event, 'Returned event should be of type array' );
-		$this->assertArrayNotHasKey( 'rev_parent_id', $event,
-			"'rev_parent_id' should not be present" );
+		$this->assertArrayNotHasKey(
+			'rev_parent_id', $event,
+			"'rev_parent_id' should not be present"
+		);
 	}
 
 	public function testRevisionCreationEventContainsRevParentId() {
@@ -866,14 +902,19 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$this->assertSame( $expectedRevId, $event['rev_id'], "'rev_id' mismatch" );
 		$this->assertEquals(
 			$title->getFullText(), $event['page_title'],
-			"'page_title' incorrect value" );
+			"'page_title' incorrect value"
+		);
 		$this->assertArrayHasKey( 'prior_state', $event, "'prior_state' key missing" );
 		$this->assertArrayHasKey( 'page_id', $event['prior_state'], "'page_id' key missing" );
-		$this->assertSame( $oldPageID, $event['prior_state']['page_id'],
-			"'prior_state/page_id' incorrect value" );
+		$this->assertSame(
+			$oldPageID, $event['prior_state']['page_id'],
+			"'prior_state/page_id' incorrect value"
+		);
 		$this->assertArrayHasKey( 'comment', $event, "'comment' key missing" );
-		$this->assertEquals( 'testreason', $event['comment'],
-			"'comment' incorrect value" );
+		$this->assertEquals(
+			'testreason', $event['comment'],
+			"'comment' incorrect value"
+		);
 		$this->assertStream( $event, 'mediawiki.page-undelete' );
 	}
 
@@ -910,16 +951,20 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 
 	public function testUserBlockChangeEvent() {
 		$blockStore = $this->getServiceContainer()->getDatabaseBlockStore();
-		$oldBlock = $blockStore->newUnsaved( self::blockProperties( [
-			'targetUser' => UserIdentityValue::newRegistered( 1, 'TestUser1' ),
-		] ) );
+		$oldBlock = $blockStore->newUnsaved(
+			self::blockProperties( [
+				'targetUser' => UserIdentityValue::newRegistered( 1, 'TestUser1' ),
+			] )
+		);
 		$oldBlock->setRestrictions( [
 			new NamespaceRestriction( 0, NS_USER ),
 			new PageRestriction( 0, 1 )
 		] );
-		$newBlock = $blockStore->newUnsaved( self::blockProperties( [
-			'targetUser' => UserIdentityValue::newRegistered( 1, 'TestUser2' ),
-		] ) );
+		$newBlock = $blockStore->newUnsaved(
+			self::blockProperties( [
+				'targetUser' => UserIdentityValue::newRegistered( 1, 'TestUser2' ),
+			] )
+		);
 		/** @var EventFactory $eventFactory */
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createUserBlockChangeEvent(

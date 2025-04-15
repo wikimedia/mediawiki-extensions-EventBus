@@ -18,11 +18,13 @@
  * @file
  * @author Andrew Otto <otto@wikimedia.org>
  */
+
 namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
 use MediaWiki\Extension\EventBus\Redirects\RedirectTarget;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Linker\LinkTarget;
+use MediaWiki\Page\ProperPageIdentity;
 use MediaWiki\Page\WikiPage;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\User\User;
@@ -101,11 +103,17 @@ class PageChangeEventSerializer {
 	 * @return array
 	 */
 	private function toEvent( string $stream, WikiPage $wikiPage, array $eventAttrs ): array {
+		// NOTE: It would be better if wiki domain name was fetched and passed into createEvent,
+		// rather than forcing EventSerializer->createEvent to look up the domain itself.
+		// However, this would require changing the createEvent method signature, which is used
+		// by CirrusSearch extension.
+		// See: https://phabricator.wikimedia.org/T392516
 		return $this->eventSerializer->createEvent(
 			self::PAGE_CHANGE_SCHEMA_URI,
 			$stream,
 			$this->pageEntitySerializer->canonicalPageURL( $wikiPage ),
-			$eventAttrs
+			$eventAttrs,
+			self::getWikiId( $wikiPage )
 		);
 	}
 
@@ -119,10 +127,23 @@ class PageChangeEventSerializer {
 			array_key_exists( $pageChangeKind, self::PAGE_CHANGE_KIND_TO_CHANGELOG_KIND_MAP ),
 			'$pageChangeKind',
 			"Unsupported pageChangeKind '$pageChangeKind'.  Must be one of " .
-				implode( ',', array_keys( self::PAGE_CHANGE_KIND_TO_CHANGELOG_KIND_MAP ) )
+			implode( ',', array_keys( self::PAGE_CHANGE_KIND_TO_CHANGELOG_KIND_MAP ) )
 		);
 
 		return self::PAGE_CHANGE_KIND_TO_CHANGELOG_KIND_MAP[$pageChangeKind];
+	}
+
+	/**
+	 * Return the page's wikiId, or if that returns false,
+	 * return WikiMap::getCurrentWikiId.
+	 *
+	 * @param ProperPageIdentity $page
+	 * @return string
+	 */
+	private static function getWikiId( ProperPageIdentity $page ): string {
+		// Get the wikiId.  page's getWikiId can return false.
+		// Fallback to global WikiMap.
+		return $page->getWikiId() ?: WikiMap::getCurrentWikiId();
 	}
 
 	/**
@@ -149,9 +170,7 @@ class PageChangeEventSerializer {
 			'changelog_kind' => self::getChangelogKind( $page_change_kind ),
 			'page_change_kind' => $page_change_kind,
 			'dt' => $dt,
-			# Ideally, wiki_id would come from a dependency injected MediaWikiService,
-			# But for now, the best place to get it is from WikiMap, which ultimately uses globals.
-			'wiki_id' => WikiMap::getCurrentWikiId(),
+			'wiki_id' => self::getWikiId( $wikiPage ),
 			'page' => $this->pageEntitySerializer->toArray( $wikiPage, $redirectTarget ),
 		];
 

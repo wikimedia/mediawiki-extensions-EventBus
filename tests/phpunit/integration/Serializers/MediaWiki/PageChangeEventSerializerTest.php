@@ -1,6 +1,5 @@
 <?php
 
-use MediaWiki\Config\HashConfig;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageChangeEventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
@@ -8,11 +7,11 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Http\Telemetry;
-use MediaWiki\MainConfigNames;
 use MediaWiki\Page\WikiPage;
 use MediaWiki\Revision\MutableRevisionRecord;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\RevisionStore;
+use MediaWiki\Tests\MockWikiMapTrait;
 use MediaWiki\Title\Title;
 use MediaWiki\User\User;
 use MediaWiki\User\UserFactory;
@@ -25,9 +24,7 @@ use Wikimedia\UUID\GlobalIdGenerator;
  * @group EventBus
  */
 class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
-	private const MOCK_CANONICAL_SERVER = 'http://my_wiki.org';
-	private const MOCK_ARTICLE_PATH = '/wiki/$1';
-	private const MOCK_SERVER_NAME = 'my_wiki';
+	use MockWikiMapTrait;
 
 	private const MOCK_UUID = 'b14a2ee4-f5df-40f3-b995-ce6c954e29e3';
 	private const MOCK_STREAM_NAME = 'test.mediawiki.page_change';
@@ -75,12 +72,8 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		if ( $this->setUpHasRun ) {
 			return;
 		}
+		$this->mockWikiMap();
 
-		$config = new HashConfig( [
-			MainConfigNames::ServerName => self::MOCK_SERVER_NAME,
-			MainConfigNames::CanonicalServer => self::MOCK_CANONICAL_SERVER,
-			MainConfigNames::ArticlePath => self::MOCK_ARTICLE_PATH,
-		] );
 		$globalIdGenerator = $this->createMock( GlobalIdGenerator::class );
 		$globalIdGenerator->method( 'newUUIDv4' )->willReturn( self::MOCK_UUID );
 
@@ -91,13 +84,13 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		$this->revisionStore = $this->getServiceContainer()->getRevisionStore();
 
 		$this->eventSerializer = new EventSerializer(
-			$config,
+			new HashConfig( [] ),
 			$globalIdGenerator,
 			$telemetry
 		);
 
 		$this->pageEntitySerializer = new PageEntitySerializer(
-			$config,
+			$this->getServiceContainer()->getMainConfig(),
 			$this->getServiceContainer()->getTitleFormatter()
 		);
 
@@ -174,6 +167,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 					],
 					$performerArray
 				),
+				WikiMap::getCurrentWikiId()
 			),
 			$commentAttrs,
 			$eventAttrs

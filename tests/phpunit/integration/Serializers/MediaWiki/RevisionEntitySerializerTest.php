@@ -4,6 +4,7 @@ use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
+use MediaWiki\Tests\MockWikiMapTrait;
 use MediaWiki\Title\Title;
 
 /**
@@ -12,6 +13,8 @@ use MediaWiki\Title\Title;
  * @group EventBus
  */
 class RevisionEntitySerializerTest extends MediaWikiIntegrationTestCase {
+	use MockWikiMapTrait;
+
 	private const MOCK_PAGE_TITLE = 'MyPage';
 
 	/**
@@ -38,6 +41,7 @@ class RevisionEntitySerializerTest extends MediaWikiIntegrationTestCase {
 		if ( $this->setUpHasRun ) {
 			return;
 		}
+		$this->mockWikiMap();
 
 		$this->userEntitySerializer = new UserEntitySerializer(
 			$this->getServiceContainer()->getUserFactory(),

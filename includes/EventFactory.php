@@ -336,6 +336,11 @@ class EventFactory {
 		?string $wiki = null,
 		?string $dt = null
 	) {
+		// TODO: we should not rely on ServerName, but instead
+		// always rely on either ProperPageIdentity getWikiId or WikiMap::getCurrentWikiId.
+		// This has been done for newer Serializers, but not for these older EventFactory
+		// based events.
+		// See also https://phabricator.wikimedia.org/T388825
 		if ( $wiki !== null ) {
 			$wikiRef = WikiMap::getWiki( $wiki );
 			if ( $wikiRef === null ) {
