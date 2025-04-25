@@ -23,7 +23,6 @@ namespace MediaWiki\Extension\EventBus\HookHandlers\MediaWiki;
 
 use Exception;
 use InvalidArgumentException;
-use ManualLogEntry;
 use MediaWiki\Config\Config;
 use MediaWiki\Content\ContentHandlerFactory;
 use MediaWiki\Context\RequestContext;
@@ -41,6 +40,7 @@ use MediaWiki\Hook\ArticleRevisionVisibilitySetHook;
 use MediaWiki\Hook\PageMoveCompleteHook;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\Logger\LoggerFactory;
+use MediaWiki\Logging\ManualLogEntry;
 use MediaWiki\Page\Hook\PageDeleteCompleteHook;
 use MediaWiki\Page\Hook\PageDeleteHook;
 use MediaWiki\Page\Hook\PageUndeleteCompleteHook;
@@ -48,6 +48,7 @@ use MediaWiki\Page\PageLookup;
 use MediaWiki\Page\PageReference;
 use MediaWiki\Page\ProperPageIdentity;
 use MediaWiki\Page\RedirectLookup;
+use MediaWiki\Page\WikiPage;
 use MediaWiki\Page\WikiPageFactory;
 use MediaWiki\Permissions\Authority;
 use MediaWiki\Revision\RevisionRecord;
@@ -60,7 +61,6 @@ use Psr\Log\LoggerInterface;
 use StatusValue;
 use Wikimedia\Rdbms\IDBAccessObject;
 use Wikimedia\UUID\GlobalIdGenerator;
-use WikiPage;
 
 /**
  * HookHandler for sending mediawiki/page/change events

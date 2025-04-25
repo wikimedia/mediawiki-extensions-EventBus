@@ -21,8 +21,8 @@
 namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
 use MediaWiki\Content\IContentHandlerFactory;
+use MediaWiki\Exception\MWUnknownContentModelException;
 use MediaWiki\Revision\SlotRecord;
-use MWUnknownContentModelException;
 
 /**
  * Converts a SlotRecord into an array that matches the

@@ -23,11 +23,11 @@ namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 use MediaWiki\Extension\EventBus\Redirects\RedirectTarget;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Linker\LinkTarget;
+use MediaWiki\Page\WikiPage;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\User\User;
 use MediaWiki\WikiMap\WikiMap;
 use Wikimedia\Assert\Assert;
-use WikiPage;
 
 /**
  * Methods to convert from incoming page state changes (via Hooks)

@@ -3,9 +3,9 @@
 namespace MediaWiki\Extension\EventBus\Rest;
 
 use Exception;
-use Job;
 use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\Extension\EventBus\EventFactory;
+use MediaWiki\JobQueue\Job;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Rest\HttpException;
 use Psr\Log\LoggerInterface;

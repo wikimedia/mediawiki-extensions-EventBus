@@ -1,6 +1,7 @@
 <?php
 
 use MediaWiki\Extension\EventBus\JobExecutor;
+use MediaWiki\JobQueue\Job;
 use MediaWiki\JobQueue\JobFactory;
 use Wikimedia\Telemetry\Clock;
 use Wikimedia\Telemetry\ExporterInterface;

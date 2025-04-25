@@ -5,7 +5,7 @@ namespace MediaWiki\Extension\EventBus\Adapters\RCFeed;
 use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\RCFeed\MachineReadableRCFeedFormatter;
-use RecentChange;
+use MediaWiki\RecentChanges\RecentChange;
 
 /**
  * Augments the RecentChange object for use with the EventBus service, and then

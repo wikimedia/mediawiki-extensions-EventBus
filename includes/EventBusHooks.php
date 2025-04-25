@@ -24,7 +24,6 @@
 
 namespace MediaWiki\Extension\EventBus;
 
-use ManualLogEntry;
 use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\ChangeTags\Hook\ChangeTagsAfterUpdateTagsHook;
 use MediaWiki\CommentFormatter\CommentFormatter;
@@ -38,12 +37,15 @@ use MediaWiki\Hook\BlockIpCompleteHook;
 use MediaWiki\Hook\LinksUpdateCompleteHook;
 use MediaWiki\Hook\PageMoveCompleteHook;
 use MediaWiki\Linker\LinkTarget;
+use MediaWiki\Logging\ManualLogEntry;
 use MediaWiki\Page\Hook\ArticleProtectCompleteHook;
 use MediaWiki\Page\Hook\ArticlePurgeHook;
 use MediaWiki\Page\Hook\PageDeleteCompleteHook;
 use MediaWiki\Page\Hook\PageUndeleteCompleteHook;
 use MediaWiki\Page\ProperPageIdentity;
+use MediaWiki\Page\WikiPage;
 use MediaWiki\Permissions\Authority;
+use MediaWiki\RecentChanges\RecentChange;
 use MediaWiki\Revision\Hook\RevisionRecordInsertedHook;
 use MediaWiki\Revision\RevisionLookup;
 use MediaWiki\Revision\RevisionRecord;
@@ -53,9 +55,7 @@ use MediaWiki\Title\Title;
 use MediaWiki\Title\TitleFactory;
 use MediaWiki\User\User;
 use MediaWiki\User\UserIdentity;
-use RecentChange;
 use Wikimedia\Rdbms\IDBAccessObject;
-use WikiPage;
 
 /**
  * @deprecated since EventBus 0.5.0 Use specific feature based hooks in HookHandlers/,

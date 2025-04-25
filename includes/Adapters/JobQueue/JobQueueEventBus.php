@@ -3,13 +3,13 @@
 namespace MediaWiki\Extension\EventBus\Adapters\JobQueue;
 
 use ArrayIterator;
-use IJobSpecification;
 use Iterator;
-use Job;
-use JobQueue;
-use JobQueueError;
 use MediaWiki\Extension\EventBus\EventBus;
-use RunnableJob;
+use MediaWiki\JobQueue\Exceptions\JobQueueError;
+use MediaWiki\JobQueue\IJobSpecification;
+use MediaWiki\JobQueue\Job;
+use MediaWiki\JobQueue\JobQueue;
+use MediaWiki\JobQueue\RunnableJob;
 
 class JobQueueEventBus extends JobQueue {
 	/**

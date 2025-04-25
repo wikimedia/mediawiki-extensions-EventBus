@@ -9,6 +9,7 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySeriali
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\MainConfigNames;
+use MediaWiki\Page\WikiPage;
 use MediaWiki\Revision\MutableRevisionRecord;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\RevisionStore;

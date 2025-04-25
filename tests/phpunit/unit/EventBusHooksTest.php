@@ -1,7 +1,6 @@
 <?php
 namespace MediaWiki\Extension\EventBus\Tests\Unit;
 
-use ManualLogEntry;
 use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\CommentFormatter\CommentFormatter;
 use MediaWiki\DAO\WikiAwareEntity;
@@ -12,9 +11,11 @@ use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\EventBusHooks;
 use MediaWiki\Extension\EventBus\EventFactory;
+use MediaWiki\Logging\ManualLogEntry;
 use MediaWiki\Page\PageIdentityValue;
 use MediaWiki\Page\PageReference;
 use MediaWiki\Page\PageReferenceValue;
+use MediaWiki\Page\WikiPage;
 use MediaWiki\Permissions\SimpleAuthority;
 use MediaWiki\Revision\RevisionLookup;
 use MediaWiki\Revision\RevisionRecord;
@@ -25,7 +26,6 @@ use MediaWiki\Title\TitleValue;
 use MediaWiki\User\User;
 use MediaWiki\User\UserIdentityValue;
 use MediaWikiUnitTestCase;
-use WikiPage;
 
 /**
  * @covers \MediaWiki\Extension\EventBus\EventBusHooks

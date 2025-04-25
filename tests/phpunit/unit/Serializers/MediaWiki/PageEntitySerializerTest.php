@@ -5,6 +5,7 @@ use MediaWiki\Extension\EventBus\Redirects\RedirectTarget;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\MainConfigNames;
+use MediaWiki\Page\WikiPage;
 use MediaWiki\Title\Title;
 use MediaWiki\Title\TitleFormatter;
 use MediaWiki\Title\TitleValue;

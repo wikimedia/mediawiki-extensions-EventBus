@@ -2,13 +2,14 @@
 
 namespace MediaWiki\Extension\EventBus;
 
-use IJobSpecification;
 use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\Block\Restriction\Restriction;
 use MediaWiki\CommentFormatter\CommentFormatter;
 use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Content\IContentHandlerFactory;
+use MediaWiki\Exception\MWUnknownContentModelException;
 use MediaWiki\Http\Telemetry;
+use MediaWiki\JobQueue\IJobSpecification;
 use MediaWiki\Language\Language;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\MediaWikiServices;
@@ -26,7 +27,6 @@ use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
 use MediaWiki\User\UserIdentity;
 use MediaWiki\WikiMap\WikiMap;
-use MWUnknownContentModelException;
 use Psr\Log\LoggerInterface;
 
 /**

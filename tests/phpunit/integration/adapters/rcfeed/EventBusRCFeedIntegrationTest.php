@@ -2,8 +2,10 @@
 
 use MediaWiki\Extension\EventBus\Adapters\RCFeed\EventBusRCFeedFormatter;
 use MediaWiki\Json\FormatJson;
+use MediaWiki\Logging\LogEntryBase;
 use MediaWiki\MainConfigNames;
 use MediaWiki\RCFeed\FormattedRCFeed;
+use MediaWiki\RecentChanges\RecentChange;
 use MediaWiki\SpecialPage\SpecialPage;
 use MediaWiki\Title\Title;
 

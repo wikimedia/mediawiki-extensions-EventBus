@@ -18,10 +18,10 @@
 
 namespace MediaWiki\Extension\EventBus\Rest;
 
-use Job;
-use JobRunner;
 use LogicException;
 use MediaWiki\Config\Config;
+use MediaWiki\JobQueue\Job;
+use MediaWiki\JobQueue\JobRunner;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\Rest\Handler;
 use MediaWiki\Rest\HttpException;

@@ -24,8 +24,8 @@ use MediaWiki\Config\Config;
 use MediaWiki\Extension\EventBus\Redirects\RedirectTarget;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Page\PageRecord;
+use MediaWiki\Page\WikiPage;
 use MediaWiki\Title\TitleFormatter;
-use WikiPage;
 
 /**
  * Converts a WikiPage to an array matching the fragment/mediawiki/state/entity/page schema
