@@ -12,6 +12,7 @@ use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress;
 use MediaWiki\Extension\EventBus\StreamNameMapper;
 use MediaWiki\HookContainer\HookContainer;
+use MediaWiki\Page\Event\PageDeletedEvent;
 use MediaWiki\Page\Event\PageRevisionUpdatedEvent;
 use MediaWiki\Page\ExistingPageRecord;
 use MediaWiki\Page\PageLookup;
@@ -29,10 +30,12 @@ use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
 use MediaWiki\User\UserIdentity;
 use MediaWikiUnitTestCase;
+use PHPUnit\Framework\Assert;
 use Psr\Log\LoggerInterface;
 use TitleFormatter;
 use Wikimedia\ObjectFactory\ObjectFactory;
 use Wikimedia\Rdbms\IDBAccessObject;
+use Wikimedia\Timestamp\TimestampException;
 use Wikimedia\UUID\GlobalIdGenerator;
 
 /**
@@ -363,6 +366,97 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			->method( 'send' );
 
 		$this->listener->handlePageRevisionUpdatedEvent( $event );
+
+		DeferredUpdates::doUpdates();
+	}
+
+	/**
+	 * Test that page deletion events are properly handled
+	 * @throws TimestampException
+	 */
+	public function testHandlePageDeletedEvent() {
+		$performer = $this->createMock( UserIdentity::class );
+		$performer->method( 'getName' )->willReturn( 'TestUser' );
+		$performer->method( 'getId' )->willReturn( 123 );
+
+		$pageIdentity = $this->createMockPageIdentity();
+
+		$deletedRevision = $this->createMockRevision(
+			7890,
+			'20250430115550',
+			'abc123',
+			$pageIdentity,
+			[
+				'getVisibility' => 0
+			]
+		);
+
+		$event = $this->createMock( PageDeletedEvent::class );
+		$event->method( 'getPageId' )->willReturn( $this->pageId );
+		$event->method( 'isSuppressed' )->willReturn( false );
+		$event->method( 'getPerformer' )->willReturn( $performer );
+		$event->method( 'getReason' )->willReturn( 'Test deletion reason' );
+		$event->method( 'getArchivedRevisionCount' )->willReturn( 1 );
+		$event->method( 'getLatestRevisionBefore' )->willReturn( $deletedRevision );
+
+		$this->eventBus->expects( $this->once() )
+			->method( 'send' )
+			->willReturnCallback( static function ( $events ) {
+				Assert::assertNotNull( $events );
+				Assert::assertCount( 1, $events, 'Should have exactly one event' );
+
+				$event = $events[0];
+
+				Assert::assertArrayHasKey( 'performer',
+					$event,
+					'Suppressed deletion should include performer information' );
+			} );
+
+		$this->listener->handlePageDeletedEvent( $event );
+
+		DeferredUpdates::doUpdates();
+	}
+
+	/**
+	 * Test that suppressed page deletion events are properly handled
+	 * @throws TimestampException
+	 */
+	public function testHandlePageDeletedEventWithSuppression() {
+		$performer = $this->createMock( UserIdentity::class );
+		$pageIdentity = $this->createMockPageIdentity();
+
+		$deletedRevision = $this->createMockRevision(
+			7890,
+			'20250430115550',
+			'abc123',
+			$pageIdentity,
+			[
+				'getVisibility' => RevisionRecord::DELETED_USER
+			]
+		);
+
+		$event = $this->createMock( PageDeletedEvent::class );
+		$event->method( 'getPageId' )->willReturn( $this->pageId );
+		$event->method( 'isSuppressed' )->willReturn( true );
+		$event->method( 'getPerformer' )->willReturn( $performer );
+		$event->method( 'getReason' )->willReturn( 'Test deletion reason' );
+		$event->method( 'getArchivedRevisionCount' )->willReturn( 1 );
+		$event->method( 'getLatestRevisionBefore' )->willReturn( $deletedRevision );
+
+		$this->eventBus->expects( $this->once() )
+			->method( 'send' )
+			->willReturnCallback( static function ( $events ) {
+				Assert::assertNotNull( $events );
+				Assert::assertCount( 1, $events, 'Should have exactly one event' );
+
+				$event = $events[0];
+
+				Assert::assertArrayNotHasKey( 'performer',
+					$event,
+					'Suppressed deletion should not include performer information' );
+			} );
+
+		$this->listener->handlePageDeletedEvent( $event );
 
 		DeferredUpdates::doUpdates();
 	}

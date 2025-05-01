@@ -6,7 +6,6 @@ use MediaWiki\CommentFormatter\CommentFormatter;
 use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\EventFactory;
-use MediaWiki\Extension\EventBus\HookHandlers\MediaWiki\PageChangeHooks;
 use MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress;
 use MediaWiki\Tests\MockWikiMapTrait;
 use MediaWiki\Title\Title;
@@ -98,6 +97,8 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	 * and deletes.
 	 */
 	public function testPageCreateEditThenDelete() {
+		$streamName = PageChangeEventIngress::PAGE_CHANGE_STREAM_NAME_DEFAULT;
+
 		$pageName = Title::newFromText(
 			"TestPageCreateEditThenDelete",
 			$this->getDefaultWikitextNS()
@@ -110,10 +111,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 			self::assertEditEventActions( $events );
 		};
 
-		$this->mockEventBusFactory( $sendCallback,
-			2,
-			$pageName,
-			PageChangeEventIngress::PAGE_CHANGE_STREAM_NAME_DEFAULT );
+		$this->mockEventBusFactory( $sendCallback, 2, $pageName, $streamName );
 
 		// Create a page
 		$this->editPage(
@@ -128,7 +126,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		);
 
 		// Delete the page
-		$this->deletePageAndAssertEvent( $pageName, PageChangeHooks::PAGE_CHANGE_STREAM_NAME_DEFAULT );
+		$this->deletePageAndAssertEvent( $pageName, $streamName );
 
 		$this->runDeferredUpdates();
 	}

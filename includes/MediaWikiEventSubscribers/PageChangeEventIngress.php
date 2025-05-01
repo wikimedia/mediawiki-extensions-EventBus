@@ -10,6 +10,7 @@ use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\DomainEvent\DomainEventIngress;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\HookHandlers\MediaWiki\PageChangeHooks;
+use MediaWiki\Extension\EventBus\Redirects\RedirectTarget;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageChangeEventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
@@ -19,6 +20,8 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Extension\EventBus\StreamNameMapper;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\Logger\LoggerFactory;
+use MediaWiki\Page\Event\PageDeletedEvent;
+use MediaWiki\Page\Event\PageDeletedListener;
 use MediaWiki\Page\Event\PageRevisionUpdatedEvent;
 use MediaWiki\Page\Event\PageRevisionUpdatedListener;
 use MediaWiki\Page\PageLookup;
@@ -31,13 +34,16 @@ use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
 use Psr\Log\LoggerInterface;
 use Wikimedia\Rdbms\IDBAccessObject;
+use Wikimedia\Timestamp\TimestampException;
 use Wikimedia\UUID\GlobalIdGenerator;
 
 /**
  * Handles PageRevisionUpdated events by forwarding page edits to EventGate.
  */
 class PageChangeEventIngress extends DomainEventIngress implements
-	PageRevisionUpdatedListener {
+	PageRevisionUpdatedListener,
+	PageDeletedListener
+{
 
 	public const PAGE_CHANGE_STREAM_NAME_DEFAULT = 'mediawiki.page_change.staging.v1';
 
@@ -199,5 +205,62 @@ class PageChangeEventIngress extends DomainEventIngress implements
 			$event->getCause() === PageUpdateCauses::CAUSE_IMPORT ||
 			$event->getCause() === PageUpdateCauses::CAUSE_ROLLBACK ||
 			$event->getCause() === PageUpdateCauses::CAUSE_UNDO;
+	}
+
+	/**
+	 * Handle a page deletion event by creating and sending a corresponding page change event.
+	 *
+	 * This method processes page deletion events and transforms them into page change events
+	 * that can be consumed by event subscribers. It handles both regular deletions and
+	 * suppressed deletions (where performer information is withheld).
+	 *
+	 * The generated event includes:
+	 * - Page metadata (ID, title, etc.)
+	 * - Deletion details (reason, timestamp, number of revisions deleted)
+	 * - Performer information (unless suppressed)
+	 * - Redirect target information (if the deleted page was a redirect)
+	 *
+	 * For suppressed deletions (oversight/revision deletion), performer information
+	 * is intentionally omitted from the event for security reasons.
+	 * See: https://phabricator.wikimedia.org/T342487
+	 *
+	 * @param PageDeletedEvent $event The page deletion event to process
+	 * @throws TimestampException
+	 * @see PageChangeEventSerializer::toDeleteEvent() For the event format
+	 */
+	public function handlePageDeletedEvent( PageDeletedEvent $event ) {
+		$deletedRev = $event->getLatestRevisionBefore();
+
+		$pageIdentity = $event->getPageRecordBefore();
+		$wikiPage = $this->wikiPageFactory->newFromTitle( $pageIdentity );
+
+		// Don't set performer in the event if this delete suppresses the page from other admins.
+		// https://phabricator.wikimedia.org/T342487
+		$performerForEvent = $event->isSuppressed() ?
+			null :
+			$this->userFactory->newFromUserIdentity( $event->getPerformer() );
+
+		$redirectTarget = null;
+
+		if ( $event->wasRedirect() ) {
+			$targetBefore = $event->getRedirectTargetBefore();
+			if ( $targetBefore ) {
+				$redirectTarget = new RedirectTarget( $targetBefore );
+			}
+		}
+
+		$pageChangeEvent = $this->pageChangeEventSerializer->toDeleteEvent(
+			$this->streamName,
+			$wikiPage,
+			$performerForEvent,
+			$deletedRev,
+			$event->getReason(),
+			$event->getEventTimestamp()->getTimestamp(),
+			$event->getArchivedRevisionCount(),
+			$redirectTarget,
+			$event->isSuppressed()
+		);
+
+		$this->sendEvents( $this->streamName, [ $pageChangeEvent ] );
 	}
 }
