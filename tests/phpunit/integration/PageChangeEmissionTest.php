@@ -27,9 +27,10 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 
 	/**
 	 * Test that the event ingress object tracks page revision updates (creation / edit)
+	 * and deletes.
 	 */
-	public function testPageRevisionUpdated() {
-		$pageName = "TestPageRevisionUpdated";
+	public function testPageCreateEditThenDelete() {
+		$pageName = "TestPageCreateEditThenDelete";
 
 		// Flush any pending events in the queue
 		$this->runDeferredUpdates();
@@ -43,8 +44,9 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		// for mediawiki.page_change.v1 streams.
 		// In this test, `send` is expected to be called twice: once after a page creation,
 		// and once after the page is edited.
-		$expectedNumberOfEvents = 2;
+		$expectedNumberOfEvents = 3;
 		$capturedEvents = [];
+
 		$spyEventBus = $this->createNoOpMock( EventBus::class, [ 'send', 'getFactory' ] );
 		$spyEventBus->expects( $this->exactly( $expectedNumberOfEvents ) )
 			->method( 'send' )
@@ -60,7 +62,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 				self::assertEventMeta( $event, $pageName );
 
 				if ( count( $capturedEvents ) === $expectedNumberOfEvents ) {
-					self::assertEventKinds( $capturedEvents );
+					self::assertEventActions( $capturedEvents );
 				}
 			} );
 
@@ -97,6 +99,10 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 			$pageName,
 			'Some edits'
 		);
+
+		// Delete the page
+		$page = $this->getExistingTestPage( $pageName );
+		$this->deletePage( $page );
 
 		$this->runDeferredUpdates();
 	}
@@ -143,13 +149,16 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		Assert::assertEquals( $wikiReference->getDisplayName(), $event['meta']['domain'] );
 	}
 
-	private static function assertEventKinds( array $events ): void {
+	private static function assertEventActions( array $events ): void {
 		usort( $events, static fn ( $a, $b ) => strcmp( $a['changelog_kind'], $b['changelog_kind'] ) );
 
-		Assert::assertEquals( 'insert', $events[0]['changelog_kind'] );
-		Assert::assertEquals( 'create', $events[0]['page_change_kind'] );
+		Assert::assertEquals( 'delete', $events[0]['changelog_kind'] );
+		Assert::assertEquals( 'delete', $events[0]['page_change_kind'] );
 
-		Assert::assertEquals( 'update', $events[1]['changelog_kind'] );
-		Assert::assertEquals( 'edit', $events[1]['page_change_kind'] );
+		Assert::assertEquals( 'insert', $events[1]['changelog_kind'] );
+		Assert::assertEquals( 'create', $events[1]['page_change_kind'] );
+
+		Assert::assertEquals( 'update', $events[2]['changelog_kind'] );
+		Assert::assertEquals( 'edit', $events[2]['page_change_kind'] );
 	}
 }
