@@ -62,7 +62,7 @@ class PageEntitySerializer {
 			'page_id' => $wikiPage->getId(),
 			'page_title' => $this->formatWikiPageTitle( $wikiPage ),
 			'namespace_id' => $wikiPage->getNamespace(),
-			'is_redirect' => $wikiPage->isRedirect(),
+			'is_redirect' => $redirectTarget !== null,
 		];
 		if ( $redirectTarget != null ) {
 			$redirectLinkTarget = $redirectTarget->getLink();
