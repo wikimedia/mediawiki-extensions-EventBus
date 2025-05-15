@@ -30,7 +30,10 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	 * and deletes.
 	 */
 	public function testPageCreateEditThenDelete() {
-		$pageName = "TestPageCreateEditThenDelete";
+		$pageName = Title::newFromText(
+			"TestPageCreateEditThenDelete",
+			$this->getDefaultWikitextNS()
+		);
 
 		// Flush any pending events in the queue
 		$this->runDeferredUpdates();
@@ -57,7 +60,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 				$capturedEvents[] = $event;
 
 				self::assertEventBase( $event );
-				self::assertEventPage( $event, $pageName );
+				self::assertEventPage( $event, $pageName, $this->getDefaultWikitextNS() );
 				self::assertEventRevision( $event );
 				self::assertEventMeta( $event, $pageName );
 
@@ -117,10 +120,10 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		Assert::assertEquals( '/mediawiki/page/change/1.2.0', $event['$schema'] );
 	}
 
-	private static function assertEventPage( array $event, string $pageName ): void {
+	private static function assertEventPage( array $event, string $pageName, int $ns ): void {
 		Assert::assertArrayHasKey( 'page', $event );
 		Assert::assertEquals( $pageName, $event['page']['page_title'] );
-		Assert::assertSame( 0, $event['page']['namespace_id'] );
+		Assert::assertSame( $ns, $event['page']['namespace_id'] );
 		Assert::assertFalse( $event['page']['is_redirect'] );
 	}
 
