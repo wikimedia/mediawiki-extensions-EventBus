@@ -270,7 +270,7 @@ class PageChangeEventSerializer {
 	 * @param User $performer
 	 * @param RevisionRecord $currentRevision
 	 * @param RevisionRecord $parentRevision
-	 * @param LinkTarget $oldTitle
+	 * @param LinkTarget|ProperPageIdentity $oldTitle
 	 * @param string $reason
 	 * @param ProperPageIdentity|null $createdRedirectWikiPage
 	 * @param RedirectTarget|null $redirectTarget
@@ -282,7 +282,7 @@ class PageChangeEventSerializer {
 		User $performer,
 		RevisionRecord $currentRevision,
 		RevisionRecord $parentRevision,
-		LinkTarget $oldTitle,
+		/* LinkTarget|ProperPageIdentity */ $oldTitle,
 		string $reason,
 		?ProperPageIdentity $createdRedirectWikiPage = null,
 		?RedirectTarget $redirectTarget = null

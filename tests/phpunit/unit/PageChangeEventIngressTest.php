@@ -13,6 +13,7 @@ use MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngres
 use MediaWiki\Extension\EventBus\StreamNameMapper;
 use MediaWiki\HookContainer\HookContainer;
 use MediaWiki\Page\Event\PageDeletedEvent;
+use MediaWiki\Page\Event\PageMovedEvent;
 use MediaWiki\Page\Event\PageRevisionUpdatedEvent;
 use MediaWiki\Page\ExistingPageRecord;
 use MediaWiki\Page\PageLookup;
@@ -36,6 +37,11 @@ use Wikimedia\Timestamp\TimestampException;
 use Wikimedia\UUID\GlobalIdGenerator;
 
 /**
+ * TODO: we should consider deprecating this suite in favor of
+ * phpunit\integration\ChangeEmissionTest. There is some value in testing
+ * specific cases like performer suppression and move errors, but it's unclear
+ * whether that justifies the considerable mocking boilerplate.
+ *
  * @covers \MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress
  */
 class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
@@ -72,8 +78,6 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 	/** @var PageLookup */
 	private $pageLookup;
 
-	/** @var PageChangeEventIngress */
-	private $listener;
 	/**
 	 * @var EventBus
 	 */
@@ -177,19 +181,40 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 		$this->eventBusFactory->method( 'getInstanceForStream' )
 			->with( '' )
 			->willReturn( $this->eventBus );
+	}
 
-		$this->listener = new PageChangeEventIngress(
-			$this->eventBusFactory,
-			$this->streamNameMapper,
-			$this->mainConfig,
-			$this->globalIdGenerator,
-			$this->userGroupManager,
-			$this->titleFormatter,
-			$this->userFactory,
-			$this->revisionStore,
-			$this->contentHandlerFactory,
-			$this->redirectLookup,
-			$this->pageLookup
+	/**
+	 * Helper to instantiate PageChangeEventIngress with dependency overrides.
+	 */
+	protected function newListenerWithOverrides( array $overrides = [] ): PageChangeEventIngress {
+		$defaults = [
+			'eventBusFactory' => $this->eventBusFactory ?? $this->createMock( EventBusFactory::class ),
+			'streamNameMapper' => $this->streamNameMapper ?? $this->createMock( StreamNameMapper::class ),
+			'mainConfig' => $this->mainConfig ?? $this->createMock( Config::class ),
+			'globalIdGenerator' => $this->globalIdGenerator ?? $this->createMock( GlobalIdGenerator::class ),
+			'userGroupManager' => $this->userGroupManager ?? $this->createMock( UserGroupManager::class ),
+			'titleFormatter' => $this->titleFormatter ?? $this->createMock( TitleFormatter::class ),
+			'userFactory' => $this->userFactory ?? $this->createMock( UserFactory::class ),
+			'revisionStore' => $this->revisionStore ?? $this->createMock( RevisionStore::class ),
+			'contentHandlerFactory' => $this->contentHandlerFactory ?? $this->createMock(
+				IContentHandlerFactory::class
+				),
+			'redirectLookup' => $this->redirectLookup ?? $this->createMock( RedirectLookup::class ),
+			'pageLookup' => $this->pageLookup ?? $this->createMock( PageLookup::class )
+		];
+		$deps = array_merge( $defaults, $overrides );
+		return new PageChangeEventIngress(
+			$deps['eventBusFactory'],
+			$deps['streamNameMapper'],
+			$deps['mainConfig'],
+			$deps['globalIdGenerator'],
+			$deps['userGroupManager'],
+			$deps['titleFormatter'],
+			$deps['userFactory'],
+			$deps['revisionStore'],
+			$deps['contentHandlerFactory'],
+			$deps['redirectLookup'],
+			$deps['pageLookup']
 		);
 	}
 
@@ -241,7 +266,8 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 		?int $pageId = null,
 		int $namespace = 0,
 		?string $dbKey = null,
-		bool $isSamePageAs = true
+		bool $isSamePageAs = true,
+		array $additionalMethods = []
 	): ExistingPageRecord {
 		$pageId = $pageId ?? $this->pageId;
 		$dbKey = $dbKey ?? $this->pageDBkey;
@@ -251,6 +277,11 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 		$pageRecord->method( 'getNamespace' )->willReturn( $namespace );
 		$pageRecord->method( 'getDBkey' )->willReturn( $dbKey );
 		$pageRecord->method( 'isSamePageAs' )->willReturn( $isSamePageAs );
+		$pageRecord->method( '__toString' )->willReturn( $dbKey );
+
+		foreach ( $additionalMethods as $method => $returnValue ) {
+			$pageRecord->method( $method )->willReturn( $returnValue );
+		}
 
 		return $pageRecord;
 	}
@@ -261,7 +292,7 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 	 * @param int $revId The revision ID
 	 * @param string $timestamp The revision timestamp
 	 * @param string $sha1 The SHA1 hash
-	 * @param ProperPageIdentity $pageIdentity The page identity
+	 * @param ProperPageIdentity|null $pageIdentity The page identity
 	 * @param array $additionalMethods Additional methods to mock
 	 * @return RevisionRecord The mocked object
 	 */
@@ -269,14 +300,16 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 		int $revId,
 		string $timestamp,
 		string $sha1,
-		ProperPageIdentity $pageIdentity,
+		?ProperPageIdentity $pageIdentity = null,
 		array $additionalMethods = []
 	): RevisionRecord {
 		$revision = $this->createMock( RevisionRecord::class );
 		$revision->method( 'getId' )->willReturn( $revId );
 		$revision->method( 'getTimestamp' )->willReturn( $timestamp );
 		$revision->method( 'getSha1' )->willReturn( $sha1 );
-		$revision->method( 'getPage' )->willReturn( $pageIdentity );
+		if ( $pageIdentity ) {
+			$revision->method( 'getPage' )->willReturn( $pageIdentity );
+		}
 
 		foreach ( $additionalMethods as $method => $returnValue ) {
 			$revision->method( $method )->willReturn( $returnValue );
@@ -289,19 +322,16 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 	 * Test that page PageRevisionUpdated events are properly handled
 	 */
 	public function testPageRevisionUpdatedWithEdit() {
-		// Mock UserIdentity
 		$performer = $this->createMock( UserIdentity::class );
 		$performer->method( 'getName' )->willReturn( 'TestUser' );
 		$performer->method( 'getId' )->willReturn( 123 );
 
-		// Create page identities for revisions
 		$pageIdentityBefore = $this->createMockPageIdentity();
 		$pageIdentityAfter = $this->createMockPageIdentity();
 
 		$pageRecordBefore = $this->createMockPageRecord();
 		$pageRecordAfter = $this->createMockPageRecord();
 
-		// Mock RevisionRecord objects
 		$latestRevisionBefore = $this->createMockRevision(
 			7890,
 			'20230101000000',
@@ -320,7 +350,6 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			]
 		);
 
-		// Mock the author user returned by the revision
 		$authorUser = $this->createMock( UserIdentity::class );
 		$authorUser->method( 'getName' )->willReturn( 'RevisionAuthor' );
 		$authorUser->method( 'getId' )->willReturn( 124 );
@@ -358,13 +387,16 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 		$this->eventBus->expects( $this->once() )
 			->method( 'send' );
 
-		$this->listener->handlePageRevisionUpdatedEvent( $event );
+		$listener = $this->newListenerWithOverrides();
+		$listener->handlePageRevisionUpdatedEvent( $event );
 
 		DeferredUpdates::doUpdates();
 	}
 
 	/**
 	 * Test that page deletion events are properly handled
+	 * @throws TimestampException
+	 *
 	 * @throws TimestampException
 	 */
 	public function testHandlePageDeletedEvent() {
@@ -405,7 +437,8 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 					'Suppressed deletion should include performer information' );
 			} );
 
-		$this->listener->handlePageDeletedEvent( $event );
+		$listener = $this->newListenerWithOverrides();
+		$listener->handlePageDeletedEvent( $event );
 
 		DeferredUpdates::doUpdates();
 	}
@@ -449,8 +482,93 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 					'Suppressed deletion should not include performer information' );
 			} );
 
-		$this->listener->handlePageDeletedEvent( $event );
+		$listener = $this->newListenerWithOverrides();
+		$listener->handlePageDeletedEvent( $event );
 
 		DeferredUpdates::doUpdates();
 	}
+
+	/**
+	 * Test that page move events are properly handled
+	 */
+	public function testHandlePageMovedEvent() {
+		$performer = $this->createMock( UserIdentity::class );
+		$performer->method( 'getName' )->willReturn( 'MoveUser' );
+		$performer->method( 'getId' )->willReturn( 555 );
+
+		$pageRecordBefore = $this->createMockPageRecord( 456, 0, 'OldTitle', true, [ 'getLatest' => 7889 ] );
+		$pageRecordAfter = $this->createMockPageRecord( 456,
+			0,
+			'NewTitle',
+			true, [
+				'exists' => true,
+				'getLatest' => 7890
+			] );
+		$redirectPage = null;
+
+		$event = new PageMovedEvent(
+			$pageRecordBefore,
+			$pageRecordAfter,
+			$performer,
+			'Move reason here',
+			$redirectPage
+		);
+
+		$this->eventBus->expects( $this->once() )
+			->method( 'send' )
+			->willReturnCallback( static function ( $events ) {
+				$event = $events[0];
+				Assert::assertCount( 1, $events, 'Should have one event' );
+				Assert::assertSame( "update", $event['changelog_kind'] );
+				Assert::assertSame( "move", $event['page_change_kind'] );
+			} );
+
+		// Provide a custom revisionStore mock that returns a parent revision for the move event
+		$revisionStore = $this->createMock( RevisionStore::class );
+		$revisionStore->method( 'getRevisionById' )->willReturnCallback( function ( $revId ) {
+			if ( $revId === 7890 ) {
+				return $this->createMockRevision( 7890, '20230101000000', 'abc123', null, [
+					'getParentId' => 7889,
+					'getVisibility' => 0
+				] );
+			} elseif ( $revId === 7889 ) {
+				return $this->createMockRevision( 7889, '20220101000000', 'parent', null, [
+					'getVisibility' => 0
+				] );
+			}
+			return null;
+		} );
+
+		$listener = $this->newListenerWithOverrides( [ 'revisionStore' => $revisionStore ] );
+		$listener->handlePageMovedEvent( $event );
+		DeferredUpdates::doUpdates();
+	}
+
+	/**
+	 * Test that handlePageMovedEvent throws if the WikiPage is not found
+	 */
+	public function testHandlePageMovedEventThrowsIfWikiPageNotFound() {
+		$performer = $this->createMock( UserIdentity::class );
+
+		$pageRecordBefore = $this->createMockPageRecord( 456, 0, 'OldTitle' );
+		$pageRecordAfter = $this->createMockPageRecord( 457,
+			0,
+			'NewTitle',
+			true, [ 'exists' => false ] );
+
+		$event = $this->createMock( PageMovedEvent::class );
+		$event->method( 'getPageRecordBefore' )->willReturn( $pageRecordBefore );
+		$event->method( 'getPageRecordAfter' )->willReturn( $pageRecordAfter );
+		$event->method( 'getPageId' )->willReturn( 123 );
+		$event->method( 'getPerformer' )->willReturn( $performer );
+		$event->method( 'getReason' )->willReturn( 'No page found' );
+		$event->method( 'wasRedirectCreated' )->willReturn( false );
+
+		$listener = $this->newListenerWithOverrides();
+
+		$this->expectException( \InvalidArgumentException::class );
+		$this->expectExceptionMessage( "No page moved from 'OldTitle' to 'NewTitle' with ID 123 could be found" );
+		$listener->handlePageMovedEvent( $event );
+	}
+
 }

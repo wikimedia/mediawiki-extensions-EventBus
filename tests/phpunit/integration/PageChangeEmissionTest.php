@@ -342,6 +342,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	/**
 	 * @dataProvider providePageMove
 	 *
+	 * @param string $streamName
 	 * @param string $sourceTitle
 	 * @param string $destinationTitle
 	 * @param bool $createRedirect
@@ -349,6 +350,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	 * @return void
 	 */
 	public function testPageMove(
+		string $streamName,
 		string $sourceTitle,
 		string $destinationTitle,
 		bool $createRedirect = true,
@@ -395,9 +397,10 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 			$sendCallback,
 			$expectedNumberOfEvents,
 			null,
-			PageChangeHooks::PAGE_CHANGE_STREAM_NAME_DEFAULT,
+			$streamName,
 			true
 		);
+
 		$this->setService( 'EventBus.EventBusFactory', $eventBusFactory );
 
 		$this->getExistingTestPage( $moveFrom );
@@ -410,7 +413,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 			->move( $this->getTestUser()->getUserIdentity(), null, $createRedirect );
 
 		if ( $createRedirect ) {
-			self::deleteAndAssertRedirectPage( $moveFrom, $moveTo );
+			self::deleteAndAssertRedirectPage( $moveFrom, $moveTo, $streamName );
 		}
 
 		$this->runDeferredUpdates();
@@ -422,12 +425,14 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	 *
 	 * @param Title $deletedPageTitle
 	 * @param Title $redirectTargetTitle
+	 * @param string $streamName
 	 * @param int $expectedNumberOfEvents
 	 * @return void
 	 */
 	private function deleteAndAssertRedirectPage(
 		Title $deletedPageTitle,
 		Title $redirectTargetTitle,
+		string $streamName,
 		int $expectedNumberOfEvents = 1
 	) {
 		// Delete the page
@@ -463,7 +468,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 			$sendCallback,
 			$expectedNumberOfEvents,
 			$deletedPageTitle,
-			PageChangeHooks::PAGE_CHANGE_STREAM_NAME_DEFAULT
+			$streamName
 		);
 
 		$this->setService( 'EventBus.EventBusFactory', $eventBusFactory );
@@ -472,23 +477,34 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	}
 
 	/**
-	 * Test that the event ingress object tracks page moves.
+	 * Page move scenarios combined with multiple stream names,
+	 * to test Hooks and Domain Event serialization code paths.
+	 *
+	 * @return array
 	 */
 	public static function providePageMove(): array {
-		return [
-			'Valid move with redirect' => [
+		$streamNames = static::provideStreamName();
+		$scenarios = [];
+
+		foreach ( $streamNames as $streamName ) {
+			$scenarios[$streamName[0] . '_valid_move_with_redirect'] = [
+				$streamName[0],
 				'SourcePageA',
 				'DestinationPageA',
 				true,
 				3
-			],
-			'Valid move without redirect' => [
+			];
+
+			$scenarios[$streamName[0] . '_valid_move_without_redirect'] = [
+				$streamName[0],
 				'SourcePageB',
 				'DestinationPageB',
 				false,
 				2
-			]
-		];
+			];
+		}
+
+		return $scenarios;
 	}
 
 	private static function assertHasProducedOnePageChangeEvent( $events ): void {

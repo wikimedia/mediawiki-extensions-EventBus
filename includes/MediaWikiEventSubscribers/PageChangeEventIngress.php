@@ -4,6 +4,7 @@ declare( strict_types = 1 );
 
 namespace MediaWiki\Extension\EventBus\MediaWikiEventSubscribers;
 
+use InvalidArgumentException;
 use MediaWiki\Config\Config;
 use MediaWiki\Content\ContentHandlerFactory;
 use MediaWiki\Deferred\DeferredUpdates;
@@ -22,6 +23,8 @@ use MediaWiki\Http\Telemetry;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\Page\Event\PageDeletedEvent;
 use MediaWiki\Page\Event\PageDeletedListener;
+use MediaWiki\Page\Event\PageMovedEvent;
+use MediaWiki\Page\Event\PageMovedListener;
 use MediaWiki\Page\Event\PageRevisionUpdatedEvent;
 use MediaWiki\Page\Event\PageRevisionUpdatedListener;
 use MediaWiki\Page\PageLookup;
@@ -40,10 +43,10 @@ use Wikimedia\UUID\GlobalIdGenerator;
  */
 class PageChangeEventIngress extends DomainEventIngress implements
 	PageRevisionUpdatedListener,
-	PageDeletedListener
+	PageDeletedListener,
+	PageMovedListener
 {
-
-	public const PAGE_CHANGE_STREAM_NAME_DEFAULT = 'mediawiki.page_change.staging.v1';
+	public const PAGE_CHANGE_STREAM_NAME_DEFAULT = "mediawiki.page_change.staging.v1";
 
 	/**
 	 * Name of the stream that events will be produced to.
@@ -97,7 +100,8 @@ class PageChangeEventIngress extends DomainEventIngress implements
 		RevisionStore $revisionStore,
 		ContentHandlerFactory $contentHandlerFactory,
 		RedirectLookup $redirectLookup,
-		PageLookup $pageLookup ) {
+		PageLookup $pageLookup
+	) {
 		$this->logger = LoggerFactory::getInstance( 'EventBus.PageChangeEventIngress' );
 
 		$this->streamName = $streamNameMapper->resolve(
@@ -175,7 +179,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 					$performer, $revisionRecord, $redirectTarget )
 				: $this->pageChangeEventSerializer->toEditEvent( $this->streamName, $event->getPage(),
 					$performer, $revisionRecord, $redirectTarget,
-					$this->revisionStore->getRevisionById( $event->getPageRecordbefore()->getLatest() ) );
+					$this->revisionStore->getRevisionById( $event->getPageRecordBefore()->getLatest() ) );
 
 			$this->sendEvents( $this->streamName, [ $pageChangeEvent ] );
 		}
@@ -216,6 +220,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	 *
 	 * @param PageDeletedEvent $event The page deletion event to process
 	 * @throws TimestampException
+	 * @throws TimestampException
 	 * @see PageChangeEventSerializer::toDeleteEvent() For the event format
 	 */
 	public function handlePageDeletedEvent( PageDeletedEvent $event ) {
@@ -249,5 +254,64 @@ class PageChangeEventIngress extends DomainEventIngress implements
 		);
 
 		$this->sendEvents( $this->streamName, [ $pageChangeEvent ] );
+	}
+
+	/**
+	 * Handles a page moved event by generating and sending a corresponding
+	 * page change event.
+	 *
+	 * This method processes a `PageMovedEvent`, retrieves the necessary page state
+	 * before and after the move, obtains user and revision context, identifies
+	 * whether a redirect was created, and serializes all this information into
+	 * a page change move event.
+	 *
+	 * Passes $event->getPageRecordBefore() directly to toMoveEvent, which accepts LinkTarget|PageReference.
+	 *
+	 * @param PageMovedEvent $event The event representing a page move, including
+	 *                              references to the page before and after the move,
+	 *                              the performing user, reason for the move, and
+	 *                              any redirect that may have been created.
+	 *
+	 * @throws InvalidArgumentException If the moved-to page could not be found
+	 *                                  using the latest page data.
+	 *
+	 * @return void
+	 */
+	public function handlePageMovedEvent( PageMovedEvent $event ) {
+		if ( !$event->getPageRecordAfter()->exists() ) {
+			throw new InvalidArgumentException(
+				"No page moved from '{$event->getPageRecordBefore()->getDBkey()}' "
+				. "to '{$event->getPageRecordAfter()->getDBkey()}'"
+				. " with ID {$event->getPageId()} could be found"
+			);
+		}
+
+		$performer = $this->userFactory->newFromUserIdentity( $event->getPerformer() );
+
+		$redirectTarget = PageChangeHooks::lookupRedirectTarget(
+			$event->getPageRecordAfter(),
+			$this->pageLookup,
+			$this->redirectLookup
+		);
+
+		// The parentRevision is needed since a page move creates a new revision.
+		$revision = $this->revisionStore->getRevisionById(
+			$event->getPageRecordAfter()->getLatest() );
+		$parentRevision = $this->revisionStore->getRevisionById(
+			$event->getPageRecordBefore()->getLatest() );
+
+		$event = $this->pageChangeEventSerializer->toMoveEvent(
+			$this->streamName,
+			$event->getPageRecordAfter(),
+			$performer,
+			$revision,
+			$parentRevision,
+			$event->getPageRecordBefore(),
+			$event->getReason(),
+			$event->getRedirectPage(),
+			$redirectTarget
+		);
+
+		$this->sendEvents( $this->streamName, [ $event ] );
 	}
 }
