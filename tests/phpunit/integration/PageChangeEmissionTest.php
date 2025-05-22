@@ -299,7 +299,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		$sendCallback = function ( $events ) use ( $page ) {
 			foreach ( $events as $event ) {
 				self::assertPageChangeKindIsDelete( $event );
-				self::assertIsValidPageChangePageDeleted( $page, $event );
+				self::assertIsValidPageChangePageIdentity( $page, $event );
 			}
 		};
 
@@ -319,9 +319,10 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		Title $pageTitle,
 		string $streamName
 	) {
-		$sendCallback = static function ( $events ) {
+		$sendCallback = static function ( $events ) use ( $page ) {
 			foreach ( $events as $event ) {
 				self::assertPageChangeKindIsUndelete( $event );
+				self::assertIsValidPageChangePageIdentity( $page, $event );
 			}
 		};
 
@@ -447,7 +448,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 				Assert::assertTrue( $event['page']['is_redirect'] );
 				self::assertIsValidPageChangeRevision( $event );
 				self::assertPageChangeKindIsDelete( $event );
-				self::assertIsValidPageChangePageDeleted( $page, $event );
+				self::assertIsValidPageChangePageIdentity( $page, $event );
 
 				Assert::assertArrayHasKey( 'redirect_page_link', $event['page'] );
 
@@ -523,7 +524,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		Assert::assertSame( $ns, $event['page']['namespace_id'] );
 	}
 
-	private static function assertIsValidPageChangePageDeleted(
+	private static function assertIsValidPageChangePageIdentity(
 		ProperPageIdentity $page,
 		array $event
 	) {

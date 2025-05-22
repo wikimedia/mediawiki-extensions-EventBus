@@ -21,6 +21,8 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Extension\EventBus\StreamNameMapper;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\Logger\LoggerFactory;
+use MediaWiki\Page\Event\PageCreatedEvent;
+use MediaWiki\Page\Event\PageCreatedListener;
 use MediaWiki\Page\Event\PageDeletedEvent;
 use MediaWiki\Page\Event\PageDeletedListener;
 use MediaWiki\Page\Event\PageMovedEvent;
@@ -44,7 +46,8 @@ use Wikimedia\UUID\GlobalIdGenerator;
 class PageChangeEventIngress extends DomainEventIngress implements
 	PageRevisionUpdatedListener,
 	PageDeletedListener,
-	PageMovedListener
+	PageMovedListener,
+	PageCreatedListener
 {
 	public const PAGE_CHANGE_STREAM_NAME_DEFAULT = "mediawiki.page_change.staging.v1";
 
@@ -313,5 +316,42 @@ class PageChangeEventIngress extends DomainEventIngress implements
 		);
 
 		$this->sendEvents( $this->streamName, [ $event ] );
+	}
+
+	/**
+	 * Handles `PageCreatedEvent` emitted after a page as been undeleted
+	 * (e.g. a proper undelete into a new page).
+	 *
+	 * @param PageCreatedEvent $event
+	 * @return void
+	 * @throws TimestampException
+	 */
+	public function handlePageCreatedEvent( PageCreatedEvent $event ): void {
+		if ( $event->getCause() === PageUpdateCauses::CAUSE_UNDELETE ) {
+			$performer = $this->userFactory->newFromUserIdentity( $event->getPerformer() );
+
+			$redirectTarget = PageChangeHooks::lookupRedirectTarget(
+				$event->getPageRecordAfter(),
+				$this->pageLookup,
+				$this->redirectLookup
+			);
+
+			// TODO: replace with $event->getPageRecordBefore()?->getId();
+			//  once EventBus CI fully adopts php 8.
+			$oldPage = $event->getPageRecordBefore();
+
+			$event = $this->pageChangeEventSerializer->toUndeleteEvent(
+				$this->streamName,
+				$event->getPageRecordAfter(),
+				$performer,
+				$event->getLatestRevisionAfter(),
+				$event->getReason(),
+				$redirectTarget,
+				$event->getEventTimestamp()->getTimestamp(),
+				( $oldPage !== null ) ? $oldPage->getId() : null
+			);
+
+			$this->sendEvents( $this->streamName, [ $event ] );
+		}
 	}
 }
