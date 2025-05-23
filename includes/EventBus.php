@@ -233,6 +233,10 @@ class EventBus {
 	/**
 	 * Deliver an array of events to the remote event intake service.
 	 *
+	 * When emitting events, consider using {@link EventBusSendUpdate} instead of manually wrapping this
+	 * method in a callable deferred update, to take advantage of automatic batching for events destined
+	 * for the same underlying event service.
+	 *
 	 * Statslib metrics emitted by this method:
 	 *
 	 * - events_outgoing_total

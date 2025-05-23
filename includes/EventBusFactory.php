@@ -239,25 +239,7 @@ class EventBusFactory {
 	 * @throws InvalidArgumentException
 	 */
 	public function getInstanceForStream( string $streamName ): EventBus {
-		if ( $this->streamConfigs === null ) {
-			$eventServiceName = $this->eventServiceDefault;
-		} elseif ( !$this->isStreamEnabled( $streamName ) ) {
-			// Don't send event if $streamName is explicitly disabled.
-
-			$eventServiceName = self::EVENT_SERVICE_DISABLED_NAME;
-			$this->logger->debug(
-				"Using non-producing EventBus instance for stream $streamName. " .
-				'This stream is either undeclared, or is explicitly disabled.'
-			);
-		} else {
-			$eventServiceName = $this->getEventServiceNameForStream( $streamName ) ??
-				$this->eventServiceDefault;
-			$this->logger->debug(
-				"Using event intake service $eventServiceName for stream $streamName."
-			);
-		}
-
-		return self::getInstance( $eventServiceName );
+		return self::getInstance( $this->getEventServiceNameForStream( $streamName ) );
 	}
 
 	/**
@@ -296,15 +278,27 @@ class EventBusFactory {
 	 * setting for this stream.
 	 * If wgEventStreams is not configured, or if the stream is not configured in wgEventStreams,
 	 * or if the stream does not have EVENT_STREAM_CONFIG_SERVICE_SETTING set,
-	 * then this will return null.
+	 * then this falls back to the default stream.
+	 * If the stream is explicitly marked as disabled, this will return a non-producing stream name.
 	 *
 	 * @param string $streamName
-	 * @return string|null
+	 * @return string
 	 */
-	private function getEventServiceNameForStream( string $streamName ): ?string {
+	public function getEventServiceNameForStream( string $streamName ): string {
 		// Use eventServiceDefault if no streamConfigs were provided.
 		if ( $this->streamConfigs === null ) {
-			return null;
+			return $this->eventServiceDefault;
+		}
+
+		if ( !$this->isStreamEnabled( $streamName ) ) {
+			// Don't send event if $streamName is explicitly disabled.
+
+			$this->logger->debug(
+				"Using non-producing EventBus instance for stream $streamName. " .
+				'This stream is either undeclared, or is explicitly disabled.'
+			);
+
+			return self::EVENT_SERVICE_DISABLED_NAME;
 		}
 
 		// Else attempt to lookup EVENT_STREAM_CONFIG_SERVICE_SETTING for this stream.
@@ -321,6 +315,13 @@ class EventBusFactory {
 		// This can be removed once all streams have been migrated to using the
 		// producers.mediawiki_eventbus specific setting.
 		// https://phabricator.wikimedia.org/T321557
-		return $eventServiceName ?: $streamSettings['destination_event_service'] ?? null;
+		$eventServiceName = $eventServiceName ?: $streamSettings['destination_event_service'] ??
+			$this->eventServiceDefault;
+
+		$this->logger->debug(
+			"Using event intake service $eventServiceName for stream $streamName."
+		);
+
+		return $eventServiceName;
 	}
 }
