@@ -27,7 +27,9 @@ return [
 			),
 			$streamConfigs,
 			$services->get( 'EventBus.EventFactory' ),
-			$services->getHttpRequestFactory()->createMultiClient(),
+			$services->getHttpRequestFactory()->createMultiClient( [
+				'telemetry' => $services->getTracer()
+			] ),
 			LoggerFactory::getInstance( 'EventBus' ),
 			$services->getStatsFactory()->withComponent( 'EventBus' ),
 		);
