@@ -12,6 +12,7 @@ use MediaWiki\Config\Config;
 use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Exception\MWExceptionHandler;
 use MediaWiki\Http\Telemetry;
+use MediaWiki\JobQueue\Job;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
 use Psr\Log\LoggerInterface;
@@ -56,12 +57,17 @@ class JobExecutor {
 		$span = $tracer->createSpan( 'execute job' )
 			->setAttributes( [ 'org.wikimedia.eventbus.job.type' => $jobEvent['type'] ] )
 			->start();
-		$scope = $span->activate();
+		$tracerScope = $span->activate();
 
+		/** @var Job $job */
 		$job = $jobCreateResult['job'];
 		$this->logger()->debug( 'Beginning job execution', [
 			'job' => $job->toString(),
 			'job_type' => $job->getType()
+		] );
+
+		$logContextScope = LoggerFactory::getContext()->addScoped( [
+			'context.job_type' => $job->getType(),
 		] );
 
 		$lbFactory = MediaWikiServices::getInstance()->getDBLoadBalancerFactory();
