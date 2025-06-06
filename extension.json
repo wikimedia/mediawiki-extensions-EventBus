@@ -65,7 +65,7 @@
 				"RedirectStore",
 				"PageStore"
 			],
-			"events": [ "PageRevisionUpdated", "PageDeleted", "PageMoved", "PageCreated" ]
+			"events": [ "PageRevisionUpdated", "PageDeleted", "PageMoved", "PageCreated", "PageHistoryVisibilityChanged" ]
 		}
 	],
 	"HookHandlers": {

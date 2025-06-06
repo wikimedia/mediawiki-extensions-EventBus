@@ -4,6 +4,7 @@ namespace phpunit\integration;
 
 use InvalidArgumentException;
 use MediaWiki\CommentFormatter\CommentFormatter;
+use MediaWiki\Context\RequestContext;
 use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\EventFactory;
@@ -11,10 +12,12 @@ use MediaWiki\Extension\EventBus\HookHandlers\MediaWiki\PageChangeHooks;
 use MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Page\ProperPageIdentity;
+use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Tests\MockWikiMapTrait;
 use MediaWiki\Title\Title;
 use MediaWiki\WikiMap\WikiMap;
 use PHPUnit\Framework\Assert;
+use RevisionDeleter;
 
 /**
  * @covers \MediaWiki\Extension\EventBus\HookHandlers\MediaWiki\PageChangeHooks
@@ -416,6 +419,124 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		if ( $createRedirect ) {
 			self::deleteAndAssertRedirectPage( $moveFrom, $moveTo, $streamName );
 		}
+
+		$this->runDeferredUpdates();
+	}
+
+	/**
+	 * Test revision visibility changes as performed by a batch process
+	 * that alters revision history.
+	 *
+	 * Ensure that suppressed editor information is not leaked by EventBus
+	 *
+	 * @dataProvider provideStreamName
+	 *
+	 * @return void
+	 */
+	public function testRevisionVisibilityChange( string $streamName ) {
+		// flush
+		$this->runDeferredUpdates();
+
+		$pageTile = Title::newFromText(
+			"TestRevisionVisibilityChange",
+			$this->getDefaultWikitextNS()
+		);
+
+		// Don't assert on page creation and edit.
+		// We need these operation to create a new test page,
+		// but we don't need to assert that code path.
+		$eventBusFactory = $this->mockEventBusFactory(
+			static function () {
+			},
+			2,
+			$pageTile,
+			$streamName,
+			true
+		);
+		$this->setService( 'EventBus.EventBusFactory', $eventBusFactory );
+
+		// Create page and edit test revisions
+		$page = $this->getExistingTestPage( $pageTile );
+
+		$rev1 = $page->getLatest();
+		$rev2 = $this->editPage( $page, 'newer content' )->getNewRevision()->getId();
+		$this->runDeferredUpdates();
+
+		Assert::assertTrue( $rev2 > $rev1 );
+
+		$this->setVisibilityAndAssertRevisionChange( $page, $pageTile, $rev1, $rev2, $streamName );
+	}
+
+	private function setVisibilityAndAssertRevisionChange(
+		ProperPageIdentity $page,
+		Title $pageTile,
+		int $rev1,
+		int $rev2,
+		string $streamName
+	): void {
+		$context = RequestContext::getMain();
+		$context->setUser( $this->getTestSysop()->getUser() );
+
+		$sendCallback = function ( $events ) use ( $page, $rev2 ) {
+			$wasVisibilityChanged = false;
+			foreach ( $events as $event ) {
+				if ( $event['page_change_kind'] == 'visibility_change' ) {
+					$wasVisibilityChanged = true;
+					Assert::assertSame( $page->getId(), $event['page']['page_id'] );
+					Assert::assertSame( $rev2, $event['revision']['rev_id'] );
+					// Performer must be omitted for suppressed revisions
+					Assert::assertFalse( $event['revision']['is_editor_visible'] );
+					Assert::assertArrayNotHasKey( 'performer', $event['page'] );
+					// But content can still be visible
+					Assert::assertTrue( $event['revision']['is_content_visible'] );
+
+				}
+			}
+			self::assertTrue( $wasVisibilityChanged );
+		};
+
+		$eventBusFactory = $this->mockEventBusFactory(
+			$sendCallback,
+			1,
+			$pageTile,
+			$streamName
+		);
+
+		$this->setService( 'EventBus.EventBusFactory', $eventBusFactory );
+
+		$visibility = [
+			RevisionRecord::DELETED_TEXT => 0,
+			RevisionRecord::DELETED_USER => 1,
+			RevisionRecord::DELETED_RESTRICTED => 1, ];
+		$ids = [ $rev1 ];
+
+		$deleter = RevisionDeleter::createList( 'revision', $context, $page, $ids );
+		$params = [
+			'value' => $visibility,
+			'comment' => 'test 1',
+			'tags' => [ 'test' ]
+		];
+		$status = $deleter->setVisibility( $params );
+		$this->assertStatusOK( $status );
+
+		$visibility = [
+			// 1 = se, 0 = unset, -1 = keep
+			RevisionRecord::DELETED_USER => 1,
+			RevisionRecord::DELETED_RESTRICTED => 1,
+		];
+
+		$ids = [ $rev1, $rev2 ];
+
+		$deleter = RevisionDeleter::createList( 'revision', $context, $page, $ids );
+
+		$params = [
+			'value' => $visibility,
+			'comment' => 'test 2',
+			'tags' => [ 'test' ]
+		];
+
+		$status = $deleter->setVisibility( $params );
+		$this->assertStatusOK( $status );
 
 		$this->runDeferredUpdates();
 	}
