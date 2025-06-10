@@ -162,9 +162,30 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	}
 
 	/**
-	 * Test that the event ingress object tracks page revision updates (creation / edit).
+	 * Data provider for tests that need to assert against both
+	 * Hooks and Domain Event Ingress code paths.
+	 *
+	 * Provides stream name constants for testing different event
+	 * processing pathways for `page_change` record serialization.
+	 *
+	 * @return array<string, array{string}> Test cases with stream names
 	 */
-	public function testPageCreateEdit() {
+	private static function provideStreamName(): array {
+		return [
+		"Test Hooks code paths" => [ PageChangeHooks::PAGE_CHANGE_STREAM_NAME_DEFAULT ],
+		"Test Domain Event code paths" =>
+			[ PageChangeEventIngress::PAGE_CHANGE_STREAM_NAME_DEFAULT ]
+		];
+	}
+
+	/**
+	 * @dataProvider provideStreamName
+	 *
+	 * Test that the event ingress object tracks page revision updates (creation / edit).
+	 *
+	 * @param string $streamName
+	 */
+	public function testPageCreateEdit( string $streamName ) {
 		$pageTitle =
 			Title::newFromText( "TestPageCreateEdit", $this->getDefaultWikitextNS() );
 
@@ -180,7 +201,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 				$sendCallback,
 				2,
 				$pageTitle,
-				PageChangeEventIngress::PAGE_CHANGE_STREAM_NAME_DEFAULT
+				$streamName
 			);
 
 		$this->setService( 'EventBus.EventBusFactory', $eventBusFactory );
@@ -195,10 +216,14 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	}
 
 	/**
+	 * @dataProvider provideStreamName
+	 *
 	 * Test that the event ingress object tracks page delete.
 	 * Undeletes are still handled by the Hooks API code path.
+	 *
+	 * @param string $streamName
 	 */
-	public function testPageDeleteThenUndelete() {
+	public function testPageDeleteThenUndelete( string $streamName ) {
 		$pageTitle =
 			Title::newFromText( "TestPageDeleteUndelete", $this->getDefaultWikitextNS() );
 
@@ -212,7 +237,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 				},
 				1,
 				$pageTitle,
-				PageChangeEventIngress::PAGE_CHANGE_STREAM_NAME_DEFAULT
+				$streamName
 			);
 
 		$this->setService( 'EventBus.EventBusFactory', $eventBusFactory );
@@ -224,7 +249,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		$this->deletePageAndAssertEvent(
 			$page,
 			$pageTitle,
-			PageChangeEventIngress::PAGE_CHANGE_STREAM_NAME_DEFAULT
+			$streamName
 		);
 
 		$this->undeletePageAndAssertEvent(
@@ -241,9 +266,10 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		Title $pageTitle,
 		string $streamName
 	) {
-		$sendCallback = function ( $events ) {
+		$sendCallback = function ( $events ) use ( $page ) {
 			foreach ( $events as $event ) {
 				self::assertPageChangeKindIsDelete( $event );
+				self::assertIsValidPageChangePageDeleted( $page, $event );
 			}
 		};
 
@@ -374,7 +400,11 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		Title $redirectTargetTitle,
 		int $expectedNumberOfEvents = 1
 	) {
+		// Delete the page
+		$page = $this->getExistingTestPage( $deletedPageTitle );
+
 		$sendCallback = function ( $events ) use (
+			$page,
 			$deletedPageTitle,
 			$redirectTargetTitle
 		) {
@@ -382,6 +412,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 				Assert::assertTrue( $event['page']['is_redirect'] );
 				self::assertIsValidPageChangeRevision( $event );
 				self::assertPageChangeKindIsDelete( $event );
+				self::assertIsValidPageChangePageDeleted( $page, $event );
 
 				Assert::assertArrayHasKey( 'redirect_page_link', $event['page'] );
 
@@ -394,6 +425,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 					$event['page']['redirect_page_link']['namespace_id'],
 					$this->getDefaultWikitextNS()
 				);
+
 			}
 		};
 
@@ -406,8 +438,6 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 
 		$this->setService( 'EventBus.EventBusFactory', $eventBusFactory );
 
-		// Delete the page
-		$page = $this->getExistingTestPage( $deletedPageTitle );
 		$this->deletePage( $page );
 	}
 
@@ -445,6 +475,13 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		Assert::assertArrayHasKey( 'page', $event );
 		Assert::assertEquals( $pageTitle, $event['page']['page_title'] );
 		Assert::assertSame( $ns, $event['page']['namespace_id'] );
+	}
+
+	private static function assertIsValidPageChangePageDeleted(
+		ProperPageIdentity $page,
+		array $event
+	) {
+		Assert::assertEquals( $page->getId(), $event['page']['page_id'] );
 	}
 
 	private static function assertIsValidPageChangeRevision(

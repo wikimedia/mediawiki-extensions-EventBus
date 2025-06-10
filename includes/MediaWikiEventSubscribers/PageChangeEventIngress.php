@@ -26,14 +26,12 @@ use MediaWiki\Page\Event\PageRevisionUpdatedEvent;
 use MediaWiki\Page\Event\PageRevisionUpdatedListener;
 use MediaWiki\Page\PageLookup;
 use MediaWiki\Page\RedirectLookup;
-use MediaWiki\Page\WikiPageFactory;
 use MediaWiki\Revision\RevisionStore;
 use MediaWiki\Storage\PageUpdateCauses;
 use MediaWiki\Title\TitleFormatter;
 use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
 use Psr\Log\LoggerInterface;
-use Wikimedia\Rdbms\IDBAccessObject;
 use Wikimedia\Timestamp\TimestampException;
 use Wikimedia\UUID\GlobalIdGenerator;
 
@@ -69,11 +67,6 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	private PageChangeEventSerializer $pageChangeEventSerializer;
 
 	/**
-	 * @var WikiPageFactory
-	 */
-	private WikiPageFactory $wikiPageFactory;
-
-	/**
 	 * @var UserFactory
 	 */
 	private UserFactory $userFactory;
@@ -100,7 +93,6 @@ class PageChangeEventIngress extends DomainEventIngress implements
 		GlobalIdGenerator $globalIdGenerator,
 		UserGroupManager $userGroupManager,
 		TitleFormatter $titleFormatter,
-		WikiPageFactory $wikiPageFactory,
 		UserFactory $userFactory,
 		RevisionStore $revisionStore,
 		ContentHandlerFactory $contentHandlerFactory,
@@ -126,7 +118,6 @@ class PageChangeEventIngress extends DomainEventIngress implements
 			)
 		);
 
-		$this->wikiPageFactory = $wikiPageFactory;
 		$this->userFactory = $userFactory;
 		$this->revisionStore = $revisionStore;
 		$this->redirectLookup = $redirectLookup;
@@ -170,23 +161,21 @@ class PageChangeEventIngress extends DomainEventIngress implements
 				return;
 			}
 
-			$wikiPage =
-				$this->wikiPageFactory->newFromID( $event->getPageId(),
-					IDBAccessObject::READ_LATEST );
-
 			$performer = $this->userFactory->newFromUserIdentity( $event->getPerformer() );
 			$revisionRecord = $event->getLatestRevisionAfter();
 
 			$redirectTarget =
-				PageChangeHooks::lookupRedirectTarget( $wikiPage, $this->pageLookup,
+				PageChangeHooks::lookupRedirectTarget(
+					$event->getPage(),
+					$this->pageLookup,
 					$this->redirectLookup );
 
 			$pageChangeEvent = $event->isCreation()
-				? $this->pageChangeEventSerializer->toCreateEvent( $this->streamName, $wikiPage,
+				? $this->pageChangeEventSerializer->toCreateEvent( $this->streamName, $event->getPage(),
 					$performer, $revisionRecord, $redirectTarget )
-				: $this->pageChangeEventSerializer->toEditEvent( $this->streamName, $wikiPage,
+				: $this->pageChangeEventSerializer->toEditEvent( $this->streamName, $event->getPage(),
 					$performer, $revisionRecord, $redirectTarget,
-					$this->revisionStore->getRevisionById( $revisionRecord->getParentId() ) );
+					$this->revisionStore->getRevisionById( $event->getPageRecordbefore()->getLatest() ) );
 
 			$this->sendEvents( $this->streamName, [ $pageChangeEvent ] );
 		}
@@ -232,9 +221,6 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	public function handlePageDeletedEvent( PageDeletedEvent $event ) {
 		$deletedRev = $event->getLatestRevisionBefore();
 
-		$pageIdentity = $event->getPageRecordBefore();
-		$wikiPage = $this->wikiPageFactory->newFromTitle( $pageIdentity );
-
 		// Don't set performer in the event if this delete suppresses the page from other admins.
 		// https://phabricator.wikimedia.org/T342487
 		$performerForEvent = $event->isSuppressed() ?
@@ -252,7 +238,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 
 		$pageChangeEvent = $this->pageChangeEventSerializer->toDeleteEvent(
 			$this->streamName,
-			$wikiPage,
+			$event->getDeletedPage(),
 			$performerForEvent,
 			$deletedRev,
 			$event->getReason(),
