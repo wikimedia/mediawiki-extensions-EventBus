@@ -204,7 +204,8 @@ class PageChangeEventIngress extends DomainEventIngress implements
 		return $event->getCause() === PageUpdateCauses::CAUSE_EDIT ||
 			$event->getCause() === PageUpdateCauses::CAUSE_IMPORT ||
 			$event->getCause() === PageUpdateCauses::CAUSE_ROLLBACK ||
-			$event->getCause() === PageUpdateCauses::CAUSE_UNDO;
+			$event->getCause() === PageUpdateCauses::CAUSE_UNDO ||
+			$event->getCause() === PageUpdateCauses::CAUSE_UPLOAD;
 	}
 
 	/**
