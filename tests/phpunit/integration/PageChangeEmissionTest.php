@@ -387,7 +387,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 
 				Assert::assertSame(
 					$event['page']['redirect_page_link']['page_title'],
-					$redirectTargetTitle->getText()
+					$redirectTargetTitle->getPrefixedDBkey()
 				);
 
 				Assert::assertSame(
