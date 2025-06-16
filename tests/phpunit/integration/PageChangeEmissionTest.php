@@ -2,7 +2,7 @@
 
 namespace phpunit\integration;
 
-use DateTime;
+use InvalidArgumentException;
 use MediaWiki\CommentFormatter\CommentFormatter;
 use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\Extension\EventBus\EventBusFactory;
@@ -25,18 +25,48 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	use MockWikiMapTrait;
 
 	/**
-	 * Sort an array of event by event time.
-	 * Ordering should be guaranteed for in-process emission.
+	 * Sort page move events by page_change_kind enforces deterministic
+	 * ordering of the action as performed by MediaWiki.
+	 *
+	 * While events carry an event time (`dt`) timestamp, we can't rely
+	 * on that to sort move actions chronologically in both Hook
+	 * and Domain Event code paths. Events originating from Hook callbacks
+	 * might have been emitted out-of-order relative to the page action.
+	 *
+	 * This method tries to reconstruct temporal ordering from semantic event
+	 * types rather than using actual timestamps.
 	 *
 	 * @param array $events
 	 * @return array
 	 * @throws \Exception
 	 */
-	public static function sortEvents( array $events ): array {
+	private static function sortMoveActionsByKind( array $events ): array {
 		usort( $events, static function ( $a, $b ) {
-			$dtA = new DateTime( $a['dt'] );
-			$dtB = new DateTime( $b['dt'] );
-			return $dtA <=> $dtB;
+			$kindOrder = [
+				'create' => 0,
+				'move' => 1
+			];
+
+			if ( !isset( $kindOrder[$a['page_change_kind']] ) || !isset( $kindOrder[$b['page_change_kind']] ) ) {
+				throw new InvalidArgumentException( 'Unknown page_change_kind in event' );
+			}
+
+			$kindA = $kindOrder[$a['page_change_kind']];
+			$kindB = $kindOrder[$b['page_change_kind']];
+
+			$kindCmp = $kindA <=> $kindB;
+
+			// If both are the same kind and both are 'create', break tie on redirect status.
+			// This is an arbitrary choice to enforce predictable ordering in chain of
+			// assertions.
+			if ( $kindCmp === 0 && $a['page_change_kind'] === 'create' ) {
+				$isRedirectA = $a['page']['is_redirect'] ?? false;
+				$isRedirectB = $b['page']['is_redirect'] ?? false;
+
+				return (int)$isRedirectA <=> (int)$isRedirectB;
+			}
+
+			return $kindCmp;
 		} );
 
 		return $events;
@@ -494,7 +524,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	 * @throws \Exception
 	 */
 	private static function assertIsValidMoveAction( array $events, bool $wasRedirect = true ): void {
-		$events = self::sortEvents( $events );
+		$events = self::sortMoveActionsByKind( $events );
 
 		self::assertPageChangeKindIsCreate( $events[0] );
 
