@@ -10,7 +10,7 @@
 	"descriptionmsg": "eventbus-desc",
 	"license-name": "GPL-2.0-or-later",
 	"requires": {
-		"MediaWiki": ">= 1.44"
+		"MediaWiki": ">= 1.45"
 	},
 	"AutoloadNamespaces": {
 		"MediaWiki\\Extension\\EventBus\\": "includes/"
@@ -66,7 +66,10 @@
 				"RedirectStore",
 				"PageStore"
 			],
-			"events": [ "PageRevisionUpdated", "PageDeleted" ]
+			"events": [
+				"PageRevisionUpdated",
+				"PageDeleted"
+			]
 		}
 	],
 	"HookHandlers": {
