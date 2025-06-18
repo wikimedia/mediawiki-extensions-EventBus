@@ -159,10 +159,8 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	 * @param PageRevisionUpdatedEvent $event
 	 *   The domain event carrying information about the page revision update, including
 	 *   the page ID, revision data, user identity, and edit result.
-	 *
-	 * @return void
 	 */
-	public function handlePageRevisionUpdatedEvent( PageRevisionUpdatedEvent $event ) {
+	public function handlePageRevisionUpdatedEvent( PageRevisionUpdatedEvent $event ): void {
 		if ( $this->isContentChangeCause( $event ) ) {
 			// Null edits are only useful to trigger side-effects, and would be
 			//   confusing to consumers of these events.  Since these would not be able to
@@ -230,7 +228,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	 * @throws TimestampException
 	 * @see PageChangeEventSerializer::toDeleteEvent() For the event format
 	 */
-	public function handlePageDeletedEvent( PageDeletedEvent $event ) {
+	public function handlePageDeletedEvent( PageDeletedEvent $event ): void {
 		$deletedRev = $event->getLatestRevisionBefore();
 
 		// Don't set performer in the event if this delete suppresses the page from other admins.
@@ -281,10 +279,8 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	 *
 	 * @throws InvalidArgumentException If the moved-to page could not be found
 	 *                                  using the latest page data.
-	 *
-	 * @return void
 	 */
-	public function handlePageMovedEvent( PageMovedEvent $event ) {
+	public function handlePageMovedEvent( PageMovedEvent $event ): void {
 		if ( !$event->getPageRecordAfter()->exists() ) {
 			throw new InvalidArgumentException(
 				"No page moved from '{$event->getPageRecordBefore()->getDBkey()}' "
