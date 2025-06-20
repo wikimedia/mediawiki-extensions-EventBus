@@ -98,7 +98,7 @@ class PageEntitySerializerTest extends MediaWikiUnitTestCase {
 	/**
 	 * @covers ::toArray
 	 * @covers ::formatLinkTarget
-	 * @covers ::formatWikiPageTitle
+	 * @covers ::formatPageTitle
 	 */
 	public function testToArray() {
 		$expected = [
@@ -117,7 +117,7 @@ class PageEntitySerializerTest extends MediaWikiUnitTestCase {
 	/**
 	 * @covers ::toArray
 	 * @covers ::formatLinkTarget
-	 * @covers ::formatWikiPageTitle
+	 * @covers ::formatPageTitle
 	 */
 	public function testToArrayWithRedirectTarget() {
 		$expected = [

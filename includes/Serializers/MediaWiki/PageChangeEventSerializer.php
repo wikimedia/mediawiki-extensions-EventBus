@@ -25,7 +25,6 @@ use MediaWiki\Extension\EventBus\Redirects\RedirectTarget;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Page\ProperPageIdentity;
-use MediaWiki\Page\WikiPage;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\User\User;
 use MediaWiki\WikiMap\WikiMap;
@@ -98,11 +97,15 @@ class PageChangeEventSerializer {
 	/**
 	 * Uses EventSerializer to create the mediawiki/page/change event for the given $eventAttrs
 	 * @param string $stream
-	 * @param WikiPage $wikiPage
+	 * @param ProperPageIdentity $page
 	 * @param array $eventAttrs
 	 * @return array
 	 */
-	private function toEvent( string $stream, WikiPage $wikiPage, array $eventAttrs ): array {
+	private function toEvent(
+		string $stream,
+		ProperPageIdentity $page,
+		array $eventAttrs
+	): array {
 		// NOTE: It would be better if wiki domain name was fetched and passed into createEvent,
 		// rather than forcing EventSerializer->createEvent to look up the domain itself.
 		// However, this would require changing the createEvent method signature, which is used
@@ -111,9 +114,9 @@ class PageChangeEventSerializer {
 		return $this->eventSerializer->createEvent(
 			self::PAGE_CHANGE_SCHEMA_URI,
 			$stream,
-			$this->pageEntitySerializer->canonicalPageURL( $wikiPage ),
+			$this->pageEntitySerializer->canonicalPageURL( $page ),
 			$eventAttrs,
-			self::getWikiId( $wikiPage )
+			self::getWikiId( $page )
 		);
 	}
 
@@ -150,7 +153,7 @@ class PageChangeEventSerializer {
 	 * DRY helper to set event fields common to all page change events.
 	 * @param string $page_change_kind
 	 * @param string $dt
-	 * @param WikiPage $wikiPage
+	 * @param ProperPageIdentity $page
 	 * @param User|null $performer
 	 * @param RevisionRecord|null $currentRevision
 	 * @param RedirectTarget|null $redirectTarget
@@ -160,7 +163,7 @@ class PageChangeEventSerializer {
 	private function toCommonAttrs(
 		string $page_change_kind,
 		string $dt,
-		WikiPage $wikiPage,
+		ProperPageIdentity $page,
 		?User $performer,
 		?RevisionRecord $currentRevision = null,
 		?RedirectTarget $redirectTarget = null,
@@ -170,8 +173,8 @@ class PageChangeEventSerializer {
 			'changelog_kind' => self::getChangelogKind( $page_change_kind ),
 			'page_change_kind' => $page_change_kind,
 			'dt' => $dt,
-			'wiki_id' => self::getWikiId( $wikiPage ),
-			'page' => $this->pageEntitySerializer->toArray( $wikiPage, $redirectTarget ),
+			'wiki_id' => self::getWikiId( $page ),
+			'page' => $this->pageEntitySerializer->toArray( $page, $redirectTarget ),
 		];
 
 		if ( $performer !== null ) {
@@ -190,10 +193,10 @@ class PageChangeEventSerializer {
 	}
 
 	/**
-	 * Converts from the given WikiPage and RevisionRecord to a page_change_kind: create event.
+	 * Converts from the given page and RevisionRecord to a page_change_kind: create event.
 	 *
 	 * @param string $stream
-	 * @param WikiPage $wikiPage
+	 * @param ProperPageIdentity $page
 	 * @param User $performer
 	 * @param RevisionRecord $currentRevision
 	 * @param RedirectTarget|null $redirectTarget
@@ -201,7 +204,7 @@ class PageChangeEventSerializer {
 	 */
 	public function toCreateEvent(
 		string $stream,
-		WikiPage $wikiPage,
+		ProperPageIdentity $page,
 		User $performer,
 		RevisionRecord $currentRevision,
 		?RedirectTarget $redirectTarget = null
@@ -209,21 +212,21 @@ class PageChangeEventSerializer {
 		$eventAttrs = $this->toCommonAttrs(
 			'create',
 			$this->eventSerializer->timestampToDt( $currentRevision->getTimestamp() ),
-			$wikiPage,
+			$page,
 			$performer,
 			$currentRevision,
 			$redirectTarget,
 			null
 		);
 
-		return $this->toEvent( $stream, $wikiPage, $eventAttrs );
+		return $this->toEvent( $stream, $page, $eventAttrs );
 	}
 
 	/**
-	 * Converts from the given WikiPage and RevisionRecord to a page_change_kind: edit event.
+	 * Converts from the given page and RevisionRecord to a page_change_kind: edit event.
 	 *
 	 * @param string $stream
-	 * @param WikiPage $wikiPage
+	 * @param ProperPageIdentity $page
 	 * @param User $performer
 	 * @param RevisionRecord $currentRevision
 	 * @param RedirectTarget|null $redirectTarget
@@ -232,7 +235,7 @@ class PageChangeEventSerializer {
 	 */
 	public function toEditEvent(
 		string $stream,
-		WikiPage $wikiPage,
+		ProperPageIdentity $page,
 		User $performer,
 		RevisionRecord $currentRevision,
 		?RedirectTarget $redirectTarget = null,
@@ -241,7 +244,7 @@ class PageChangeEventSerializer {
 		$eventAttrs = $this->toCommonAttrs(
 			'edit',
 			$this->eventSerializer->timestampToDt( $currentRevision->getTimestamp() ),
-			$wikiPage,
+			$page,
 			$performer,
 			$currentRevision,
 			$redirectTarget,
@@ -255,33 +258,33 @@ class PageChangeEventSerializer {
 			$eventAttrs['prior_state'] = $priorStateAttrs;
 		}
 
-		return $this->toEvent( $stream, $wikiPage, $eventAttrs );
+		return $this->toEvent( $stream, $page, $eventAttrs );
 	}
 
 	/**
-	 * Converts from the given WikiPage, RevisionRecord
+	 * Converts from the given page, RevisionRecord
 	 * and old title LinkTarget to a page_change_kind: move event.
 	 *
 	 * @param string $stream
-	 * @param WikiPage $wikiPage
+	 * @param ProperPageIdentity $page
 	 * @param User $performer
 	 * @param RevisionRecord $currentRevision
 	 * @param RevisionRecord $parentRevision
 	 * @param LinkTarget $oldTitle
 	 * @param string $reason
-	 * @param WikiPage|null $createdRedirectWikiPage
+	 * @param ProperPageIdentity|null $createdRedirectWikiPage
 	 * @param RedirectTarget|null $redirectTarget
 	 * @return array
 	 */
 	public function toMoveEvent(
 		string $stream,
-		WikiPage $wikiPage,
+		ProperPageIdentity $page,
 		User $performer,
 		RevisionRecord $currentRevision,
 		RevisionRecord $parentRevision,
 		LinkTarget $oldTitle,
 		string $reason,
-		?WikiPage $createdRedirectWikiPage = null,
+		?ProperPageIdentity $createdRedirectWikiPage = null,
 		?RedirectTarget $redirectTarget = null
 	): array {
 		$eventAttrs = $this->toCommonAttrs(
@@ -289,7 +292,7 @@ class PageChangeEventSerializer {
 			// NOTE: This uses the newly created revision's timestamp as the page move event time,
 			// for lack of a better 'move time'.
 			$this->eventSerializer->timestampToDt( $currentRevision->getTimestamp() ),
-			$wikiPage,
+			$page,
 			$performer,
 			$currentRevision,
 			$redirectTarget,
@@ -320,11 +323,11 @@ class PageChangeEventSerializer {
 
 		$eventAttrs['prior_state'] = $priorStateAttrs;
 
-		return $this->toEvent( $stream, $wikiPage, $eventAttrs );
+		return $this->toEvent( $stream, $page, $eventAttrs );
 	}
 
 	/**
-	 * Converts from the given WikiPage, RevisionRecord to a page_change_kind: delete event.
+	 * Converts from the given page, RevisionRecord to a page_change_kind: delete event.
 	 *
 	 * NOTE: If $isSuppression is true, the current revision info emitted by this even will have
 	 * all of its visibility settings set to false.
@@ -332,7 +335,7 @@ class PageChangeEventSerializer {
 	 * and revision in response to this event anyway.
 	 *
 	 * @param string $stream
-	 * @param WikiPage $wikiPage
+	 * @param ProperPageIdentity $page
 	 * @param User|null $performer
 	 * @param RevisionRecord $currentRevision
 	 * @param string $reason
@@ -348,7 +351,7 @@ class PageChangeEventSerializer {
 	 */
 	public function toDeleteEvent(
 		string $stream,
-		WikiPage $wikiPage,
+		ProperPageIdentity $page,
 		?User $performer,
 		RevisionRecord $currentRevision,
 		string $reason,
@@ -360,7 +363,7 @@ class PageChangeEventSerializer {
 		$eventAttrs = $this->toCommonAttrs(
 			'delete',
 			$this->eventSerializer->timestampToDt( $eventTimestamp ),
-			$wikiPage,
+			$page,
 			$performer,
 			$currentRevision,
 			$redirectTarget,
@@ -398,14 +401,14 @@ class PageChangeEventSerializer {
 			);
 		}
 
-		return $this->toEvent( $stream, $wikiPage, $eventAttrs );
+		return $this->toEvent( $stream, $page, $eventAttrs );
 	}
 
 	/**
-	 * Converts from the given WikiPage, RevisionRecord to a page_change_kind: undelete event.
+	 * Converts from the given page, RevisionRecord to a page_change_kind: undelete event.
 	 *
 	 * @param string $stream
-	 * @param WikiPage $wikiPage
+	 * @param ProperPageIdentity $page
 	 * @param User $performer
 	 * @param RevisionRecord $currentRevision
 	 * @param string $reason
@@ -416,7 +419,7 @@ class PageChangeEventSerializer {
 	 */
 	public function toUndeleteEvent(
 		string $stream,
-		WikiPage $wikiPage,
+		ProperPageIdentity $page,
 		User $performer,
 		RevisionRecord $currentRevision,
 		string $reason,
@@ -427,7 +430,7 @@ class PageChangeEventSerializer {
 		$eventAttrs = $this->toCommonAttrs(
 			'undelete',
 			$this->eventSerializer->timestampToDt( $eventTimestamp ),
-			$wikiPage,
+			$page,
 			$performer,
 			$currentRevision,
 			$redirectTarget,
@@ -441,7 +444,7 @@ class PageChangeEventSerializer {
 		// in the archive table.
 		// Usually page_id will be the same, but there are some historical
 		// edge cases where a new page_id is created as part of an undelete.
-		if ( $oldPageID && $oldPageID != $wikiPage->getId() ) {
+		if ( $oldPageID && $oldPageID != $page->getId() ) {
 			$eventAttrs['prior_state'] = [
 				'page' => [
 					'page_id' => $oldPageID
@@ -449,15 +452,15 @@ class PageChangeEventSerializer {
 			];
 		}
 
-		return $this->toEvent( $stream, $wikiPage, $eventAttrs );
+		return $this->toEvent( $stream, $page, $eventAttrs );
 	}
 
 	/**
-	 * Converts from the given WikiPage, RevisionRecord and previous RevisionRecord's visibility (deleted)
+	 * Converts from the given page, RevisionRecord and previous RevisionRecord's visibility (deleted)
 	 * bitfield to a page_change_kind: visibility_change event.
 	 *
 	 * @param string $stream
-	 * @param WikiPage $wikiPage
+	 * @param ProperPageIdentity $page
 	 * @param User|null $performer
 	 * @param RevisionRecord $currentRevision
 	 * @param int $priorVisibilityBitfield
@@ -466,7 +469,7 @@ class PageChangeEventSerializer {
 	 */
 	public function toVisibilityChangeEvent(
 		string $stream,
-		WikiPage $wikiPage,
+		ProperPageIdentity $page,
 		?User $performer,
 		RevisionRecord $currentRevision,
 		int $priorVisibilityBitfield,
@@ -475,7 +478,7 @@ class PageChangeEventSerializer {
 		$eventAttrs = $this->toCommonAttrs(
 			'visibility_change',
 			$this->eventSerializer->timestampToDt( $eventTimestamp ),
-			$wikiPage,
+			$page,
 			$performer,
 			$currentRevision,
 			# NOTE: ArticleRevisionVisibilitySet does not give us the 'reason' (comment)
@@ -499,6 +502,6 @@ class PageChangeEventSerializer {
 			}
 		}
 
-		return $this->toEvent( $stream, $wikiPage, $eventAttrs );
+		return $this->toEvent( $stream, $page, $eventAttrs );
 	}
 }

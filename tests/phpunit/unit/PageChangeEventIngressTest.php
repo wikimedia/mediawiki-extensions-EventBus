@@ -18,8 +18,6 @@ use MediaWiki\Page\ExistingPageRecord;
 use MediaWiki\Page\PageLookup;
 use MediaWiki\Page\ProperPageIdentity;
 use MediaWiki\Page\RedirectLookup;
-use MediaWiki\Page\WikiPage;
-use MediaWiki\Page\WikiPageFactory;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\RevisionStore;
 use MediaWiki\Storage\EditResult;
@@ -34,7 +32,6 @@ use PHPUnit\Framework\Assert;
 use Psr\Log\LoggerInterface;
 use TitleFormatter;
 use Wikimedia\ObjectFactory\ObjectFactory;
-use Wikimedia\Rdbms\IDBAccessObject;
 use Wikimedia\Timestamp\TimestampException;
 use Wikimedia\UUID\GlobalIdGenerator;
 
@@ -59,9 +56,6 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 
 	/** @var TitleFormatter */
 	private $titleFormatter;
-
-	/** @var WikiPageFactory */
-	private $wikiPageFactory;
 
 	/** @var UserFactory */
 	private $userFactory;
@@ -141,7 +135,6 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 		$this->globalIdGenerator = $this->createMock( GlobalIdGenerator::class );
 		$this->userGroupManager = $this->createMock( UserGroupManager::class );
 		$this->titleFormatter = $this->createMock( TitleFormatter::class );
-		$this->wikiPageFactory = $this->createMock( WikiPageFactory::class );
 		$this->userFactory = $this->createMock( UserFactory::class );
 		$this->revisionStore = $this->createMock( RevisionStore::class );
 
@@ -165,18 +158,19 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 		$this->titleFormatter->method( 'getPrefixedDBkey' )->willReturn( $this->pageId );
 
 		$mockRedirectTitle = $this->createMockTitle( 'RedirectPage' );
-		$mockPageTitle = $this->createMockTitle( $this->pageDBkey );
 
-		$mockWikiPage = $this->createMock( WikiPage::class );
-		$mockWikiPage->method( 'getTitle' )->willReturn( $mockPageTitle );
-		$mockWikiPage->method( 'getRedirectTarget' )->willReturn( $mockRedirectTitle );
+		$mockPageRecord = $this->createMockPageRecord(
+			$this->pageId,
+			0,
+			$this->pageDBkey
+		);
+
+		$this->pageLookup->method( 'getPageById' )
+			->with( $this->pageId )
+			->willReturn( $mockPageRecord );
 
 		$this->redirectLookup->method( 'getRedirectTarget' )
 			->willReturn( $mockRedirectTitle );
-
-		$this->wikiPageFactory->method( 'newFromID' )
-			->with( $this->pageId, IDBAccessObject::READ_LATEST )
-			->willReturn( $mockWikiPage );
 
 		$this->eventBus = $this->createMock( EventBus::class );
 
@@ -191,7 +185,6 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			$this->globalIdGenerator,
 			$this->userGroupManager,
 			$this->titleFormatter,
-			$this->wikiPageFactory,
 			$this->userFactory,
 			$this->revisionStore,
 			$this->contentHandlerFactory,

@@ -24,6 +24,8 @@ use MediaWiki\Config\Config;
 use MediaWiki\Extension\EventBus\Redirects\RedirectTarget;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Page\PageRecord;
+use MediaWiki\Page\PageReference;
+use MediaWiki\Page\ProperPageIdentity;
 use MediaWiki\Page\WikiPage;
 use MediaWiki\Title\TitleFormatter;
 
@@ -53,15 +55,18 @@ class PageEntitySerializer {
 	}
 
 	/**
-	 * @param WikiPage $wikiPage
+	 * @param ProperPageIdentity $page
 	 * @param RedirectTarget|null $redirectTarget will only be encoded if not null and pointing to an existing page
 	 * @return array
 	 */
-	public function toArray( WikiPage $wikiPage, ?RedirectTarget $redirectTarget = null ): array {
+	public function toArray(
+		ProperPageIdentity $page,
+		?RedirectTarget $redirectTarget = null
+	): array {
 		$serialized = [
-			'page_id' => $wikiPage->getId(),
-			'page_title' => $this->formatWikiPageTitle( $wikiPage ),
-			'namespace_id' => $wikiPage->getNamespace(),
+			'page_id' => $page->getId(),
+			'page_title' => $this->formatPageTitle( $page ),
+			'namespace_id' => $page->getNamespace(),
 			'is_redirect' => $redirectTarget !== null,
 		];
 		if ( $redirectTarget != null ) {
@@ -86,32 +91,44 @@ class PageEntitySerializer {
 	}
 
 	/**
-	 * Helper function to return a formatted LinkTarget (Title)
-	 * @param LinkTarget $linkTarget
+	 * Helper function to return a formatted title from a LinkTarget
+	 * or PageReference instance.
+	 *
+	 * @param LinkTarget|PageReference $title
 	 * @return string
 	 */
-	public function formatLinkTarget( LinkTarget $linkTarget ): string {
-		return $this->titleFormatter->getPrefixedDBkey( $linkTarget );
+	public function formatLinkTarget(
+		/* LinkTarget|PageReference */ $title
+	): string {
+		return $this->titleFormatter->getPrefixedDBkey( $title );
 	}
 
 	/**
 	 * Helper function to return a formatted page_title
-	 * @param WikiPage $wikiPage
+	 *
+	 * @param ProperPageIdentity $page
 	 * @return string
 	 */
-	public function formatWikiPageTitle( WikiPage $wikiPage ): string {
-		return $this->formatLinkTarget( $wikiPage->getTitle() );
+	public function formatPageTitle(
+		ProperPageIdentity $page
+	): string {
+		// FIXME: PageEntitySerializerTest explicitly asserts on
+		// a LinkTarget instance. Unwrap to WikiPage for backward compatibility.
+		$title = ( $page instanceof WikiPage ) ? $page->getTitle() : $page;
+		return $this->formatLinkTarget( $title );
 	}
 
 	/**
 	 * Helper function that creates a full page path URL
-	 * for the $wikiPage using CanonicalServer and ArticalPath from mainConfig.
+	 * for the page using CanonicalServer and ArticlePath from mainConfig.
 	 *
-	 * @param WikiPage $wikiPage
+	 * @param ProperPageIdentity $page
 	 * @return string
 	 */
-	public function canonicalPageURL( WikiPage $wikiPage ): string {
-		$titleURL = wfUrlencode( $this->formatWikiPageTitle( $wikiPage ) );
+	public function canonicalPageURL(
+		ProperPageIdentity $page
+	): string {
+		$titleURL = wfUrlencode( $this->formatPageTitle( $page ) );
 		// The ArticlePath contains '$1' string where the article title should appear.
 		return $this->mainConfig->get( 'CanonicalServer' ) .
 			str_replace( '$1', $titleURL, $this->mainConfig->get( 'ArticlePath' ) );

@@ -59,7 +59,6 @@
 				"GlobalIdGenerator",
 				"UserGroupManager",
 				"TitleFormatter",
-				"WikiPageFactory",
 				"UserFactory",
 				"RevisionStore",
 				"ContentHandlerFactory",
