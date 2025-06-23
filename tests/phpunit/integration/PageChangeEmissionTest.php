@@ -486,7 +486,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 					Assert::assertSame( $rev2, $event['revision']['rev_id'] );
 					// Performer must be omitted for suppressed revisions
 					Assert::assertFalse( $event['revision']['is_editor_visible'] );
-					Assert::assertArrayNotHasKey( 'performer', $event['page'] );
+					Assert::assertArrayNotHasKey( 'performer', $event );
 					// But content can still be visible
 					Assert::assertTrue( $event['revision']['is_content_visible'] );
 
