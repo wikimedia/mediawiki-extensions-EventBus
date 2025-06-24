@@ -8,7 +8,6 @@ use MediaWiki\Context\RequestContext;
 use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\EventFactory;
-use MediaWiki\Extension\EventBus\HookHandlers\MediaWiki\PageChangeHooks;
 use MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Page\ProperPageIdentity;
@@ -20,7 +19,7 @@ use PHPUnit\Framework\Assert;
 use RevisionDeleter;
 
 /**
- * @covers \MediaWiki\Extension\EventBus\HookHandlers\MediaWiki\PageChangeHooks
+ * @covers \MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress
  * @group Database
  * @group EventBus
  */
@@ -195,8 +194,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	}
 
 	/**
-	 * Data provider for tests that need to assert against both
-	 * Hooks and Domain Event Ingress code paths.
+	 * Data provider for Domain Event Ingress code paths.
 	 *
 	 * Provides stream name constants for testing different event
 	 * processing pathways for `page_change` record serialization.
@@ -205,7 +203,6 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	 */
 	private static function provideStreamName(): array {
 		return [
-		"Test Hooks code paths" => [ PageChangeHooks::PAGE_CHANGE_STREAM_NAME_DEFAULT ],
 		"Test Domain Event code paths" =>
 			[ PageChangeEventIngress::PAGE_CHANGE_STREAM_NAME_DEFAULT ]
 		];
@@ -288,7 +285,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		$this->undeletePageAndAssertEvent(
 			$page,
 			$pageTitle,
-			PageChangeHooks::PAGE_CHANGE_STREAM_NAME_DEFAULT
+			$streamName
 		);
 
 		$this->runDeferredUpdates();
@@ -298,7 +295,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		ProperPageIdentity $page,
 		Title $pageTitle,
 		string $streamName
-	) {
+	): void {
 		$sendCallback = function ( $events ) use ( $page ) {
 			foreach ( $events as $event ) {
 				self::assertPageChangeKindIsDelete( $event );
@@ -321,7 +318,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		ProperPageIdentity $page,
 		Title $pageTitle,
 		string $streamName
-	) {
+	): void {
 		$sendCallback = static function ( $events ) use ( $page ) {
 			foreach ( $events as $event ) {
 				self::assertPageChangeKindIsUndelete( $event );
@@ -556,7 +553,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		Title $redirectTargetTitle,
 		string $streamName,
 		int $expectedNumberOfEvents = 1
-	) {
+	): void {
 		// Delete the page
 		$page = $this->getExistingTestPage( $deletedPageTitle );
 
@@ -648,7 +645,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	private static function assertIsValidPageChangePageIdentity(
 		ProperPageIdentity $page,
 		array $event
-	) {
+	): void {
 		Assert::assertEquals( $page->getId(), $event['page']['page_id'] );
 	}
 

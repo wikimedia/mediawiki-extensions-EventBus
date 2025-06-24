@@ -1,6 +1,6 @@
 <?php
 
-use MediaWiki\Extension\EventBus\HookHandlers\MediaWiki\PageChangeHooks;
+use MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress;
 use MediaWiki\Extension\EventBus\Redirects\RedirectTarget;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Page\ExistingPageRecord;
@@ -12,7 +12,7 @@ use PHPUnit\Framework\MockObject\MockObject;
 include __DIR__ . '/DBKeyLookupStub.php';
 
 /**
- * @coversDefaultClass \MediaWiki\Extension\EventBus\HookHandlers\MediaWiki\PageChangeHooks
+ * @coversDefaultClass \MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress
  * @group EventBus
  */
 class RedirectTargetLookupTest extends MediaWikiUnitTestCase {
@@ -35,35 +35,38 @@ class RedirectTargetLookupTest extends MediaWikiUnitTestCase {
 	}
 
 	/**
-	 * @covers \MediaWiki\Extension\EventBus\HookHandlers\MediaWiki\PageChangeHooks::lookupRedirectTarget
+	 * @covers \MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress::lookupRedirectTarget
 	 */
 	public function testReturnNullForRegularWikiPage() {
 		$sourcePage = $this->createWikiPage( self::asDBKey( "Not a Redirect" ) );
 		$redirectTarget =
-			PageChangeHooks::lookupRedirectTarget( $sourcePage, $this->pageLookup, $this->redirectLookup );
+			PageChangeEventIngress::lookupRedirectTarget( $sourcePage, $this->pageLookup,
+				$this->redirectLookup );
 		$this->assertNull( $redirectTarget );
 	}
 
 	/**
-	 * @covers \MediaWiki\Extension\EventBus\HookHandlers\MediaWiki\PageChangeHooks::lookupRedirectTarget
+	 * @covers \MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress::lookupRedirectTarget
 	 */
 	public function testReturnNullForNonExistingSourcePage() {
 		$sourcePage = $this->createWikiPage( self::asDBKey( "Not a Redirect" ) );
 		unset( $this->source2SourcePageRecordMap[$sourcePage->getDBkey()] );
 		$redirectTarget =
-			PageChangeHooks::lookupRedirectTarget( $sourcePage, $this->pageLookup, $this->redirectLookup );
+			PageChangeEventIngress::lookupRedirectTarget( $sourcePage, $this->pageLookup,
+				$this->redirectLookup );
 		$this->assertNull( $redirectTarget );
 	}
 
 	/**
-	 * @covers \MediaWiki\Extension\EventBus\HookHandlers\MediaWiki\PageChangeHooks::lookupRedirectTarget
+	 * @covers \MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress::lookupRedirectTarget
 	 */
 	public function testReturnNullForImproperSourcePage() {
 		$sourcePage = $this->createWikiPage( self::asDBKey( "Not a Redirect" ) );
 		$invalidArgumentException = new InvalidArgumentException( "Not a proper page" );
 		$this->source2SourcePageRecordMap[$sourcePage->getDBkey()] = $invalidArgumentException;
 		try {
-			PageChangeHooks::lookupRedirectTarget( $sourcePage, $this->pageLookup, $this->redirectLookup );
+			PageChangeEventIngress::lookupRedirectTarget( $sourcePage, $this->pageLookup,
+				$this->redirectLookup );
 			$this->fail( "Expected lookup to fail because of $invalidArgumentException" );
 		} catch ( InvalidArgumentException $e ) {
 			$this->assertEquals( $e, $invalidArgumentException );
@@ -71,14 +74,15 @@ class RedirectTargetLookupTest extends MediaWikiUnitTestCase {
 	}
 
 	/**
-	 * @covers \MediaWiki\Extension\EventBus\HookHandlers\MediaWiki\PageChangeHooks::lookupRedirectTarget
+	 * @covers \MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress::lookupRedirectTarget
 	 */
 	public function testRedirectToExistingLocalPage() {
 		$targetPage = $this->createWikiPage( self::asDBKey( "Target Page" ) );
 		$redirectPage = $this->createWikiPage( self::asDBKey( "Target Page Redirect" ), $targetPage );
 
 		$redirectTarget =
-			PageChangeHooks::lookupRedirectTarget( $redirectPage, $this->pageLookup, $this->redirectLookup );
+			PageChangeEventIngress::lookupRedirectTarget( $redirectPage, $this->pageLookup,
+				$this->redirectLookup );
 
 		$this->assertNotNull( $redirectTarget );
 		$this->assertInstanceOf( RedirectTarget::class, $redirectTarget );
@@ -87,7 +91,7 @@ class RedirectTargetLookupTest extends MediaWikiUnitTestCase {
 	}
 
 	/**
-	 * @covers \MediaWiki\Extension\EventBus\HookHandlers\MediaWiki\PageChangeHooks::lookupRedirectTarget
+	 * @covers \MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress::lookupRedirectTarget
 	 */
 	public function testRedirectToExternalPage() {
 		$targetPage = $this->createWikiPage( self::asDBKey( "External Target Page" ) );
@@ -96,7 +100,8 @@ class RedirectTargetLookupTest extends MediaWikiUnitTestCase {
 		$redirectPage = $this->createWikiPage( self::asDBKey( "Target Page Redirect" ), $targetPage );
 
 		$redirectTarget =
-			PageChangeHooks::lookupRedirectTarget( $redirectPage, $this->pageLookup, $this->redirectLookup );
+			PageChangeEventIngress::lookupRedirectTarget( $redirectPage, $this->pageLookup,
+				$this->redirectLookup );
 
 		$this->assertNotNull( $redirectTarget );
 		$this->assertInstanceOf( RedirectTarget::class, $redirectTarget );
@@ -104,12 +109,12 @@ class RedirectTargetLookupTest extends MediaWikiUnitTestCase {
 	}
 
 	/**
-	 * @covers \MediaWiki\Extension\EventBus\HookHandlers\MediaWiki\PageChangeHooks::lookupRedirectTarget
+	 * @covers \MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress::lookupRedirectTarget
 	 */
 	public function testRegularPage() {
 		$otherPage = $this->createWikiPage( self::asDBKey( "Other Page" ) );
-		$this->assertNull(
-			PageChangeHooks::lookupRedirectTarget( $otherPage, $this->pageLookup, $this->redirectLookup )
+		$this->assertNull( PageChangeEventIngress::lookupRedirectTarget( $otherPage,
+			$this->pageLookup, $this->redirectLookup )
 		);
 	}
 

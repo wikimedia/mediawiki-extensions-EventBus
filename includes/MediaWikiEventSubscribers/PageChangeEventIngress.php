@@ -1,4 +1,24 @@
 <?php
+/**
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * http://www.gnu.org/copyleft/gpl.html
+ *
+ * @file
+ * @author Andrew Otto <otto@wikimedia.org>
+ * @author Gabriele Modena <gmodena@wikimedia.org>
+ */
 
 declare( strict_types = 1 );
 
@@ -11,7 +31,6 @@ use MediaWiki\Content\ContentHandlerFactory;
 use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\DomainEvent\DomainEventIngress;
 use MediaWiki\Extension\EventBus\EventBusFactory;
-use MediaWiki\Extension\EventBus\HookHandlers\MediaWiki\PageChangeHooks;
 use MediaWiki\Extension\EventBus\Redirects\RedirectTarget;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageChangeEventSerializer;
@@ -33,7 +52,9 @@ use MediaWiki\Page\Event\PageMovedListener;
 use MediaWiki\Page\Event\PageRevisionUpdatedEvent;
 use MediaWiki\Page\Event\PageRevisionUpdatedListener;
 use MediaWiki\Page\PageLookup;
+use MediaWiki\Page\PageReference;
 use MediaWiki\Page\RedirectLookup;
+use MediaWiki\Page\WikiPage;
 use MediaWiki\Revision\RevisionStore;
 use MediaWiki\Storage\PageUpdateCauses;
 use MediaWiki\Title\TitleFormatter;
@@ -53,7 +74,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	PageCreatedListener,
 	PageHistoryVisibilityChangedListener
 {
-	public const PAGE_CHANGE_STREAM_NAME_DEFAULT = "mediawiki.page_change.staging.v1";
+	public const PAGE_CHANGE_STREAM_NAME_DEFAULT = "mediawiki.page_change.v1";
 
 	/**
 	 * Name of the stream that events will be produced to.
@@ -135,6 +156,56 @@ class PageChangeEventIngress extends DomainEventIngress implements
 		$this->pageLookup = $pageLookup;
 	}
 
+	/**
+	 * Returns a redirect target of supplied {@link PageReference}, if any.
+	 *
+	 * If the page reference does not represent a redirect, `null` is returned.
+	 *
+	 * See {@link RedirectTarget} for the meaning of its properties.
+	 *
+	 * TODO visible for testing only, move into RedirectLookup?
+	 *
+	 * @param PageReference $page
+	 * @param PageLookup $pageLookup
+	 * @param RedirectLookup $redirectLookup
+	 * @return RedirectTarget|null
+	 * @see RedirectTarget
+	 */
+	public static function lookupRedirectTarget(
+		PageReference $page, PageLookup $pageLookup, RedirectLookup $redirectLookup
+	): ?RedirectTarget {
+		if ( $page instanceof WikiPage ) {
+			// RedirectLookup doesn't support reading from the primary db, but we
+			// need the value from the new edit. Fetch directly through WikiPage which
+			// was updated with the new value as part of saving the new revision.
+			$redirectLinkTarget = $page->getRedirectTarget();
+		} else {
+			$redirectSourcePageReference =
+				$pageLookup->getPageByReference( $page,
+					\Wikimedia\Rdbms\IDBAccessObject::READ_LATEST );
+
+			$redirectLinkTarget =
+				$redirectSourcePageReference != null && $redirectSourcePageReference->isRedirect()
+					? $redirectLookup->getRedirectTarget( $redirectSourcePageReference ) : null;
+		}
+
+		if ( $redirectLinkTarget != null ) {
+			if ( !$redirectLinkTarget->isExternal() ) {
+				try {
+					$redirectTargetPage = $pageLookup->getPageForLink( $redirectLinkTarget );
+
+					return new RedirectTarget( $redirectLinkTarget, $redirectTargetPage );
+				} catch ( InvalidArgumentException $e ) {
+					// silently ignore failed lookup, they are expected for anything but page targets
+				}
+			}
+
+			return new RedirectTarget( $redirectLinkTarget );
+		}
+
+		return null;
+	}
+
 	private function sendEvents(
 		string $streamName,
 		array $events
@@ -174,9 +245,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 			$revisionRecord = $event->getLatestRevisionAfter();
 
 			$redirectTarget =
-				PageChangeHooks::lookupRedirectTarget(
-					$event->getPage(),
-					$this->pageLookup,
+				self::lookupRedirectTarget( $event->getPage(), $this->pageLookup,
 					$this->redirectLookup );
 
 			$pageChangeEvent = $event->isCreation()
@@ -291,11 +360,9 @@ class PageChangeEventIngress extends DomainEventIngress implements
 
 		$performer = $this->userFactory->newFromUserIdentity( $event->getPerformer() );
 
-		$redirectTarget = PageChangeHooks::lookupRedirectTarget(
-			$event->getPageRecordAfter(),
-			$this->pageLookup,
-			$this->redirectLookup
-		);
+		$redirectTarget =
+			self::lookupRedirectTarget( $event->getPageRecordAfter(), $this->pageLookup,
+				$this->redirectLookup );
 
 		// The parentRevision is needed since a page move creates a new revision.
 		$revision = $this->revisionStore->getRevisionById(
@@ -330,11 +397,9 @@ class PageChangeEventIngress extends DomainEventIngress implements
 		if ( $event->getCause() === PageUpdateCauses::CAUSE_UNDELETE ) {
 			$performer = $this->userFactory->newFromUserIdentity( $event->getPerformer() );
 
-			$redirectTarget = PageChangeHooks::lookupRedirectTarget(
-				$event->getPageRecordAfter(),
-				$this->pageLookup,
-				$this->redirectLookup
-			);
+			$redirectTarget =
+				self::lookupRedirectTarget( $event->getPageRecordAfter(), $this->pageLookup,
+					$this->redirectLookup );
 
 			// TODO: replace with $event->getPageRecordBefore()?->getId();
 			//  once EventBus CI fully adopts php 8.

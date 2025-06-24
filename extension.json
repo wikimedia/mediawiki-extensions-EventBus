@@ -69,23 +69,6 @@
 		}
 	],
 	"HookHandlers": {
-		"mediawiki_page_change": {
-			"class": "MediaWiki\\Extension\\EventBus\\HookHandlers\\MediaWiki\\PageChangeHooks",
-			"services": [
-				"EventBus.EventBusFactory",
-				"EventBus.StreamNameMapper",
-				"MainConfig",
-				"GlobalIdGenerator",
-				"UserGroupManager",
-				"TitleFormatter",
-				"WikiPageFactory",
-				"UserFactory",
-				"RevisionStore",
-				"ContentHandlerFactory",
-				"RedirectStore",
-				"PageStore"
-			]
-		},
 		"mediawiki_campaign_change": {
 			"class": "MediaWiki\\Extension\\EventBus\\HookHandlers\\MediaWiki\\CampaignChangeHooks",
 			"services": [
@@ -104,27 +87,21 @@
 	},
 	"Hooks": {
 		"PageSaveComplete": [
-			"main",
-			"mediawiki_page_change"
+			"main"
 		],
 		"PageMoveComplete": [
-			"main",
-			"mediawiki_page_change"
+			"main"
 		],
 		"PageDelete": [
-			"mediawiki_page_change"
 		],
 		"PageDeleteComplete": [
-			"main",
-			"mediawiki_page_change"
+			"main"
 		],
 		"PageUndeleteComplete": [
-			"main",
-			"mediawiki_page_change"
+			"main"
 		],
 		"ArticleRevisionVisibilitySet": [
-			"main",
-			"mediawiki_page_change"
+			"main"
 		],
 		"ArticlePurge": "main",
 		"BlockIpComplete": "main",

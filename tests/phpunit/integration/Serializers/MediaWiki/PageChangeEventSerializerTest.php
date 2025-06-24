@@ -529,13 +529,6 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		$revisionRecord->setVisibility( RevisionRecord::DELETED_COMMENT | RevisionRecord::DELETED_USER );
 		$newDeleted = $revisionRecord->getVisibility();
 
-		// NOTE: This is the logic that PageChangeHooks uses to decide if performer
-		// should be in the event.  We don't have a great integration test for hooks
-		// right now.
-		// If we make one, this test should be moved there, so the actual code is tested.
-		$performerForEvent = $newDeleted & RevisionRecord::DELETED_RESTRICTED ?
-			null : $this->getTestUser()->getUser();
-
 		// NOTE: This is the logic that EventBusHooks uses to decide if performer
 		// should be in the event.  We don't have a great integration test for hooks
 		// right now.
