@@ -56,7 +56,7 @@ class RevisionSlotEntitySerializer {
 			try {
 				$contentHandler = $this->contentHandlerFactory->getContentHandler( $contentModel );
 				$contentFormat = $contentHandler->getDefaultFormat();
-			} catch ( MWUnknownContentModelException $e ) {
+			} catch ( MWUnknownContentModelException ) {
 				// Ignore, `content_format` is not required.
 			}
 		}

@@ -222,7 +222,7 @@ class EventFactory {
 		if ( $contentFormat === null ) {
 			try {
 				$contentFormat = $this->contentHandlerFactory->getContentHandler( $contentModel )->getDefaultFormat();
-			} catch ( MWUnknownContentModelException $e ) {
+			} catch ( MWUnknownContentModelException ) {
 				// Ignore, the `rev_content_format` is not required.
 			}
 		}
@@ -246,7 +246,7 @@ class EventFactory {
 			} else {
 				$attrs['page_is_redirect'] = false;
 			}
-		} catch ( SuppressedDataException $e ) {
+		} catch ( SuppressedDataException ) {
 			$attrs['page_is_redirect'] = false;
 		}
 
@@ -643,7 +643,7 @@ class EventFactory {
 			if ( $content !== null ) {
 				$newPageIsRedirect = $content->isRedirect();
 			}
-		} catch ( SuppressedDataException $e ) {
+		} catch ( SuppressedDataException ) {
 		}
 
 		$attrs = [

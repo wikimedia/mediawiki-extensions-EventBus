@@ -195,7 +195,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 					$redirectTargetPage = $pageLookup->getPageForLink( $redirectLinkTarget );
 
 					return new RedirectTarget( $redirectLinkTarget, $redirectTargetPage );
-				} catch ( InvalidArgumentException $e ) {
+				} catch ( InvalidArgumentException ) {
 					// silently ignore failed lookup, they are expected for anything but page targets
 				}
 			}
