@@ -31,11 +31,13 @@
 
 namespace MediaWiki\Extensions\EventBus\Maintenance;
 
+// @codeCoverageIgnoreStart
 $IP = getenv( 'MW_INSTALL_PATH' );
 if ( $IP === false ) {
 	$IP = __DIR__ . '/../../..';
 }
 require_once "$IP/maintenance/Maintenance.php";
+// @codeCoverageIgnoreEnd
 
 use Exception;
 use MediaWiki\Extension\EventBus\JobExecutor;
