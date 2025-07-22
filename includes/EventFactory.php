@@ -326,6 +326,8 @@ class EventFactory {
 	 * @param array $attrs
 	 * @param string|null $wiki wikiId if provided
 	 * @param string|null $dt
+	 *        Deprecated. This parameter is unused.
+	 *        https://phabricator.wikimedia.org/T267648
 	 * @return array $attrs + meta sub object
 	 */
 	public function createEvent(
@@ -359,7 +361,6 @@ class EventFactory {
 				'uri'        => $uri,
 				'request_id' => $this->telemetry->getRequestId(),
 				'id'         => $gen->newUUIDv4(),
-				'dt'         => $dt ?? wfTimestamp( TS_ISO_8601 ),
 				'domain'     => $domain,
 				'stream'     => $stream,
 			],
@@ -1090,12 +1091,6 @@ class EventFactory {
 			$stream,
 			$attrs
 		);
-
-		// If timestamp exists on the recentchange event (it should),
-		// then use it as the meta.dt event datetime.
-		if ( array_key_exists( 'timestamp', $event ) ) {
-			$event['meta']['dt'] = wfTimestamp( TS_ISO_8601, $event['timestamp'] );
-		}
 
 		return $event;
 	}
