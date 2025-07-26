@@ -1,6 +1,6 @@
 <?php
 
-namespace phpunit\integration;
+namespace MediaWiki\Extension\EventBus\Tests\Integration;
 
 use InvalidArgumentException;
 use MediaWiki\CommentFormatter\CommentFormatter;

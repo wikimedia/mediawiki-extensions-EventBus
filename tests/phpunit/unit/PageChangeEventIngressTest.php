@@ -1,6 +1,6 @@
 <?php
 
-namespace phpunit\unit;
+namespace MediaWiki\Extension\EventBus\Tests\Unit;
 
 use MediaWiki\Config\Config;
 use MediaWiki\Config\SiteConfiguration;
