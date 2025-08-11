@@ -10,8 +10,6 @@ use MediaWiki\RecentChanges\RecentChange;
 /**
  * Augments the RecentChange object for use with the EventBus service, and then
  * formats it into a JSON string.
- *
- * @extends MachineReadableRCFeedFormatter
  */
 class EventBusRCFeedFormatter extends MachineReadableRCFeedFormatter {
 	/**
