@@ -25,6 +25,7 @@ use MediaWiki\Storage\EditResult;
 use MediaWiki\Storage\PageUpdateCauses;
 use MediaWiki\Storage\RevisionSlotsUpdate;
 use MediaWiki\Title\Title;
+use MediaWiki\User\CentralId\CentralIdLookup;
 use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
 use MediaWiki\User\UserIdentity;
@@ -77,6 +78,9 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 
 	/** @var PageLookup */
 	private $pageLookup;
+
+	/** @var CentralIdLookup */
+	private $centralIdLookup;
 
 	/**
 	 * @var EventBus
@@ -141,6 +145,7 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 		$this->titleFormatter = $this->createMock( TitleFormatter::class );
 		$this->userFactory = $this->createMock( UserFactory::class );
 		$this->revisionStore = $this->createMock( RevisionStore::class );
+		$this->centralIdLookup = $this->createMock( CentralIdLookup::class );
 
 		$objectFactory = $this->createMock( ObjectFactory::class );
 		$hookContainer = $this->createMock( HookContainer::class );
@@ -151,10 +156,12 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 				return $this->createMock( $spec['class'] );
 			} );
 
-		$this->contentHandlerFactory = new ContentHandlerFactory( $handlerSpecs,
+		$this->contentHandlerFactory = new ContentHandlerFactory(
+			$handlerSpecs,
 			$objectFactory,
 			$hookContainer,
-			$logger );
+			$logger
+		);
 
 		$this->redirectLookup = $this->createMock( RedirectLookup::class );
 		$this->pageLookup = $this->createMock( PageLookup::class );
@@ -198,9 +205,10 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			'revisionStore' => $this->revisionStore ?? $this->createMock( RevisionStore::class ),
 			'contentHandlerFactory' => $this->contentHandlerFactory ?? $this->createMock(
 				IContentHandlerFactory::class
-				),
+			),
 			'redirectLookup' => $this->redirectLookup ?? $this->createMock( RedirectLookup::class ),
-			'pageLookup' => $this->pageLookup ?? $this->createMock( PageLookup::class )
+			'pageLookup' => $this->pageLookup ?? $this->createMock( PageLookup::class ),
+			'centralIdLookup' => $this->centralIdLookup ?? $this->createMock( CentralIdLookup::class ),
 		];
 		$deps = array_merge( $defaults, $overrides );
 		return new PageChangeEventIngress(
@@ -214,7 +222,8 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			$deps['revisionStore'],
 			$deps['contentHandlerFactory'],
 			$deps['redirectLookup'],
-			$deps['pageLookup']
+			$deps['pageLookup'],
+			$deps['centralIdLookup'],
 		);
 	}
 
@@ -432,9 +441,11 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 
 				$event = $events[0];
 
-				Assert::assertArrayHasKey( 'performer',
+				Assert::assertArrayHasKey(
+					'performer',
 					$event,
-					'Suppressed deletion should include performer information' );
+					'Suppressed deletion should include performer information'
+				);
 			} );
 
 		$listener = $this->newListenerWithOverrides();
@@ -477,9 +488,11 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 
 				$event = $events[0];
 
-				Assert::assertArrayNotHasKey( 'performer',
+				Assert::assertArrayNotHasKey(
+					'performer',
 					$event,
-					'Suppressed deletion should not include performer information' );
+					'Suppressed deletion should not include performer information'
+				);
 			} );
 
 		$listener = $this->newListenerWithOverrides();
@@ -497,13 +510,15 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 		$performer->method( 'getId' )->willReturn( 555 );
 
 		$pageRecordBefore = $this->createMockPageRecord( 456, 0, 'OldTitle', true, [ 'getLatest' => 7889 ] );
-		$pageRecordAfter = $this->createMockPageRecord( 456,
+		$pageRecordAfter = $this->createMockPageRecord(
+			456,
 			0,
 			'NewTitle',
 			true, [
 				'exists' => true,
 				'getLatest' => 7890
-			] );
+			]
+		);
 		$redirectPage = null;
 
 		$event = new PageMovedEvent(
@@ -551,10 +566,12 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 		$performer = $this->createMock( UserIdentity::class );
 
 		$pageRecordBefore = $this->createMockPageRecord( 456, 0, 'OldTitle' );
-		$pageRecordAfter = $this->createMockPageRecord( 457,
+		$pageRecordAfter = $this->createMockPageRecord(
+			457,
 			0,
 			'NewTitle',
-			true, [ 'exists' => false ] );
+			true, [ 'exists' => false ]
+		);
 
 		$event = $this->createMock( PageMovedEvent::class );
 		$event->method( 'getPageRecordBefore' )->willReturn( $pageRecordBefore );

@@ -9,6 +9,7 @@ use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\EventFactory;
 use MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress;
+use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageChangeEventSerializer;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Page\ProperPageIdentity;
 use MediaWiki\Revision\RevisionRecord;
@@ -203,8 +204,8 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	 */
 	private static function provideStreamName(): array {
 		return [
-		"Test Domain Event code paths" =>
-			[ PageChangeEventIngress::PAGE_CHANGE_STREAM_NAME_DEFAULT ]
+			"Test Domain Event code paths" =>
+				[ PageChangeEventIngress::PAGE_CHANGE_STREAM_NAME_DEFAULT ]
 		];
 	}
 
@@ -633,7 +634,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 
 	private static function assertIsValidPageChangeSchemaAndWiki( array $event ): void {
 		Assert::assertEquals( WikiMap::getCurrentWikiId(), $event['wiki_id'] );
-		Assert::assertEquals( '/mediawiki/page/change/1.2.0', $event['$schema'] );
+		Assert::assertEquals( PageChangeEventSerializer::PAGE_CHANGE_SCHEMA_URI, $event['$schema'] );
 	}
 
 	private static function assertIsValidPageChangePage( array $event, Title $pageTitle, int $ns ): void {
@@ -757,50 +758,76 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		);
 
 		Assert::assertArrayHasKey( "prior_state", $destinationEvent );
-		Assert::assertSame( $sourceEvent['page']['page_title'],
-			$destinationEvent['prior_state']['page']['page_title'] );
-		Assert::assertSame( $sourceEvent['page']['namespace_id'],
-			$destinationEvent['prior_state']['page']['namespace_id'] );
+		Assert::assertSame(
+			$sourceEvent['page']['page_title'],
+			$destinationEvent['prior_state']['page']['page_title']
+		);
+		Assert::assertSame(
+			$sourceEvent['page']['namespace_id'],
+			$destinationEvent['prior_state']['page']['namespace_id']
+		);
 
 		// The moved page carries information about the parent revision's prior state.
 		// Some fields. like edit_count of an editor subkey, might diverge. Here we explicitly
 		// assert on
 		// the fields explicitly set by the `PageChangeEventSerializer::toMoveEvent` method.
 
-		Assert::assertSame( $sourceEvent['revision']['rev_id'],
-			$destinationEvent['prior_state']['revision']['rev_id'] );
+		Assert::assertSame(
+			$sourceEvent['revision']['rev_id'],
+			$destinationEvent['prior_state']['revision']['rev_id']
+		);
 
-		Assert::assertSame( $sourceEvent['revision']['rev_dt'],
-			$destinationEvent['prior_state']['revision']['rev_dt'] );
+		Assert::assertSame(
+			$sourceEvent['revision']['rev_dt'],
+			$destinationEvent['prior_state']['revision']['rev_dt']
+		);
 
-		Assert::assertSame( $sourceEvent['revision']['is_minor_edit'],
-			$destinationEvent['prior_state']['revision']['is_minor_edit'] );
+		Assert::assertSame(
+			$sourceEvent['revision']['is_minor_edit'],
+			$destinationEvent['prior_state']['revision']['is_minor_edit']
+		);
 
-		Assert::assertSame( $sourceEvent['revision']['rev_sha1'],
-			$destinationEvent['prior_state']['revision']['rev_sha1'] );
+		Assert::assertSame(
+			$sourceEvent['revision']['rev_sha1'],
+			$destinationEvent['prior_state']['revision']['rev_sha1']
+		);
 
-		Assert::assertSame( $sourceEvent['revision']['rev_size'],
-			$destinationEvent['prior_state']['revision']['rev_size'] );
+		Assert::assertSame(
+			$sourceEvent['revision']['rev_size'],
+			$destinationEvent['prior_state']['revision']['rev_size']
+		);
 
 		if ( isset( $sourceEvent['revision']['comment'] ) ) {
-			Assert::assertSame( $sourceEvent['revision']['comment'],
-				$destinationEvent['prior_state']['revision']['comment'] );
+			Assert::assertSame(
+				$sourceEvent['revision']['comment'],
+				$destinationEvent['prior_state']['revision']['comment']
+			);
 		}
-		Assert::assertSame( $sourceEvent['revision']['editor']['is_temp'],
-			$destinationEvent['prior_state']['revision']['editor']['is_temp'] );
+		Assert::assertSame(
+			$sourceEvent['revision']['editor']['is_temp'],
+			$destinationEvent['prior_state']['revision']['editor']['is_temp']
+		);
 
-		Assert::assertSame( $sourceEvent['revision']['editor']['user_id'],
-			$destinationEvent['prior_state']['revision']['editor']['user_id'] );
+		Assert::assertSame(
+			$sourceEvent['revision']['editor']['user_id'],
+			$destinationEvent['prior_state']['revision']['editor']['user_id']
+		);
 
-		Assert::assertSame( $sourceEvent['revision']['editor']['edit_count'],
-			$destinationEvent['prior_state']['revision']['editor']['edit_count'] - 1 );
+		Assert::assertSame(
+			$sourceEvent['revision']['editor']['edit_count'],
+			$destinationEvent['prior_state']['revision']['editor']['edit_count'] - 1
+		);
 
-		Assert::assertSame( $sourceEvent['revision']['editor']['registration_dt'],
-			$destinationEvent['prior_state']['revision']['editor']['registration_dt'] );
+		Assert::assertSame(
+			$sourceEvent['revision']['editor']['registration_dt'],
+			$destinationEvent['prior_state']['revision']['editor']['registration_dt']
+		);
 
 		if ( isset( $sourceEvent['revision']['content_slots'] ) ) {
-			Assert::assertSame( $sourceEvent['revision']['content_slots'],
-				$destinationEvent['prior_state']['revision']['content_slots'] );
+			Assert::assertSame(
+				$sourceEvent['revision']['content_slots'],
+				$destinationEvent['prior_state']['revision']['content_slots']
+			);
 		}
 	}
 }

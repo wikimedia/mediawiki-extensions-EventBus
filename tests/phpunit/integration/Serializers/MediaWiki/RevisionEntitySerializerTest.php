@@ -45,7 +45,8 @@ class RevisionEntitySerializerTest extends MediaWikiIntegrationTestCase {
 
 		$this->userEntitySerializer = new UserEntitySerializer(
 			$this->getServiceContainer()->getUserFactory(),
-			$this->getServiceContainer()->getUserGroupManager()
+			$this->getServiceContainer()->getUserGroupManager(),
+			$this->getServiceContainer()->getCentralIdLookup(),
 		);
 
 		$this->contentEntitySerializer = new RevisionSlotEntitySerializer(

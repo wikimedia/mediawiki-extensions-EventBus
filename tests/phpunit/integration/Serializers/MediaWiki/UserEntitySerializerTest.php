@@ -2,6 +2,7 @@
 
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
+use MediaWiki\MainConfigNames;
 use MediaWiki\User\UserIdentityValue;
 
 /**
@@ -49,10 +50,18 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 			return;
 		}
 
+		$this->overrideConfigValues( [
+			// We don't want to test specifically the CentralAuth implementation
+			// of the CentralIdLookup. As such, force it to be the local provider.
+			MainConfigNames::CentralIdLookupProvider => 'local',
+		] );
+
 		$userFactory = $this->getServiceContainer()->getUserFactory();
+		$centralIdLookup = $this->getServiceContainer()->getCentralIdLookup();
 		$this->userEntitySerializer = new UserEntitySerializer(
 			$userFactory,
-			$this->getServiceContainer()->getUserGroupManager()
+			$this->getServiceContainer()->getUserGroupManager(),
+			$centralIdLookup
 		);
 		// This is stupid workaround that allows us to declare a dataProider with
 		// the arguments initialized dynamically using getServiceContainer.
@@ -93,7 +102,8 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 					'is_temp' => false,
 					'user_id' => $regUser->getId(),
 					'registration_dt' => EventSerializer::timestampToDt( $regUser->getRegistration() ),
-					'edit_count' => $regUser->getEditCount()
+					'edit_count' => $regUser->getEditCount(),
+					'user_central_id' => $centralIdLookup->centralIdFromLocalUser( $regUser ),
 				]
 			],
 		];

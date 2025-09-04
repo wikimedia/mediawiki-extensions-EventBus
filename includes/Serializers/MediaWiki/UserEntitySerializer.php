@@ -18,9 +18,11 @@
  * @file
  * @author Andrew Otto <otto@wikimedia.org>
  */
+
 namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
+use MediaWiki\User\CentralId\CentralIdLookup;
 use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
 use MediaWiki\User\UserIdentity;
@@ -39,8 +41,14 @@ class UserEntitySerializer {
 	private UserFactory $userFactory;
 
 	/**
+	 * @var CentralIdLookup
+	 */
+	private CentralIdLookup $centralIdLookup;
+
+	/**
 	 * @param UserFactory $userFactory
 	 * @param UserGroupManager $userGroupManager
+	 * @param CentralIdLookup $centralIdLookup
 	 */
 	public function __construct(
 		// NOTE: It would be better not to need a UserFactory
@@ -50,10 +58,12 @@ class UserEntitySerializer {
 		// and the correct way to convert a UserIdentity to a User is with a UserFactory.
 		// So either we need a UserFactory here, or in RevisionEntitySerializer.  It is more useful here.
 		UserFactory $userFactory,
-		UserGroupManager $userGroupManager
+		UserGroupManager $userGroupManager,
+		CentralIdLookup $centralIdLookup,
 	) {
 		$this->userFactory = $userFactory;
 		$this->userGroupManager = $userGroupManager;
+		$this->centralIdLookup = $centralIdLookup;
 	}
 
 	/**
@@ -84,6 +94,12 @@ class UserEntitySerializer {
 		}
 		if ( $user->isRegistered() ) {
 			$userAttrs['edit_count'] = $user->getEditCount();
+		}
+
+		// NOTE: centralIdFromLocalUser() returns 0 if the user's central id can't be obtained
+		$centralUserId = $this->centralIdLookup->centralIdFromLocalUser( $user );
+		if ( $centralUserId ) {
+			$userAttrs['user_central_id'] = $centralUserId;
 		}
 
 		return $userAttrs;

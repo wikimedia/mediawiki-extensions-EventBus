@@ -20,7 +20,7 @@
  * @author Gabriele Modena <gmodena@wikimedia.org>
  */
 
-declare( strict_types = 1 );
+declare( strict_types=1 );
 
 namespace MediaWiki\Extension\EventBus\MediaWikiEventSubscribers;
 
@@ -58,6 +58,7 @@ use MediaWiki\Page\WikiPage;
 use MediaWiki\Revision\RevisionStore;
 use MediaWiki\Storage\PageUpdateCauses;
 use MediaWiki\Title\TitleFormatter;
+use MediaWiki\User\CentralId\CentralIdLookup;
 use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
 use Psr\Log\LoggerInterface;
@@ -128,7 +129,8 @@ class PageChangeEventIngress extends DomainEventIngress implements
 		RevisionStore $revisionStore,
 		ContentHandlerFactory $contentHandlerFactory,
 		RedirectLookup $redirectLookup,
-		PageLookup $pageLookup
+		PageLookup $pageLookup,
+		CentralIdLookup $centralIdLookup,
 	) {
 		$this->logger = LoggerFactory::getInstance( 'EventBus.PageChangeEventIngress' );
 
@@ -138,7 +140,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 
 		$this->eventBusFactory = $eventBusFactory;
 
-		$userEntitySerializer = new UserEntitySerializer( $userFactory, $userGroupManager );
+		$userEntitySerializer = new UserEntitySerializer( $userFactory, $userGroupManager, $centralIdLookup );
 
 		$this->pageChangeEventSerializer = new PageChangeEventSerializer(
 			new EventSerializer( $mainConfig, $globalIdGenerator, Telemetry::getInstance() ),
@@ -181,8 +183,10 @@ class PageChangeEventIngress extends DomainEventIngress implements
 			$redirectLinkTarget = $page->getRedirectTarget();
 		} else {
 			$redirectSourcePageReference =
-				$pageLookup->getPageByReference( $page,
-					\Wikimedia\Rdbms\IDBAccessObject::READ_LATEST );
+				$pageLookup->getPageByReference(
+					$page,
+					\Wikimedia\Rdbms\IDBAccessObject::READ_LATEST
+				);
 
 			$redirectLinkTarget =
 				$redirectSourcePageReference != null && $redirectSourcePageReference->isRedirect()
@@ -245,15 +249,30 @@ class PageChangeEventIngress extends DomainEventIngress implements
 			$revisionRecord = $event->getLatestRevisionAfter();
 
 			$redirectTarget =
-				self::lookupRedirectTarget( $event->getPage(), $this->pageLookup,
-					$this->redirectLookup );
+				self::lookupRedirectTarget(
+					$event->getPage(),
+					$this->pageLookup,
+					$this->redirectLookup
+				);
 
 			$pageChangeEvent = $event->isCreation()
-				? $this->pageChangeEventSerializer->toCreateEvent( $this->streamName, $event->getPage(),
-					$performer, $revisionRecord, $redirectTarget )
-				: $this->pageChangeEventSerializer->toEditEvent( $this->streamName, $event->getPage(),
-					$performer, $revisionRecord, $redirectTarget,
-					$this->revisionStore->getRevisionById( $event->getPageRecordBefore()->getLatest() ) );
+				? $this->pageChangeEventSerializer->toCreateEvent(
+					$this->streamName,
+					$event->getPage(),
+					$performer,
+					$revisionRecord,
+					$redirectTarget
+				)
+				: $this->pageChangeEventSerializer->toEditEvent(
+					$this->streamName,
+					$event->getPage(),
+					$performer,
+					$revisionRecord,
+					$redirectTarget,
+					$this->revisionStore->getRevisionById(
+						$event->getPageRecordBefore()->getLatest()
+					)
+				);
 
 			$this->sendEvents( $this->streamName, [ $pageChangeEvent ] );
 		}
@@ -361,14 +380,18 @@ class PageChangeEventIngress extends DomainEventIngress implements
 		$performer = $this->userFactory->newFromUserIdentity( $event->getPerformer() );
 
 		$redirectTarget =
-			self::lookupRedirectTarget( $event->getPageRecordAfter(), $this->pageLookup,
-				$this->redirectLookup );
+			self::lookupRedirectTarget(
+				$event->getPageRecordAfter(), $this->pageLookup,
+				$this->redirectLookup
+			);
 
 		// The parentRevision is needed since a page move creates a new revision.
 		$revision = $this->revisionStore->getRevisionById(
-			$event->getPageRecordAfter()->getLatest() );
+			$event->getPageRecordAfter()->getLatest()
+		);
 		$parentRevision = $this->revisionStore->getRevisionById(
-			$event->getPageRecordBefore()->getLatest() );
+			$event->getPageRecordBefore()->getLatest()
+		);
 
 		$event = $this->pageChangeEventSerializer->toMoveEvent(
 			$this->streamName,
@@ -398,8 +421,11 @@ class PageChangeEventIngress extends DomainEventIngress implements
 			$performer = $this->userFactory->newFromUserIdentity( $event->getPerformer() );
 
 			$redirectTarget =
-				self::lookupRedirectTarget( $event->getPageRecordAfter(), $this->pageLookup,
-					$this->redirectLookup );
+				self::lookupRedirectTarget(
+					$event->getPageRecordAfter(),
+					$this->pageLookup,
+					$this->redirectLookup
+				);
 
 			// TODO: replace with $event->getPageRecordBefore()?->getId();
 			//  once EventBus CI fully adopts php 8.
@@ -473,7 +499,8 @@ class PageChangeEventIngress extends DomainEventIngress implements
 					"Current revision $revId's' visibility did not match the expected " .
 					'visibility change provided by hook. Current revision visibility is ' .
 					$revisionRecord->getVisibility() . '. visibility changed to ' .
-					$event->getVisibilityAfter( $revId ) );
+					$event->getVisibilityAfter( $revId )
+				);
 			}
 
 			// We only need to emit an event if visibility has actually changed.
@@ -499,10 +526,14 @@ class PageChangeEventIngress extends DomainEventIngress implements
 				$performerForEvent = $event->isSuppressed() ? null : $performer;
 
 				$event =
-					$this->pageChangeEventSerializer->toVisibilityChangeEvent( $this->streamName,
-						$event->getPage(), $performerForEvent, $revisionRecord,
+					$this->pageChangeEventSerializer->toVisibilityChangeEvent(
+						$this->streamName,
+						$event->getPage(),
+						$performerForEvent,
+						$revisionRecord,
 						$event->getVisibilityBefore( $revId ),
-						$event->getEventTimestamp()->getTimestamp() );
+						$event->getEventTimestamp()->getTimestamp()
+					);
 
 				$this->sendEvents( $this->streamName, [ $event ] );
 			}

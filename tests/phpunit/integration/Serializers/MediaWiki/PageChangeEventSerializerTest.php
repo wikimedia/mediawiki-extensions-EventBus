@@ -96,7 +96,8 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 
 		$this->userEntitySerializer = new UserEntitySerializer(
 			$this->userFactory,
-			$this->getServiceContainer()->getUserGroupManager()
+			$this->getServiceContainer()->getUserGroupManager(),
+			$this->getServiceContainer()->getCentralIdLookup(),
 		);
 
 		$revisionSlotEntitySerializer = new RevisionSlotEntitySerializer(

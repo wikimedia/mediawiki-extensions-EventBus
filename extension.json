@@ -63,9 +63,16 @@
 				"RevisionStore",
 				"ContentHandlerFactory",
 				"RedirectStore",
-				"PageStore"
+				"PageStore",
+				"CentralIdLookup"
 			],
-			"events": [ "PageRevisionUpdated", "PageDeleted", "PageMoved", "PageCreated", "PageHistoryVisibilityChanged" ]
+			"events": [
+				"PageRevisionUpdated",
+				"PageDeleted",
+				"PageMoved",
+				"PageCreated",
+				"PageHistoryVisibilityChanged"
+			]
 		}
 	],
 	"HookHandlers": {
