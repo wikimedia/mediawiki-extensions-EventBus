@@ -29,6 +29,7 @@ use MediaWiki\User\UserIdentity;
 
 /**
  * Converts a User to an array matching the fragment/mediawiki/state/entity/user schema
+ * @newable - used by WikimediaEvents
  */
 class UserEntitySerializer {
 	/**
