@@ -14,7 +14,6 @@ use Psr\Log\LogLevel;
  * Log handler that supports sending messages to Kafka over
  * EventBus and EventGate service.
  *
- * @file
  * @since 1.33
  * @copyright © 2019 Wikimedia Foundation and contributors
  * @author Petr Pchelko <ppchelko@wikimedia.org>
