@@ -115,10 +115,6 @@ class EventSerializerTest extends MediaWikiUnitTestCase {
 		$actual = $this->eventSerializer->createEvent( ...$args );
 		// remove meta.request_id from actual, it is not deterministic.
 		unset( $actual['meta']['request_id'] );
-		// meta.dt is only deterministic if $args[4] ($metaDt) is provided and not null
-		if ( !isset( $args[5] ) ) {
-			unset( $actual['meta']['dt'] );
-		}
 		$this->assertEquals( $expected, $actual );
 	}
 }

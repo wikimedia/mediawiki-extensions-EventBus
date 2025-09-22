@@ -123,7 +123,7 @@ class EventSerializer {
 		$metaDt = null;
 		if ( $ingestionTimestamp === true ) {
 			$metaDt = self::timestampToDt();
-		} elseif ( $ingestionTimestamp !== false ) {
+		} elseif ( $ingestionTimestamp !== null ) {
 			$metaDt = self::timestampToDt( $ingestionTimestamp );
 		}
 		return array_merge(
