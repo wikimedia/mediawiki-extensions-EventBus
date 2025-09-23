@@ -1067,7 +1067,7 @@ class EventFactory {
 
 		return $this->createEvent(
 			$this->getArticleURL( $title ),
-			'/mediawiki/page/restrictions-change/1.0.0',
+			'/mediawiki/page/restrictions-change/2.0.0',
 			$stream,
 			$attrs
 		);
