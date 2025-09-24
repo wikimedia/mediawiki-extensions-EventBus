@@ -41,7 +41,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 			'deleted' => 0,
 			'len' => 46,
 			'parent_id' => 1,
-			'sha1' => 'rdqbbzs3pkhihgbs8qf2q9jsvheag5z',
+			'sha1' => 'rf0fox0sdxxhegn3re5mpibi1z34zqw',
 			'comment' => 'testing',
 			'content' => new WikitextContent( 'Some Content' ),
 		];
@@ -177,7 +177,6 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$revision->setId( $revId );
 		$revision->setSlot( $slot );
 
-		$revision->setSha1( 'rdqbbzs3pkhihgbs8qf2q9jsvheag5z' );
 		$revision->setTimestamp( '20171017114835' );
 		$revision->setPageId( self::MOCK_PAGE_ID );
 		$revision->setSize( 46 );
