@@ -62,6 +62,8 @@ use MediaWiki\User\CentralId\CentralIdLookup;
 use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
 use Psr\Log\LoggerInterface;
+use RuntimeException;
+use UnexpectedValueException;
 use Wikimedia\Timestamp\TimestampException;
 use Wikimedia\UUID\GlobalIdGenerator;
 
@@ -313,7 +315,6 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	 *
 	 * @param PageDeletedEvent $event The page deletion event to process
 	 * @throws TimestampException
-	 * @throws TimestampException
 	 * @see PageChangeEventSerializer::toDeleteEvent() For the event format
 	 */
 	public function handlePageDeletedEvent( PageDeletedEvent $event ): void {
@@ -455,94 +456,80 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	 * Notes:
 	 * - Uses primary DB reads to prevent leaking suppressed data due to replication lag.
 	 * - Emits private events when suppression occurs to match MediaWiki log visibility conventions.
-	 * - Uses the current timestamp for event time due to limitations in the upstream hook.
 	 *
 	 * @param PageHistoryVisibilityChangedEvent $event
 	 *
+	 * @throws RuntimeException
+	 * @throws UnexpectedValueException
 	 * @throws TimestampException
 	 */
 	public function handlePageHistoryVisibilityChangedEvent( PageHistoryVisibilityChangedEvent $event ): void {
-		// https://phabricator.wikimedia.org/T321411
-		$performer = $event->getPerformer();
+		$pageId = $event->getPageId();
+		$currentRevId = $event->getCurrentRevisionId();
 
-		// Only send an event if the visible-ness of the current revision has changed
-		try {
-			// Read from primary since due to replication lag the updated field visibility
-			// might not yet be available on a replica, and we are at risk of leaking
-			// just suppressed data.
-			$revisionRecord = $this->revisionStore->getRevisionByPageId(
-				$event->getPageId(),
-				0,
-				IDBAccessObject::READ_LATEST
+		// If the visibility was not changed on the current revision of the page,
+		// then we can return early.
+		// PageChange only represents changes to the current state of the page.
+		if ( !$event->wasCurrentRevisionAffected() ) {
+			$this->logger->debug(
+				"Revision visibility on page $pageId current revision $currentRevId " .
+				"was not changed. Not emitting event."
 			);
+			return;
+		}
 
-			// If this is the current revision of the page,
-			// then we need to represent the fact that the visibility
-			// properties of the current state of the page has changed.
-			// Emit a page change visibility_change event.
-			if ( $revisionRecord === null || !$revisionRecord->isCurrent() ) {
-				throw new InvalidArgumentException(
-					'Current revision ' .
-					' could not be loaded from database and may have been deleted.' .
-					' Cannot create visibility change event for ' . $this->streamName .
-					'.'
-				);
-			}
+		// Read from primary since due to replication lag the updated field visibility
+		// might not yet be available on a replica, and we are at risk of leaking
+		// just recently suppressed data.
+		$revisionRecord = $this->revisionStore->getRevisionByPageId(
+			$pageId,
+			$currentRevId,
+			IDBAccessObject::READ_LATEST
+		);
 
-			$revId = $revisionRecord->getId();
-
-			// current revision's visibility should be the same as we are given in
-			// $visibilityChanges['newBits']. Just in case, assert that this is true.
-			if ( $revisionRecord->getVisibility() !=
-				$event->getVisibilityAfter( $revId ) ) {
-				throw new InvalidArgumentException(
-					"Current revision $revId's' visibility did not match the expected " .
-					'visibility change provided by hook. Current revision visibility is ' .
-					$revisionRecord->getVisibility() . '. visibility changed to ' .
-					$event->getVisibilityAfter( $revId )
-				);
-			}
-
-			// We only need to emit an event if visibility has actually changed.
-			if ( !$event->wasCurrentRevisionAffected() ) {
-				$this->logger->warning(
-					"handlePageHistoryVisibilityChangedEvent called on revision $revId " .
-					'when no effective visibility change was made.'
-				);
-			} else {
-				// If this revision is 'suppressed' AKA restricted, then the person performing
-				// 'RevisionDelete' should not be visible in public data.
-				// https://phabricator.wikimedia.org/T342487
-				//
-				// NOTE: This event stream tries to match the visibility of MediaWiki core logs,
-				// where regular delete/revision events are public, and suppress/revision events
-				// are private. In MediaWiki core logs, private events are fully hidden from
-				// the public.  Here, we need to produce a 'private' event to the
-				// mediawiki.page_change stream, to indicate to consumers that
-				// they should also 'suppress' the revision.  When this is done, we need to
-				// make sure that we do not reproduce the data that has been suppressed
-				// in the event itself.  E.g. if the username of the editor of the revision has been
-				// suppressed, we should not include any information about that editor in the event.
-				$performerForEvent = $event->isSuppressed() ? null : $performer;
-
-				$event =
-					$this->pageChangeEventSerializer->toVisibilityChangeEvent(
-						$this->streamName,
-						$event->getPage(),
-						$performerForEvent,
-						$revisionRecord,
-						$event->getVisibilityBefore( $revId ),
-						$event->getEventTimestamp()->getTimestamp()
-					);
-
-				$this->sendEvents( $this->streamName, [ $event ] );
-			}
-		} catch ( InvalidArgumentException $e ) {
-			$this->logger->error(
-				' invalid revision for page ' . $event->getPageId() .
-				' Cannot create visibility change event for ' . $this->streamName . ': '
-				. $e->getMessage()
+		if ( $revisionRecord === null ) {
+			throw new RuntimeException(
+				"Failed looking up page $pageId revision $currentRevId " .
+				"when checking if a visibility change event should be emitted to stream " .
+				$this->streamName
 			);
 		}
+
+		// current revision's visibility should be the same as we are given in
+		// $visibilityChanges['newBits']. Just in case, assert that this is true.
+		if ( $revisionRecord->getVisibility() != $event->getVisibilityAfter( $currentRevId ) ) {
+			throw new UnexpectedValueException(
+				"Page $pageId revision $currentRevId's' visibility did not match the " .
+				'expected visibility change provided by event. Revision visibility is ' .
+				$revisionRecord->getVisibility() . '. visibility changed to ' .
+				$event->getVisibilityAfter( $currentRevId )
+			);
+		}
+
+		// If this revision is 'suppressed' AKA restricted, then the person performing
+		// 'RevisionDelete' should not be visible in public data.
+		// https://phabricator.wikimedia.org/T342487
+		//
+		// NOTE: This event stream tries to match the visibility of MediaWiki core logs,
+		// where regular delete/revision events are public, and suppress/revision events
+		// are private. In MediaWiki core logs, private events are fully hidden from
+		// the public.  Here, we need to produce a 'private' event to the
+		// mediawiki.page_change stream, to indicate to consumers that
+		// they should also 'suppress' the revision.  When this is done, we need to
+		// make sure that we do not reproduce the data that has been suppressed
+		// in the event itself.  E.g. if the username of the editor of the revision has been
+		// suppressed, we should not include any information about that editor in the event.
+		$performerForEvent = $event->isSuppressed() ? null : $event->getPerformer();
+
+		$event = $this->pageChangeEventSerializer->toVisibilityChangeEvent(
+			$this->streamName,
+			$event->getPage(),
+			$performerForEvent,
+			$revisionRecord,
+			$event->getVisibilityBefore( $currentRevId ),
+			$event->getEventTimestamp()->getTimestamp()
+		);
+
+		$this->sendEvents( $this->streamName, [ $event ] );
 	}
 }
