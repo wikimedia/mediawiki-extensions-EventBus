@@ -5,7 +5,6 @@ use MediaWiki\Debug\MWDebug;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\EventFactory;
 use MediaWiki\Extension\EventStreamConfig\StreamConfigs;
-use MediaWiki\Registration\ExtensionRegistry;
 use Psr\Log\NullLogger;
 use Wikimedia\Http\MultiHttpClient;
 use Wikimedia\TestingAccessWrapper;
@@ -160,11 +159,8 @@ class EventBusFactoryIntegrationTest extends MediaWikiIntegrationTestCase {
 		?string $expectedUrl,
 		?bool $forwardXClientIP
 	) {
-		if (
-			$useStreamConfigs &&
-			!ExtensionRegistry::getInstance()->isLoaded( 'EventStreamConfig' )
-		) {
-			$this->markTestSkipped( 'EventStreamConfig is not loaded.' );
+		if ( $useStreamConfigs ) {
+			$this->markTestSkippedIfExtensionNotLoaded( 'EventStreamConfig' );
 		}
 
 		if ( !$expectedUrl ) {
