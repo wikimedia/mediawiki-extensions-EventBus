@@ -10,7 +10,7 @@
 	"descriptionmsg": "eventbus-desc",
 	"license-name": "GPL-2.0-or-later",
 	"requires": {
-		"MediaWiki": ">= 1.44"
+		"MediaWiki": ">= 1.46"
 	},
 	"AutoloadNamespaces": {
 		"MediaWiki\\Extension\\EventBus\\": "includes/"
