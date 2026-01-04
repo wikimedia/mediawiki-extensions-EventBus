@@ -3,6 +3,7 @@
 namespace MediaWiki\Extension\EventBus\Tests\Unit;
 
 use MediaWiki\Config\Config;
+use MediaWiki\Config\HashConfig;
 use MediaWiki\Config\SiteConfiguration;
 use MediaWiki\Content\ContentHandlerFactory;
 use MediaWiki\Content\IContentHandlerFactory;
@@ -12,6 +13,7 @@ use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress;
 use MediaWiki\Extension\EventBus\StreamNameMapper;
 use MediaWiki\HookContainer\HookContainer;
+use MediaWiki\MainConfigNames;
 use MediaWiki\Page\Event\PageDeletedEvent;
 use MediaWiki\Page\Event\PageMovedEvent;
 use MediaWiki\Page\Event\PageRevisionUpdatedEvent;
@@ -131,14 +133,12 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 
 		$this->eventBusFactory = $this->createMock( EventBusFactory::class );
 		$this->streamNameMapper = $this->createMock( StreamNameMapper::class );
-		$this->mainConfig = $this->createMock( Config::class );
-		$this->mainConfig->method( 'get' )
-			->willReturnMap( [
-				[ 'Server', 'http://localhost' ],
-				[ 'CanonicalServer', 'http://localhost' ],
-				[ 'DBname', 'my_wiki-unittest_' ],
-				[ 'ArticlePath', '/wiki/$1' ],
-			] );
+		$this->mainConfig = new HashConfig( [
+			MainConfigNames::Server => 'http://localhost',
+			MainConfigNames::CanonicalServer => 'http://localhost',
+			MainConfigNames::DBname => 'my_wiki-unittest_',
+			MainConfigNames::ArticlePath => '/wiki/$1',
+		] );
 
 		$this->globalIdGenerator = $this->createMock( GlobalIdGenerator::class );
 		$this->userGroupManager = $this->createMock( UserGroupManager::class );
@@ -197,7 +197,7 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 		$defaults = [
 			'eventBusFactory' => $this->eventBusFactory ?? $this->createMock( EventBusFactory::class ),
 			'streamNameMapper' => $this->streamNameMapper ?? $this->createMock( StreamNameMapper::class ),
-			'mainConfig' => $this->mainConfig ?? $this->createMock( Config::class ),
+			'mainConfig' => $this->mainConfig ?? new HashConfig(),
 			'globalIdGenerator' => $this->globalIdGenerator ?? $this->createMock( GlobalIdGenerator::class ),
 			'userGroupManager' => $this->userGroupManager ?? $this->createMock( UserGroupManager::class ),
 			'titleFormatter' => $this->titleFormatter ?? $this->createMock( TitleFormatter::class ),
