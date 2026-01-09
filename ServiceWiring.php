@@ -3,6 +3,11 @@
 use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\EventFactory;
+use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
+use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
+use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
+use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySerializer;
+use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Extension\EventBus\StreamNameMapper;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\Logger\LoggerFactory;
@@ -62,4 +67,37 @@ return [
 		);
 	},
 
+	// Expose useful serializers to other extensions that might want to serialize and emit
+	// external events according to this data model.
+	'EventBus.EventSerializer' => static function ( MediaWikiServices $services ): EventSerializer {
+		return new EventSerializer(
+		// NOTE: To be removed as part of T392516
+			$services->getMainConfig(),
+			$services->getGlobalIdGenerator(),
+			// NOTE: To be removed as part of T392516
+			Telemetry::getInstance(),
+		);
+	},
+
+	'EventBus.PageEntitySerializer' => static function ( MediaWikiServices $services ): PageEntitySerializer {
+		return new PageEntitySerializer(
+			$services->getMainConfig(),
+			$services->getTitleFormatter(),
+		);
+	},
+
+	'EventBus.UserEntitySerializer' => static function ( MediaWikiServices $services ): UserEntitySerializer {
+		return new UserEntitySerializer(
+			$services->getUserFactory(),
+			$services->getUserGroupManager(),
+			$services->getCentralIdLookup(),
+		);
+	},
+
+	'EventBus.RevisionEntitySerializer' => static function ( MediaWikiServices $services ): RevisionEntitySerializer {
+		return new RevisionEntitySerializer(
+			new RevisionSlotEntitySerializer( $services->getContentHandlerFactory() ),
+			$services->get( 'EventBus.UserEntitySerializer' ),
+		);
+	},
 ];
