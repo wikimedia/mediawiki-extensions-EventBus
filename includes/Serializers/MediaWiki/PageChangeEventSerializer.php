@@ -23,6 +23,7 @@ namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
 use MediaWiki\Extension\EventBus\Redirects\RedirectTarget;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
+use MediaWiki\Http\Telemetry;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Page\ProperPageIdentity;
 use MediaWiki\Revision\RevisionRecord;
@@ -104,7 +105,7 @@ class PageChangeEventSerializer {
 	private function toEvent(
 		string $stream,
 		ProperPageIdentity $page,
-		array $eventAttrs
+		array $eventAttrs,
 	): array {
 		// NOTE: It would be better if wiki domain name was fetched and passed into createEvent,
 		// rather than forcing EventSerializer->createEvent to look up the domain itself.
@@ -116,7 +117,14 @@ class PageChangeEventSerializer {
 			$stream,
 			$this->pageEntitySerializer->canonicalPageURL( $page ),
 			$eventAttrs,
-			self::getWikiId( $page )
+			self::getWikiId( $page ),
+			null,
+			// NOTE: This is using a global Telemetry instance, and it might be better to
+			// pass $requestId here as a parameter (obtaining the value of it in
+			// the PageChangeEventIngress handler instead of here in the serializer).
+			// We'd have to make every event handler here also accept $requestId as a parameter.
+			// This might be a good refactor for later, but for now this is fine.
+			Telemetry::getInstance()->getRequestId(),
 		);
 	}
 

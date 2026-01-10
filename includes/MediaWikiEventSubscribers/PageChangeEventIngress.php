@@ -26,8 +26,6 @@ namespace MediaWiki\Extension\EventBus\MediaWikiEventSubscribers;
 
 use IDBAccessObject;
 use InvalidArgumentException;
-use MediaWiki\Config\Config;
-use MediaWiki\Content\ContentHandlerFactory;
 use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\DomainEvent\DomainEventIngress;
 use MediaWiki\Extension\EventBus\EventBusFactory;
@@ -36,10 +34,8 @@ use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageChangeEventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
-use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Extension\EventBus\StreamNameMapper;
-use MediaWiki\Http\Telemetry;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\Page\Event\PageCreatedEvent;
 use MediaWiki\Page\Event\PageCreatedListener;
@@ -57,15 +53,11 @@ use MediaWiki\Page\RedirectLookup;
 use MediaWiki\Page\WikiPage;
 use MediaWiki\Revision\RevisionStore;
 use MediaWiki\Storage\PageUpdateCauses;
-use MediaWiki\Title\TitleFormatter;
-use MediaWiki\User\CentralId\CentralIdLookup;
 use MediaWiki\User\UserFactory;
-use MediaWiki\User\UserGroupManager;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use UnexpectedValueException;
 use Wikimedia\Timestamp\TimestampException;
-use Wikimedia\UUID\GlobalIdGenerator;
 
 /**
  * Handles PageRevisionUpdated events by forwarding page edits to EventGate.
@@ -123,16 +115,14 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	public function __construct(
 		EventBusFactory $eventBusFactory,
 		StreamNameMapper $streamNameMapper,
-		Config $mainConfig,
-		GlobalIdGenerator $globalIdGenerator,
-		UserGroupManager $userGroupManager,
-		TitleFormatter $titleFormatter,
+		EventSerializer $eventSerializer,
+		PageEntitySerializer $pageEntitySerializer,
+		UserEntitySerializer $userEntitySerializer,
+		RevisionEntitySerializer $revisionEntitySerializer,
 		UserFactory $userFactory,
 		RevisionStore $revisionStore,
-		ContentHandlerFactory $contentHandlerFactory,
 		RedirectLookup $redirectLookup,
 		PageLookup $pageLookup,
-		CentralIdLookup $centralIdLookup,
 	) {
 		$this->logger = LoggerFactory::getInstance( 'EventBus.PageChangeEventIngress' );
 
@@ -142,16 +132,11 @@ class PageChangeEventIngress extends DomainEventIngress implements
 
 		$this->eventBusFactory = $eventBusFactory;
 
-		$userEntitySerializer = new UserEntitySerializer( $userFactory, $userGroupManager, $centralIdLookup );
-
 		$this->pageChangeEventSerializer = new PageChangeEventSerializer(
-			new EventSerializer( $mainConfig, $globalIdGenerator, Telemetry::getInstance() ),
-			new PageEntitySerializer( $mainConfig, $titleFormatter ),
+			$eventSerializer,
+			$pageEntitySerializer,
 			$userEntitySerializer,
-			new RevisionEntitySerializer(
-				new RevisionSlotEntitySerializer( $contentHandlerFactory ),
-				$userEntitySerializer
-			)
+			$revisionEntitySerializer,
 		);
 
 		$this->userFactory = $userFactory;

@@ -21,7 +21,6 @@
 
 namespace MediaWiki\Extension\EventBus\Serializers;
 
-use MediaWiki\Config\Config;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\WikiMap\WikiMap;
 use Wikimedia\UUID\GlobalIdGenerator;
@@ -32,30 +31,17 @@ use Wikimedia\UUID\GlobalIdGenerator;
  */
 class EventSerializer {
 	/**
-	 * @var Config
-	 */
-	private Config $mainConfig;
-	/**
 	 * @var GlobalIdGenerator
 	 */
 	private GlobalIdGenerator $globalIdGenerator;
-	private Telemetry $telemetry;
 
 	/**
-	 * @param Config $mainConfig
-	 *    NOTE: this parameter is unused.
-	 *    It should be removed as part of T392516.
 	 * @param GlobalIdGenerator $globalIdGenerator
-	 * @param Telemetry $telemetry
 	 */
 	public function __construct(
-		Config $mainConfig,
 		GlobalIdGenerator $globalIdGenerator,
-		Telemetry $telemetry
 	) {
-		$this->mainConfig = $mainConfig;
 		$this->globalIdGenerator = $globalIdGenerator;
-		$this->telemetry = $telemetry;
 	}
 
 	/**
@@ -101,6 +87,10 @@ class EventSerializer {
 	 *  to its ingestion time.
 	 *  See: https://phabricator.wikimedia.org/T267648
 	 *
+	 * @param string|null $requestId
+	 *  Will be set as meta.request_id if provided.
+	 *  This should typically be obtained via Telemetry::getInstance()->getRequestId();
+	 *
 	 * @return array $eventAttrs + $schema + meta sub object
 	 */
 	public function createEvent(
@@ -109,7 +99,8 @@ class EventSerializer {
 		string $uri,
 		array $eventAttrs,
 		?string $wikiId = null,
-		$ingestionTimestamp = null
+		$ingestionTimestamp = null,
+		?string $requestId = null,
 	): array {
 		// Get canonical wiki domain 'display name' via wikiId.
 		// If WikiMap::getWiki is null, then we can't get a domain (and are likely in a unit test).
@@ -130,7 +121,7 @@ class EventSerializer {
 			$eventAttrs,
 			[
 				'$schema' => $schema,
-				'meta' => $this->createMeta( $stream, $uri, $wikiDomainName, $metaDt )
+				'meta' => $this->createMeta( $stream, $uri, $wikiDomainName, $metaDt, $requestId )
 			]
 		);
 	}
@@ -144,19 +135,21 @@ class EventSerializer {
 	 *    If null, 'domain' will not be set.
 	 * @param string|null $dt
 	 *    If null, 'dt' will not be set.
+	 * @param string|null $requestId
+	 *    If null, 'request_id' will be set via global Telemetry (TODO remove this behavior).
 	 * @return array
 	 */
 	private function createMeta(
 		string $stream,
 		string $uri,
 		?string $domain = null,
-		?string $dt = null
+		?string $dt = null,
+		?string $requestId = null,
 	): array {
 		$metaAttrs = [
 			'stream' => $stream,
 			'uri' => $uri,
 			'id' => $this->globalIdGenerator->newUUIDv4(),
-			'request_id' => $this->telemetry->getRequestId(),
 		];
 
 		if ( $domain !== null ) {
@@ -166,6 +159,16 @@ class EventSerializer {
 		if ( $dt !== null ) {
 			$metaAttrs['dt'] = $dt;
 		}
+
+		if ( $requestId !== null ) {
+			$metaAttrs['request_id'] = $requestId;
+		} else {
+			// Temporarily support use of global Telemetry to get request_id.
+			// TODO: remove this after
+			// https://gerrit.wikimedia.org/r/c/mediawiki/extensions/CirrusSearch/+/1225570
+			$metaAttrs['request_id'] = Telemetry::getInstance()->getRequestId();
+		}
+
 		return $metaAttrs;
 	}
 }

@@ -1,6 +1,5 @@
 <?php
 
-use MediaWiki\Config\HashConfig;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use Wikimedia\UUID\GlobalIdGenerator;
 
@@ -15,6 +14,8 @@ class EventSerializerTest extends MediaWikiUnitTestCase {
 	private const MOCK_URI = 'http://woohoo';
 	private const MOCK_INGESTION_TIMESTAMP = '20221021000000';
 	private const MOCK_EVENT_ATTRS = [ 'fieldA' => 'fieldB' ];
+	private const MOCK_REQUEST_ID = 'abcde';
+
 	/**
 	 * @var EventSerializer
 	 */
@@ -35,9 +36,7 @@ class EventSerializerTest extends MediaWikiUnitTestCase {
 		$telemetry = $this->createMock( \MediaWiki\Http\Telemetry::class );
 		$telemetry->method( 'getRequestId' )->willReturn( 'requestid' );
 		$this->eventSerializer = new EventSerializer(
-			new HashConfig( [] ),
 			$globalIdGenerator,
-			$telemetry
 		);
 		$this->setUpHasRun = true;
 	}
@@ -105,6 +104,29 @@ class EventSerializerTest extends MediaWikiUnitTestCase {
 				self::MOCK_INGESTION_TIMESTAMP
 			]
 		];
+
+		yield 'provided requestId' => [
+			[
+				'$schema' => self::MOCK_SCHEMA_URI,
+				'meta' => [
+					'stream' => self::MOCK_STREAM_NAME,
+					'uri' => self::MOCK_URI,
+					'id' => self::MOCK_UUID,
+					'request_id' => self::MOCK_REQUEST_ID
+				]
+			] + self::MOCK_EVENT_ATTRS,
+			[
+				self::MOCK_SCHEMA_URI,
+				self::MOCK_STREAM_NAME,
+				self::MOCK_URI,
+				self::MOCK_EVENT_ATTRS,
+				// NOTE: testing a non-null wikiId parameter is hard
+				// because WikiMap:getWiki is used, which uses global params.
+				null,
+				null,
+				self::MOCK_REQUEST_ID,
+			]
+		];
 	}
 
 	/**
@@ -113,8 +135,12 @@ class EventSerializerTest extends MediaWikiUnitTestCase {
 	 */
 	public function testCreateEvent( $expected, $args ) {
 		$actual = $this->eventSerializer->createEvent( ...$args );
-		// remove meta.request_id from actual, it is not deterministic.
-		unset( $actual['meta']['request_id'] );
+		// TODO: remove this after
+		// https://gerrit.wikimedia.org/r/c/mediawiki/extensions/CirrusSearch/+/1225570
+		if ( $actual['meta']['request_id'] !== self::MOCK_REQUEST_ID ) {
+			// remove meta.request_id from actual, it is not deterministic.
+			unset( $actual['meta']['request_id'] );
+		}
 		$this->assertEquals( $expected, $actual );
 	}
 }

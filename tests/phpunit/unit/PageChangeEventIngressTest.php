@@ -2,7 +2,6 @@
 
 namespace MediaWiki\Extension\EventBus\Tests\Unit;
 
-use MediaWiki\Config\Config;
 use MediaWiki\Config\HashConfig;
 use MediaWiki\Config\SiteConfiguration;
 use MediaWiki\Content\ContentHandlerFactory;
@@ -11,6 +10,11 @@ use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress;
+use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
+use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
+use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
+use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySerializer;
+use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Extension\EventBus\StreamNameMapper;
 use MediaWiki\HookContainer\HookContainer;
 use MediaWiki\MainConfigNames;
@@ -48,6 +52,7 @@ use Wikimedia\UUID\GlobalIdGenerator;
  * @covers \MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress
  */
 class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
+
 	/** @var EventBusFactory */
 	private $eventBusFactory;
 
@@ -83,6 +88,9 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 
 	/** @var CentralIdLookup */
 	private $centralIdLookup;
+
+	/** @var EventSerializer */
+	private EventSerializer $eventSerializer;
 
 	/**
 	 * @var EventBus
@@ -147,6 +155,8 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 		$this->revisionStore = $this->createMock( RevisionStore::class );
 		$this->centralIdLookup = $this->createMock( CentralIdLookup::class );
 
+		$this->createMock( EventSerializer::class );
+
 		$objectFactory = $this->createMock( ObjectFactory::class );
 		$hookContainer = $this->createMock( HookContainer::class );
 		$logger = $this->createMock( LoggerInterface::class );
@@ -188,6 +198,11 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 		$this->eventBusFactory->method( 'getInstanceForStream' )
 			->with( '' )
 			->willReturn( $this->eventBus );
+
+		// Reuse eventSerializer for every test.
+		$this->eventSerializer = new EventSerializer(
+			$this->globalIdGenerator,
+		);
 	}
 
 	/**
@@ -211,19 +226,35 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			'centralIdLookup' => $this->centralIdLookup ?? $this->createMock( CentralIdLookup::class ),
 		];
 		$deps = array_merge( $defaults, $overrides );
+
+		$pageEntitySerializer = new PageEntitySerializer(
+			$deps['mainConfig'],
+			$deps['titleFormatter'],
+		);
+
+		$userEntitySerializer = new UserEntitySerializer(
+			$deps['userFactory'],
+			$deps['userGroupManager'],
+			$deps['centralIdLookup'],
+		);
+		$revisionEntitySerializer = new RevisionEntitySerializer(
+			new RevisionSlotEntitySerializer(
+				$deps['contentHandlerFactory'],
+			),
+			$userEntitySerializer,
+		);
+
 		return new PageChangeEventIngress(
 			$deps['eventBusFactory'],
 			$deps['streamNameMapper'],
-			$deps['mainConfig'],
-			$deps['globalIdGenerator'],
-			$deps['userGroupManager'],
-			$deps['titleFormatter'],
+			$this->eventSerializer,
+			$pageEntitySerializer,
+			$userEntitySerializer,
+			$revisionEntitySerializer,
 			$deps['userFactory'],
 			$deps['revisionStore'],
-			$deps['contentHandlerFactory'],
 			$deps['redirectLookup'],
 			$deps['pageLookup'],
-			$deps['centralIdLookup'],
 		);
 	}
 

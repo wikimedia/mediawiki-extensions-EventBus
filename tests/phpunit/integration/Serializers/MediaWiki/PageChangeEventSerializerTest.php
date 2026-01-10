@@ -4,7 +4,6 @@ use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageChangeEventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
-use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\Page\WikiPage;
@@ -77,43 +76,25 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		$globalIdGenerator = $this->createMock( GlobalIdGenerator::class );
 		$globalIdGenerator->method( 'newUUIDv4' )->willReturn( self::MOCK_UUID );
 
-		$telemetry = $this->createMock( Telemetry::class );
-		$telemetry->method( 'getRequestId' )->willReturn( 'requestid' );
+		$services = $this->getServiceContainer();
 
-		$this->userFactory = $this->getServiceContainer()->getUserFactory();
-		$this->revisionStore = $this->getServiceContainer()->getRevisionStore();
+		$this->userFactory = $services->getUserFactory();
+		$this->revisionStore = $services->getRevisionStore();
 
-		$this->eventSerializer = new EventSerializer(
-			new HashConfig( [] ),
-			$globalIdGenerator,
-			$telemetry
-		);
-
-		$this->pageEntitySerializer = new PageEntitySerializer(
-			$this->getServiceContainer()->getMainConfig(),
-			$this->getServiceContainer()->getTitleFormatter()
-		);
-
-		$this->userEntitySerializer = new UserEntitySerializer(
-			$this->userFactory,
-			$this->getServiceContainer()->getUserGroupManager(),
-			$this->getServiceContainer()->getCentralIdLookup(),
-		);
-
-		$revisionSlotEntitySerializer = new RevisionSlotEntitySerializer(
-			$this->getServiceContainer()->getContentHandlerFactory()
-		);
-
-		$this->revisionEntitySerializer = new RevisionEntitySerializer(
-			$revisionSlotEntitySerializer,
-			$this->userEntitySerializer
-		);
+		// Use a custom (not MediaWiki Service) EventSerializer
+		// so we can override the $globalIdGenerator.
+		$this->eventSerializer = new EventSerializer( $globalIdGenerator );
+		// Tests will MediaWiki Service instance of entity serializers.
+		// so ServiceWiring.php is exercised.
+		$this->pageEntitySerializer = $services->get( 'EventBus.PageEntitySerializer' );
+		$this->userEntitySerializer = $services->get( 'EventBus.UserEntitySerializer' );
+		$this->revisionEntitySerializer = $services->get( 'EventBus.RevisionEntitySerializer' );
 
 		$this->pageChangeEventSerializer = new PageChangeEventSerializer(
 			$this->eventSerializer,
 			$this->pageEntitySerializer,
 			$this->userEntitySerializer,
-			$this->revisionEntitySerializer
+			$this->revisionEntitySerializer,
 		);
 
 		$this->setUpHasRun = true;
@@ -168,7 +149,9 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 					],
 					$performerArray
 				),
-				WikiMap::getCurrentWikiId()
+				WikiMap::getCurrentWikiId(),
+				null,
+				Telemetry::getInstance()->getRequestId(),
 			),
 			$commentAttrs,
 			$eventAttrs

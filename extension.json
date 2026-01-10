@@ -55,16 +55,14 @@
 			"services": [
 				"EventBus.EventBusFactory",
 				"EventBus.StreamNameMapper",
-				"MainConfig",
-				"GlobalIdGenerator",
-				"UserGroupManager",
-				"TitleFormatter",
+				"EventBus.EventSerializer",
+				"EventBus.PageEntitySerializer",
+				"EventBus.UserEntitySerializer",
+				"EventBus.RevisionEntitySerializer",
 				"UserFactory",
 				"RevisionStore",
-				"ContentHandlerFactory",
 				"RedirectStore",
-				"PageStore",
-				"CentralIdLookup"
+				"PageStore"
 			],
 			"events": [
 				"PageRevisionUpdated",

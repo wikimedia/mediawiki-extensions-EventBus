@@ -70,13 +70,7 @@ return [
 	// Expose useful serializers to other extensions that might want to serialize and emit
 	// external events according to this data model.
 	'EventBus.EventSerializer' => static function ( MediaWikiServices $services ): EventSerializer {
-		return new EventSerializer(
-		// NOTE: To be removed as part of T392516
-			$services->getMainConfig(),
-			$services->getGlobalIdGenerator(),
-			// NOTE: To be removed as part of T392516
-			Telemetry::getInstance(),
-		);
+		return new EventSerializer( $services->getGlobalIdGenerator() );
 	},
 
 	'EventBus.PageEntitySerializer' => static function ( MediaWikiServices $services ): PageEntitySerializer {
