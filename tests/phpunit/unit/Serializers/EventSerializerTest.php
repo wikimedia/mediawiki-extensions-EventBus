@@ -33,8 +33,6 @@ class EventSerializerTest extends MediaWikiUnitTestCase {
 		}
 		$globalIdGenerator = $this->createMock( GlobalIdGenerator::class );
 		$globalIdGenerator->method( 'newUUIDv4' )->willReturn( self::MOCK_UUID );
-		$telemetry = $this->createMock( \MediaWiki\Http\Telemetry::class );
-		$telemetry->method( 'getRequestId' )->willReturn( 'requestid' );
 		$this->eventSerializer = new EventSerializer(
 			$globalIdGenerator,
 		);
@@ -135,12 +133,6 @@ class EventSerializerTest extends MediaWikiUnitTestCase {
 	 */
 	public function testCreateEvent( $expected, $args ) {
 		$actual = $this->eventSerializer->createEvent( ...$args );
-		// TODO: remove this after
-		// https://gerrit.wikimedia.org/r/c/mediawiki/extensions/CirrusSearch/+/1225570
-		if ( $actual['meta']['request_id'] !== self::MOCK_REQUEST_ID ) {
-			// remove meta.request_id from actual, it is not deterministic.
-			unset( $actual['meta']['request_id'] );
-		}
 		$this->assertEquals( $expected, $actual );
 	}
 }

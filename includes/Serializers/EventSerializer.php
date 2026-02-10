@@ -21,7 +21,6 @@
 
 namespace MediaWiki\Extension\EventBus\Serializers;
 
-use MediaWiki\Http\Telemetry;
 use MediaWiki\WikiMap\WikiMap;
 use Wikimedia\UUID\GlobalIdGenerator;
 
@@ -136,7 +135,7 @@ class EventSerializer {
 	 * @param string|null $dt
 	 *    If null, 'dt' will not be set.
 	 * @param string|null $requestId
-	 *    If null, 'request_id' will be set via global Telemetry (TODO remove this behavior).
+	 *    If null, 'request_id' will not be set.
 	 * @return array
 	 */
 	private function createMeta(
@@ -162,11 +161,6 @@ class EventSerializer {
 
 		if ( $requestId !== null ) {
 			$metaAttrs['request_id'] = $requestId;
-		} else {
-			// Temporarily support use of global Telemetry to get request_id.
-			// TODO: remove this after
-			// https://gerrit.wikimedia.org/r/c/mediawiki/extensions/CirrusSearch/+/1225570
-			$metaAttrs['request_id'] = Telemetry::getInstance()->getRequestId();
 		}
 
 		return $metaAttrs;
