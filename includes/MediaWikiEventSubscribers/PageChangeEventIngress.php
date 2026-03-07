@@ -43,10 +43,11 @@ use MediaWiki\Page\Event\PageDeletedEvent;
 use MediaWiki\Page\Event\PageDeletedListener;
 use MediaWiki\Page\Event\PageHistoryVisibilityChangedEvent;
 use MediaWiki\Page\Event\PageHistoryVisibilityChangedListener;
+use MediaWiki\Page\Event\PageLatestRevisionChangedEvent;
+use MediaWiki\Page\Event\PageLatestRevisionChangedListener;
 use MediaWiki\Page\Event\PageMovedEvent;
 use MediaWiki\Page\Event\PageMovedListener;
 use MediaWiki\Page\Event\PageRevisionUpdatedEvent;
-use MediaWiki\Page\Event\PageRevisionUpdatedListener;
 use MediaWiki\Page\PageLookup;
 use MediaWiki\Page\PageReference;
 use MediaWiki\Page\RedirectLookup;
@@ -63,7 +64,7 @@ use Wikimedia\Timestamp\TimestampException;
  * Handles PageRevisionUpdated events by forwarding page edits to EventGate.
  */
 class PageChangeEventIngress extends DomainEventIngress implements
-	PageRevisionUpdatedListener,
+	PageLatestRevisionChangedListener,
 	PageDeletedListener,
 	PageMovedListener,
 	PageCreatedListener,
@@ -222,7 +223,9 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	 *   The domain event carrying information about the page revision update, including
 	 *   the page ID, revision data, user identity, and edit result.
 	 */
-	public function handlePageRevisionUpdatedEvent( PageRevisionUpdatedEvent $event ): void {
+	public function handlePageLatestRevisionChangedEvent(
+		PageLatestRevisionChangedEvent $event
+	): void {
 		if ( $this->isContentChangeCause( $event ) ) {
 			// Null edits are only useful to trigger side-effects, and would be
 			//   confusing to consumers of these events.  Since these would not be able to

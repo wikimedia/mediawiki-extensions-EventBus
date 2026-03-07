@@ -65,7 +65,7 @@
 				"PageStore"
 			],
 			"events": [
-				"PageRevisionUpdated",
+				"PageLatestRevisionChanged",
 				"PageDeleted",
 				"PageMoved",
 				"PageCreated",

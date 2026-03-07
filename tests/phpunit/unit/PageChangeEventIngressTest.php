@@ -428,7 +428,7 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			->method( 'send' );
 
 		$listener = $this->newListenerWithOverrides();
-		$listener->handlePageRevisionUpdatedEvent( $event );
+		$listener->handlePageLatestRevisionChangedEvent( $event );
 
 		DeferredUpdates::doUpdates();
 	}
