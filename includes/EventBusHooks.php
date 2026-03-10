@@ -238,7 +238,8 @@ class EventBusHooks implements
 			$newTitle,
 			$newRevisionRecord,
 			$userIdentity,
-			$reason
+			$reason,
+			$redirid
 		);
 
 		DeferredUpdates::addCallableUpdate( static fn () => $eventBus->send( [ $event ] ) );
