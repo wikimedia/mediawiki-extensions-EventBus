@@ -629,13 +629,13 @@ class EventFactory {
 	 * @return array
 	 */
 	public function createPageMoveEvent(
-		$stream,
+		string $stream,
 		LinkTarget $oldTitle,
 		LinkTarget $newTitle,
 		RevisionRecord $newRevision,
 		UserIdentity $user,
-		$reason,
-		$redirectPageId = 0
+		string $reason,
+		int $redirectPageId = 0
 	) {
 		// TODO: In MCR Content::isRedirect should not be used to derive a redirect directly.
 		$newPageIsRedirect = false;
@@ -684,7 +684,7 @@ class EventFactory {
 			}
 		}
 
-		if ( $reason !== null && strlen( $reason ) ) {
+		if ( $reason !== '' ) {
 			$attrs['comment'] = $reason;
 			if ( $this->commentFormatter ) {
 				$attrs['parsedcomment'] = $this->commentFormatter->format( $reason, $newTitle );
