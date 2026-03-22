@@ -6,10 +6,9 @@ use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Page\ExistingPageRecord;
 use MediaWiki\Page\PageIdentity;
 use MediaWiki\Page\PageLookup;
+use MediaWiki\Page\PageReference;
 use MediaWiki\Page\RedirectLookup;
 use PHPUnit\Framework\MockObject\MockObject;
-
-include __DIR__ . '/DBKeyLookupStub.php';
 
 /**
  * @coversDefaultClass \MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress
@@ -154,22 +153,31 @@ class RedirectTargetLookupTest extends MediaWikiUnitTestCase {
 
 	private function setUpRedirectLookup(): void {
 		$this->redirectLookup = $this->createMock( RedirectLookup::class );
-		$this->redirectLookup->method( "getRedirectTarget" )->will(
-			new DBKeyLookupStub( $this->source2TargetLinkTargetMap,
-				"Simple DB key lookup based target mapping" )
-		);
+		$this->redirectLookup->method( "getRedirectTarget" )->willReturnCallback(
+			function ( PageIdentity $page ) {
+				$key = $page->getDBkey();
+				return $this->source2TargetLinkTargetMap[$key] ?? null;
+			} );
 	}
 
 	private function setUpPageLookup(): void {
 		$this->pageLookup = $this->createMock( PageLookup::class );
-		$this->pageLookup->method( "getPageByReference" )->will(
-			new DBKeyLookupStub( $this->source2SourcePageRecordMap,
-				"Simple DB key lookup based source wiki page mapping" )
-		);
-		$this->pageLookup->method( "getPageForLink" )->will(
-			new DBKeyLookupStub( $this->source2TargetPageRecordMap,
-				"Simple DB key lookup based target wiki page mapping" )
-		);
+		$this->pageLookup->method( "getPageByReference" )->willReturnCallback(
+			function ( PageReference $page ) {
+				$key = $page->getDBkey();
+				if ( isset( $this->source2SourcePageRecordMap[$key] ) ) {
+					if ( $this->source2SourcePageRecordMap[$key] instanceof Throwable ) {
+						throw $this->source2SourcePageRecordMap[$key];
+					}
+					return $this->source2SourcePageRecordMap[$key];
+				}
+				return null;
+			} );
+		$this->pageLookup->method( "getPageForLink" )->willReturnCallback(
+			function ( LinkTarget $link ) {
+				$key = $link->getDBkey();
+				return $this->source2TargetPageRecordMap[$key] ?? null;
+			} );
 	}
 
 	/**
