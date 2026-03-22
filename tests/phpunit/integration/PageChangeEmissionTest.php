@@ -202,7 +202,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	 *
 	 * @return array<string, array{string}> Test cases with stream names
 	 */
-	private static function provideStreamName(): array {
+	public static function provideStreamName(): array {
 		return [
 			"Test Domain Event code paths" =>
 				[ PageChangeEventIngress::PAGE_CHANGE_STREAM_NAME_DEFAULT ]
