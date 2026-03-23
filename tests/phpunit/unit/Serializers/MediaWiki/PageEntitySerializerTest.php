@@ -9,8 +9,6 @@ use MediaWiki\Page\WikiPage;
 use MediaWiki\Title\Title;
 use MediaWiki\Title\TitleFormatter;
 use MediaWiki\Title\TitleValue;
-use PHPUnit\Framework\MockObject\Invocation;
-use PHPUnit\Framework\MockObject\Stub\Stub;
 
 /**
  * @coversDefaultClass \MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer
@@ -58,17 +56,8 @@ class PageEntitySerializerTest extends MediaWikiUnitTestCase {
 		] );
 
 		$titleFormatter = $this->createMock( TitleFormatter::class );
-		$titleFormatter->method( 'getPrefixedDBkey' )->will( new class() implements Stub {
-			public function invoke( Invocation $invocation ) {
-				if ( $invocation->getParameters()[0] instanceof LinkTarget ) {
-					return $invocation->getParameters()[0]->getDBkey();
-				}
-				throw new Exception( "Unknown link target: " . $invocation->getParameters()[0] );
-			}
-
-			public function toString(): string {
-				return "Stub returning link target DB key";
-			}
+		$titleFormatter->method( 'getPrefixedDBkey' )->willReturnCallback( static function ( $target ) {
+			return $target->getDBkey();
 		} );
 
 		$this->pageEntitySerializer = new PageEntitySerializer(
