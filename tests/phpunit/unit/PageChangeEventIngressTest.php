@@ -19,8 +19,8 @@ use MediaWiki\Extension\EventBus\StreamNameMapper;
 use MediaWiki\HookContainer\HookContainer;
 use MediaWiki\MainConfigNames;
 use MediaWiki\Page\Event\PageDeletedEvent;
+use MediaWiki\Page\Event\PageLatestRevisionChangedEvent;
 use MediaWiki\Page\Event\PageMovedEvent;
-use MediaWiki\Page\Event\PageRevisionUpdatedEvent;
 use MediaWiki\Page\ExistingPageRecord;
 use MediaWiki\Page\PageLookup;
 use MediaWiki\Page\ProperPageIdentity;
@@ -407,7 +407,7 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 		$flags = [];
 		$patrolStatus = 1;
 
-		$event = new PageRevisionUpdatedEvent(
+		$event = new PageLatestRevisionChangedEvent(
 			PageUpdateCauses::CAUSE_EDIT,
 			$pageRecordBefore,
 			$pageRecordAfter,

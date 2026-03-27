@@ -47,7 +47,6 @@ use MediaWiki\Page\Event\PageLatestRevisionChangedEvent;
 use MediaWiki\Page\Event\PageLatestRevisionChangedListener;
 use MediaWiki\Page\Event\PageMovedEvent;
 use MediaWiki\Page\Event\PageMovedListener;
-use MediaWiki\Page\Event\PageRevisionUpdatedEvent;
 use MediaWiki\Page\PageLookup;
 use MediaWiki\Page\PageReference;
 use MediaWiki\Page\RedirectLookup;
@@ -209,7 +208,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	}
 
 	/**
-	 * Handles a `PageRevisionUpdatedEvent` and emits a corresponding page change event.
+	 * Handles a `PageLatestRevisionChangedEvent` and emits a corresponding page change event.
 	 *
 	 * This method is triggered when a page revision is updated. It filters out
 	 * null edits (which do not change the page content) and constructs either
@@ -219,7 +218,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	 * Null edits are ignored, as they are intended only to trigger side-effects
 	 * and do not represent a meaningful change to page content.
 	 *
-	 * @param PageRevisionUpdatedEvent $event
+	 * @param PageLatestRevisionChangedEvent $event
 	 *   The domain event carrying information about the page revision update, including
 	 *   the page ID, revision data, user identity, and edit result.
 	 */
@@ -273,10 +272,10 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	 * this should match the code paths that previously would trigger onPageSaveComplete
 	 * callbacks.
 	 *
-	 * @param PageRevisionUpdatedEvent $event
+	 * @param PageLatestRevisionChangedEvent $event
 	 * @return bool
 	 */
-	private function isContentChangeCause( PageRevisionUpdatedEvent $event ): bool {
+	private function isContentChangeCause( PageLatestRevisionChangedEvent $event ): bool {
 		return $event->getCause() === PageUpdateCauses::CAUSE_EDIT ||
 			$event->getCause() === PageUpdateCauses::CAUSE_IMPORT ||
 			$event->getCause() === PageUpdateCauses::CAUSE_ROLLBACK ||
