@@ -24,7 +24,6 @@ declare( strict_types=1 );
 
 namespace MediaWiki\Extension\EventBus\MediaWikiEventSubscribers;
 
-use IDBAccessObject;
 use InvalidArgumentException;
 use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\DomainEvent\DomainEventIngress;
@@ -57,6 +56,7 @@ use MediaWiki\User\UserFactory;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use UnexpectedValueException;
+use Wikimedia\Rdbms\IDBAccessObject;
 use Wikimedia\Timestamp\TimestampException;
 
 /**

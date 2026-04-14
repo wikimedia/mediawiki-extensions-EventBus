@@ -7,7 +7,7 @@ use MediaWiki\Block\Restriction\Restriction;
 use MediaWiki\CommentFormatter\CommentFormatter;
 use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Content\IContentHandlerFactory;
-use MediaWiki\Exception\MWUnknownContentModelException;
+use MediaWiki\Content\UnknownContentModelException;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\JobQueue\IJobSpecification;
 use MediaWiki\Language\Language;
@@ -222,7 +222,7 @@ class EventFactory {
 		if ( $contentFormat === null ) {
 			try {
 				$contentFormat = $this->contentHandlerFactory->getContentHandler( $contentModel )->getDefaultFormat();
-			} catch ( MWUnknownContentModelException ) {
+			} catch ( UnknownContentModelException ) {
 				// Ignore, the `rev_content_format` is not required.
 			}
 		}

@@ -13,11 +13,11 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageChangeEventSerializer
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Page\ProperPageIdentity;
 use MediaWiki\Revision\RevisionRecord;
+use MediaWiki\RevisionDelete\RevisionDeleter;
 use MediaWiki\Tests\MockWikiMapTrait;
 use MediaWiki\Title\Title;
 use MediaWiki\WikiMap\WikiMap;
 use PHPUnit\Framework\Assert;
-use RevisionDeleter;
 
 /**
  * @covers \MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress

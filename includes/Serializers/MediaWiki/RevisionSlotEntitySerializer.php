@@ -21,7 +21,7 @@
 namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
 use MediaWiki\Content\IContentHandlerFactory;
-use MediaWiki\Exception\MWUnknownContentModelException;
+use MediaWiki\Content\UnknownContentModelException;
 use MediaWiki\Revision\SlotRecord;
 
 /**
@@ -56,7 +56,7 @@ class RevisionSlotEntitySerializer {
 			try {
 				$contentHandler = $this->contentHandlerFactory->getContentHandler( $contentModel );
 				$contentFormat = $contentHandler->getDefaultFormat();
-			} catch ( MWUnknownContentModelException ) {
+			} catch ( UnknownContentModelException ) {
 				// Ignore, `content_format` is not required.
 			}
 		}
