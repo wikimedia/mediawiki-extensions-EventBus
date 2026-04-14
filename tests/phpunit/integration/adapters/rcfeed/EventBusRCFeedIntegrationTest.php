@@ -5,7 +5,6 @@ use MediaWiki\Json\FormatJson;
 use MediaWiki\Logging\LogEntryBase;
 use MediaWiki\MainConfigNames;
 use MediaWiki\RCFeed\FormattedRCFeed;
-use MediaWiki\RecentChanges\RecentChange;
 use MediaWiki\SpecialPage\SpecialPage;
 use MediaWiki\Title\Title;
 
@@ -106,7 +105,7 @@ class EventBusRCFeedIntegrationTest extends MediaWikiIntegrationTestCase {
 		] );
 		$logpage = SpecialPage::getTitleFor( 'Log', 'move' );
 		$user = $this->getTestSysop()->getUser();
-		$rc = RecentChange::newLogEntry(
+		$rc = $this->getServiceContainer()->getRecentChangeFactory()->createLogRecentChange(
 			'20110401080000',
 			$logpage,
 			$user,
@@ -122,6 +121,6 @@ class EventBusRCFeedIntegrationTest extends MediaWikiIntegrationTestCase {
 				'pet' => 'cat',
 			] )
 		);
-		$rc->notifyRCFeeds();
+		$this->getServiceContainer()->getRecentChangeRCFeedNotifier()->notifyRCFeeds( $rc );
 	}
 }
