@@ -4,7 +4,8 @@
 	"author": [
 		"Eric Evans",
 		"Petr Pchelko",
-		"Marko Obrovac"
+		"Marko Obrovac",
+		"Andrew Otto"
 	],
 	"url": "https://www.mediawiki.org/wiki/Extension:EventBus",
 	"descriptionmsg": "eventbus-desc",
@@ -80,6 +81,18 @@
 				"EventBus.StreamNameMapper"
 			]
 		},
+		"mediawiki_user_change": {
+			"class": "MediaWiki\\Extension\\EventBus\\HookHandlers\\MediaWiki\\UserChangeHooks",
+			"services": [
+				"EventBus.EventBusFactory",
+				"EventBus.StreamNameMapper",
+				"EventBus.EventSerializer",
+				"EventBus.UserEntitySerializer",
+				"UserFactory",
+				"UserGroupManager",
+				"TitleFactory"
+			]
+		},
 		"main": {
 			"class": "MediaWiki\\Extension\\EventBus\\EventBusHooks",
 			"services": [
@@ -91,6 +104,15 @@
 		}
 	},
 	"Hooks": {
+		"ManualLogEntryBeforePublish": [
+			"mediawiki_user_change"
+		],
+		"LocalUserCreated": [
+			"mediawiki_user_change"
+		],
+		"UserGroupsChanged": [
+			"mediawiki_user_change"
+		],
 		"PageSaveComplete": [
 			"main"
 		],

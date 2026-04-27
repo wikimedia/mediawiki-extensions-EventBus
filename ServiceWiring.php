@@ -85,6 +85,7 @@ return [
 			$services->getUserFactory(),
 			$services->getUserGroupManager(),
 			$services->getCentralIdLookup(),
+			$services->getUserRegistrationLookup(),
 		);
 	},
 

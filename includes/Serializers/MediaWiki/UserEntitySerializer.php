@@ -23,6 +23,7 @@ namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\User\CentralId\CentralIdLookup;
+use MediaWiki\User\Registration\UserRegistrationLookup;
 use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
 use MediaWiki\User\UserIdentity;
@@ -47,9 +48,15 @@ class UserEntitySerializer {
 	private CentralIdLookup $centralIdLookup;
 
 	/**
+	 * @var UserRegistrationLookup
+	 */
+	private UserRegistrationLookup $userRegistrationLookup;
+
+	/**
 	 * @param UserFactory $userFactory
 	 * @param UserGroupManager $userGroupManager
 	 * @param CentralIdLookup $centralIdLookup
+	 * @param UserRegistrationLookup $userRegistrationLookup
 	 */
 	public function __construct(
 		// NOTE: It would be better not to need a UserFactory
@@ -61,10 +68,12 @@ class UserEntitySerializer {
 		UserFactory $userFactory,
 		UserGroupManager $userGroupManager,
 		CentralIdLookup $centralIdLookup,
+		UserRegistrationLookup $userRegistrationLookup,
 	) {
 		$this->userFactory = $userFactory;
 		$this->userGroupManager = $userGroupManager;
 		$this->centralIdLookup = $centralIdLookup;
+		$this->userRegistrationLookup = $userRegistrationLookup;
 	}
 
 	/**
@@ -89,10 +98,13 @@ class UserEntitySerializer {
 		if ( $user->getId() ) {
 			$userAttrs['user_id'] = $user->getId();
 		}
-		if ( $user->getRegistration() ) {
+
+		$registrationTimestamp = $this->getRegistrationTimestamp( $user );
+		if ( $registrationTimestamp ) {
 			$userAttrs['registration_dt'] =
-				EventSerializer::timestampToDt( $user->getRegistration() );
+				EventSerializer::timestampToDt( $registrationTimestamp );
 		}
+
 		if ( $user->isRegistered() ) {
 			$userAttrs['edit_count'] = $user->getEditCount();
 		}
@@ -104,6 +116,30 @@ class UserEntitySerializer {
 		}
 
 		return $userAttrs;
+	}
+
+	/**
+	 * Convenience method to get the registration timestamp for a user.
+	 * Simple proxy call to UserRegistrationLookup::getRegistration().
+	 * Here so that users of UserEntitySerializer don't have to have their own UserRegistrationLookup instance.
+	 *
+	 * @param UserIdentity $user
+	 * @return string|null|false Registration timestamp (TS::MW), null if not available, false if not registered.
+	 */
+	public function getRegistrationTimestamp( UserIdentity $user ): string|null|false {
+		return $this->userRegistrationLookup->getRegistration( $user );
+	}
+
+	/**
+	 * Convenience method to get the first registration timestamp for a user.
+	 * Simple proxy call to UserRegistrationLookup::getFirstRegistration().
+	 * Here so that users of UserEntitySerializer don't have to have their own UserRegistrationLookup instance.
+	 *
+	 * @param UserIdentity $user
+	 * @return string|null Registration timestamp (TS::MW), null if not available.
+	 */
+	public function getFirstRegistrationTimestamp( UserIdentity $user ): ?string {
+		return $this->userRegistrationLookup->getFirstRegistration( $user );
 	}
 
 }

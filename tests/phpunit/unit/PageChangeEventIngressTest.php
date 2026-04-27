@@ -33,6 +33,7 @@ use MediaWiki\Storage\RevisionSlotsUpdate;
 use MediaWiki\Title\Title;
 use MediaWiki\Title\TitleFormatter;
 use MediaWiki\User\CentralId\CentralIdLookup;
+use MediaWiki\User\Registration\UserRegistrationLookup;
 use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
 use MediaWiki\User\UserIdentity;
@@ -224,6 +225,7 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			'redirectLookup' => $this->redirectLookup ?? $this->createMock( RedirectLookup::class ),
 			'pageLookup' => $this->pageLookup ?? $this->createMock( PageLookup::class ),
 			'centralIdLookup' => $this->centralIdLookup ?? $this->createMock( CentralIdLookup::class ),
+			'userRegistrationLookup' => $this->createMock( UserRegistrationLookup::class ),
 		];
 		$deps = array_merge( $defaults, $overrides );
 
@@ -236,6 +238,7 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			$deps['userFactory'],
 			$deps['userGroupManager'],
 			$deps['centralIdLookup'],
+			$deps['userRegistrationLookup'],
 		);
 		$revisionEntitySerializer = new RevisionEntitySerializer(
 			new RevisionSlotEntitySerializer(

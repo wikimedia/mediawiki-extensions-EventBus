@@ -58,10 +58,12 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 
 		$userFactory = $this->getServiceContainer()->getUserFactory();
 		$centralIdLookup = $this->getServiceContainer()->getCentralIdLookup();
+		$userRegistrationLookup = $this->getServiceContainer()->getUserRegistrationLookup();
 		$this->userEntitySerializer = new UserEntitySerializer(
 			$userFactory,
 			$this->getServiceContainer()->getUserGroupManager(),
-			$centralIdLookup
+			$centralIdLookup,
+			$userRegistrationLookup
 		);
 		// This is stupid workaround that allows us to declare a dataProider with
 		// the arguments initialized dynamically using getServiceContainer.
@@ -71,6 +73,10 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 		$anonUser = $userFactory->newAnonymous( self::MOCK_ANON_IP );
 		$anonUserIdentity = UserIdentityValue::newAnonymous( self::MOCK_ANON_IP );
 		$regUser = $this->getTestUser()->getUser();
+		$firstRegistration = $userRegistrationLookup->getFirstRegistration( $regUser );
+		$firstRegistrationDt = $firstRegistration !== null
+			? EventSerializer::timestampToDt( $firstRegistration )
+			: null;
 		$this->toArrayProviders = [
 			'Anonymous User' => [
 				$anonUser,
@@ -94,7 +100,7 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 			],
 			'Registered User' => [
 				$regUser,
-				[
+				array_filter( [
 					'user_text' => $regUser->getName(),
 					'groups' => [ '*', 'user', 'autoconfirmed' ],
 					'is_bot' => false,
@@ -104,7 +110,7 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 					'registration_dt' => EventSerializer::timestampToDt( $regUser->getRegistration() ),
 					'edit_count' => $regUser->getEditCount(),
 					'user_central_id' => $centralIdLookup->centralIdFromLocalUser( $regUser ),
-				]
+				], static fn ( $v ) => $v !== null )
 			],
 		];
 
