@@ -3,6 +3,7 @@
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageChangeEventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
+use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageLinkEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Http\Telemetry;
@@ -36,6 +37,10 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	 * @var PageEntitySerializer
 	 */
 	private PageEntitySerializer $pageEntitySerializer;
+	/**
+	 * @var PageLinkEntitySerializer
+	 */
+	private PageLinkEntitySerializer $pageLinkEntitySerializer;
 	/**
 	 * @var UserEntitySerializer
 	 */
@@ -87,12 +92,14 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		// Tests will MediaWiki Service instance of entity serializers.
 		// so ServiceWiring.php is exercised.
 		$this->pageEntitySerializer = $services->get( 'EventBus.PageEntitySerializer' );
+		$this->pageLinkEntitySerializer = $services->get( 'EventBus.PageLinkEntitySerializer' );
 		$this->userEntitySerializer = $services->get( 'EventBus.UserEntitySerializer' );
 		$this->revisionEntitySerializer = $services->get( 'EventBus.RevisionEntitySerializer' );
 
 		$this->pageChangeEventSerializer = new PageChangeEventSerializer(
 			$this->eventSerializer,
 			$this->pageEntitySerializer,
+			$this->pageLinkEntitySerializer,
 			$this->userEntitySerializer,
 			$this->revisionEntitySerializer,
 		);

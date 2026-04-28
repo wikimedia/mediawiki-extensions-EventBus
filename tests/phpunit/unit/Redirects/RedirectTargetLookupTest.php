@@ -1,7 +1,7 @@
 <?php
 
+use MediaWiki\Extension\EventBus\Entity\PageLink;
 use MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress;
-use MediaWiki\Extension\EventBus\Redirects\RedirectTarget;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Page\ExistingPageRecord;
 use MediaWiki\Page\PageIdentity;
@@ -84,7 +84,7 @@ class RedirectTargetLookupTest extends MediaWikiUnitTestCase {
 				$this->redirectLookup );
 
 		$this->assertNotNull( $redirectTarget );
-		$this->assertInstanceOf( RedirectTarget::class, $redirectTarget );
+		$this->assertInstanceOf( PageLink::class, $redirectTarget );
 		$this->assertEquals( $targetPage, $redirectTarget->getPage() );
 		$this->assertEquals( $targetPage->getDBkey(), $redirectTarget->getLink()->getDBkey() );
 	}
@@ -103,7 +103,7 @@ class RedirectTargetLookupTest extends MediaWikiUnitTestCase {
 				$this->redirectLookup );
 
 		$this->assertNotNull( $redirectTarget );
-		$this->assertInstanceOf( RedirectTarget::class, $redirectTarget );
+		$this->assertInstanceOf( PageLink::class, $redirectTarget );
 		$this->assertNull( $redirectTarget->getPage() );
 	}
 

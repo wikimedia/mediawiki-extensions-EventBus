@@ -12,6 +12,7 @@ use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
+use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageLinkEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
@@ -233,6 +234,9 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			$deps['mainConfig'],
 			$deps['titleFormatter'],
 		);
+		$pageLinkEntitySerializer = new PageLinkEntitySerializer(
+			$deps['titleFormatter'],
+		);
 
 		$userEntitySerializer = new UserEntitySerializer(
 			$deps['userFactory'],
@@ -252,6 +256,7 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			$deps['streamNameMapper'],
 			$this->eventSerializer,
 			$pageEntitySerializer,
+			$pageLinkEntitySerializer,
 			$userEntitySerializer,
 			$revisionEntitySerializer,
 			$deps['userFactory'],

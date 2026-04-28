@@ -5,6 +5,7 @@ use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\EventFactory;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
+use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageLinkEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
@@ -76,6 +77,12 @@ return [
 	'EventBus.PageEntitySerializer' => static function ( MediaWikiServices $services ): PageEntitySerializer {
 		return new PageEntitySerializer(
 			$services->getMainConfig(),
+			$services->getTitleFormatter(),
+		);
+	},
+
+	'EventBus.PageLinkEntitySerializer' => static function ( MediaWikiServices $services ): PageLinkEntitySerializer {
+		return new PageLinkEntitySerializer(
 			$services->getTitleFormatter(),
 		);
 	},

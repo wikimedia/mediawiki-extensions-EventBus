@@ -27,11 +27,12 @@ namespace MediaWiki\Extension\EventBus\MediaWikiEventSubscribers;
 use InvalidArgumentException;
 use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\DomainEvent\DomainEventIngress;
+use MediaWiki\Extension\EventBus\Entity\PageLink;
 use MediaWiki\Extension\EventBus\EventBusFactory;
-use MediaWiki\Extension\EventBus\Redirects\RedirectTarget;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageChangeEventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
+use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageLinkEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Extension\EventBus\StreamNameMapper;
@@ -117,6 +118,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 		StreamNameMapper $streamNameMapper,
 		EventSerializer $eventSerializer,
 		PageEntitySerializer $pageEntitySerializer,
+		PageLinkEntitySerializer $pageLinkEntitySerializer,
 		UserEntitySerializer $userEntitySerializer,
 		RevisionEntitySerializer $revisionEntitySerializer,
 		UserFactory $userFactory,
@@ -135,6 +137,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 		$this->pageChangeEventSerializer = new PageChangeEventSerializer(
 			$eventSerializer,
 			$pageEntitySerializer,
+			$pageLinkEntitySerializer,
 			$userEntitySerializer,
 			$revisionEntitySerializer,
 		);
@@ -150,19 +153,19 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	 *
 	 * If the page reference does not represent a redirect, `null` is returned.
 	 *
-	 * See {@link RedirectTarget} for the meaning of its properties.
+	 * See {@link PageLink} for the meaning of its properties.
 	 *
 	 * TODO visible for testing only, move into RedirectLookup?
 	 *
 	 * @param PageReference $page
 	 * @param PageLookup $pageLookup
 	 * @param RedirectLookup $redirectLookup
-	 * @return RedirectTarget|null
-	 * @see RedirectTarget
+	 * @return PageLink|null
+	 * @see PageLink
 	 */
 	public static function lookupRedirectTarget(
 		PageReference $page, PageLookup $pageLookup, RedirectLookup $redirectLookup
-	): ?RedirectTarget {
+	): ?PageLink {
 		if ( $page instanceof WikiPage ) {
 			// RedirectLookup doesn't support reading from the primary db, but we
 			// need the value from the new edit. Fetch directly through WikiPage which
@@ -185,13 +188,13 @@ class PageChangeEventIngress extends DomainEventIngress implements
 				try {
 					$redirectTargetPage = $pageLookup->getPageForLink( $redirectLinkTarget );
 
-					return new RedirectTarget( $redirectLinkTarget, $redirectTargetPage );
+					return new PageLink( $redirectLinkTarget, $redirectTargetPage );
 				} catch ( InvalidArgumentException ) {
 					// silently ignore failed lookup, they are expected for anything but page targets
 				}
 			}
 
-			return new RedirectTarget( $redirectLinkTarget );
+			return new PageLink( $redirectLinkTarget );
 		}
 
 		return null;
@@ -318,7 +321,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 		if ( $event->wasRedirect() ) {
 			$targetBefore = $event->getRedirectTargetBefore();
 			if ( $targetBefore ) {
-				$redirectTarget = new RedirectTarget( $targetBefore );
+				$redirectTarget = new PageLink( $targetBefore );
 			}
 		}
 

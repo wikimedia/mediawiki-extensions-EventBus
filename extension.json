@@ -58,6 +58,7 @@
 				"EventBus.StreamNameMapper",
 				"EventBus.EventSerializer",
 				"EventBus.PageEntitySerializer",
+				"EventBus.PageLinkEntitySerializer",
 				"EventBus.UserEntitySerializer",
 				"EventBus.RevisionEntitySerializer",
 				"UserFactory",
