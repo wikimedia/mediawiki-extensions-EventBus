@@ -85,6 +85,7 @@ class RevisionEntitySerializerTest extends MediaWikiIntegrationTestCase {
 
 		$expected = [
 			'rev_id' => $revisionRecord->getId(),
+			'rev_parent_id' => $revisionRecord->getParentId(),
 			'rev_dt' => EventSerializer::timestampToDt( $revisionRecord->getTimestamp() ),
 			'is_minor_edit' => $revisionRecord->isMinor(),
 			'rev_sha1' => $revisionRecord->getSha1(),

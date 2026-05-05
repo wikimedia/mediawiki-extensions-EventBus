@@ -64,10 +64,13 @@ class RevisionEntitySerializer {
 			'rev_size' => $revisionRecord->getSize()
 		];
 
-		// The rev_parent_id attribute is not required, but when supplied
-		// must have a minimum value of 1, so omit it entirely when there is no
-		// parent revision (i.e. page creation).
-		if ( $revisionRecord->getParentId() !== null && $revisionRecord->getParentId() > 0 ) {
+		// Set rev_parent_id unless getParentId is null.
+		// A rev_parent_id value of 0 indicates that there is no parent revision,
+		// while null indicates that the parent revision is unknown.
+		// See:
+		// https://gerrit.wikimedia.org/r/plugins/gitiles/mediawiki/core/+/b8ce64464379bff6fbc00d992e1946e4a155b7e9/includes/Revision/RevisionStoreRecord.php#82
+		// https://phabricator.wikimedia.org/T420974#11887286
+		if ( $revisionRecord->getParentId() !== null ) {
 			$revAttrs['rev_parent_id'] = $revisionRecord->getParentId();
 		}
 
