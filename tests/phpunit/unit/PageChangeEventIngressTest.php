@@ -147,6 +147,7 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			MainConfigNames::CanonicalServer => 'http://localhost',
 			MainConfigNames::DBname => 'my_wiki-unittest_',
 			MainConfigNames::ArticlePath => '/wiki/$1',
+			PageChangeEventIngress::REVERTED_IDS_MAX_CONFIG_NAME => 15,
 		] );
 
 		$this->globalIdGenerator = $this->createMock( GlobalIdGenerator::class );
@@ -254,6 +255,7 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			$pageEntitySerializer,
 			$userEntitySerializer,
 			$revisionEntitySerializer,
+			$deps['mainConfig'],
 			$deps['userFactory'],
 			$deps['revisionStore'],
 			$deps['redirectLookup'],

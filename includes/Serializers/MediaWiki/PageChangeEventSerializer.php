@@ -27,8 +27,11 @@ use MediaWiki\Http\Telemetry;
 use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Page\ProperPageIdentity;
 use MediaWiki\Revision\RevisionRecord;
+use MediaWiki\Revision\RevisionStore;
+use MediaWiki\Storage\EditResult;
 use MediaWiki\User\User;
 use MediaWiki\WikiMap\WikiMap;
+use UnexpectedValueException;
 use Wikimedia\Assert\Assert;
 
 /**
@@ -37,11 +40,12 @@ use Wikimedia\Assert\Assert;
  */
 class PageChangeEventSerializer {
 
+	public const PAGE_CHANGE_SCHEMA_VERSION = '1.4.0';
 	/**
 	 * All page change events will have their $schema URI set to this.
 	 * https://phabricator.wikimedia.org/T308017
 	 */
-	public const PAGE_CHANGE_SCHEMA_URI = '/mediawiki/page/change/1.3.0';
+	public const PAGE_CHANGE_SCHEMA_URI = '/mediawiki/page/change/' . self::PAGE_CHANGE_SCHEMA_VERSION;
 
 	/**
 	 * There are many kinds of changes that can happen to a MediaWiki pages,
@@ -78,21 +82,40 @@ class PageChangeEventSerializer {
 	private RevisionEntitySerializer $revisionEntitySerializer;
 
 	/**
+	 * @var RevisionStore
+	 */
+	private RevisionStore $revisionStore;
+
+	/**
+	 * Max (+1) of reverted revision IDs to list in revert payloads.
+	 * {@see RevisionStore::getRevisionIdsBetween} $max parameter.
+	 *
+	 * @var int
+	 */
+	private int $revertedRevIdsMax;
+
+	/**
 	 * @param EventSerializer $eventSerializer
 	 * @param PageEntitySerializer $pageEntitySerializer
 	 * @param UserEntitySerializer $userEntitySerializer
 	 * @param RevisionEntitySerializer $revisionEntitySerializer
+	 * @param RevisionStore $revisionStore
+	 * @param int $revertedRevIdsMax max (+1) reverted rev IDs to include. SeeRevisionStore::getRevisionIdsBetween.
 	 */
 	public function __construct(
 		EventSerializer $eventSerializer,
 		PageEntitySerializer $pageEntitySerializer,
 		UserEntitySerializer $userEntitySerializer,
-		RevisionEntitySerializer $revisionEntitySerializer
+		RevisionEntitySerializer $revisionEntitySerializer,
+		RevisionStore $revisionStore,
+		int $revertedRevIdsMax = 15,
 	) {
 		$this->eventSerializer = $eventSerializer;
 		$this->pageEntitySerializer = $pageEntitySerializer;
 		$this->userEntitySerializer = $userEntitySerializer;
 		$this->revisionEntitySerializer = $revisionEntitySerializer;
+		$this->revisionStore = $revisionStore;
+		$this->revertedRevIdsMax = $revertedRevIdsMax;
 	}
 
 	/**
@@ -239,6 +262,7 @@ class PageChangeEventSerializer {
 	 * @param RevisionRecord $currentRevision
 	 * @param RedirectTarget|null $redirectTarget
 	 * @param RevisionRecord|null $parentRevision
+	 * @param EditResult|null $editResult
 	 * @return array
 	 */
 	public function toEditEvent(
@@ -247,11 +271,12 @@ class PageChangeEventSerializer {
 		User $performer,
 		RevisionRecord $currentRevision,
 		?RedirectTarget $redirectTarget = null,
-		?RevisionRecord $parentRevision = null
+		?RevisionRecord $parentRevision = null,
+		?EditResult $editResult = null,
 	): array {
 		$eventAttrs = $this->toCommonAttrs(
 			'edit',
-			$this->eventSerializer->timestampToDt( $currentRevision->getTimestamp() ),
+			EventSerializer::timestampToDt( $currentRevision->getTimestamp() ),
 			$page,
 			$performer,
 			$currentRevision,
@@ -259,14 +284,150 @@ class PageChangeEventSerializer {
 			null
 		);
 
-		// On edit, the prior state is all about the previous revision.
+		// On edit, the prior_state is all about the previous revision.
 		if ( $parentRevision !== null ) {
 			$priorStateAttrs = [];
 			$priorStateAttrs['revision'] = $this->revisionEntitySerializer->toArray( $parentRevision );
 			$eventAttrs['prior_state'] = $priorStateAttrs;
 		}
 
+		// If EditResult says the edit was a revert, then add revision.revert details.
+		// https://phabricator.wikimedia.org/T423583
+		if (
+			$editResult !== null &&
+			$editResult->isRevert() &&
+			// revision.revert was added in schema version 1.4.0.
+			// NOTE: This check should be improved by
+			// https://phabricator.wikimedia.org/T424767
+			version_compare( self::PAGE_CHANGE_SCHEMA_VERSION, '1.4.0', '>=' )
+		) {
+			$revertAttrs = $this->toRevertAttrs( $editResult );
+			if ( $revertAttrs !== null ) {
+				$eventAttrs['revision']['revert'] = $revertAttrs;
+			}
+		}
+
 		return $this->toEvent( $stream, $page, $eventAttrs );
+	}
+
+	/**
+	 * Builds revision.revert attributes from EditResult.
+	 * (mediawiki/page/change 1.4.0+).
+	 *
+	 * @param EditResult $editResult
+	 * @return array|null Keyed payload or null if not a revert.
+	 * @throws UnexpectedValueException If EditResult reports an unknown revert method.
+	 */
+	private function toRevertAttrs( EditResult $editResult ): ?array {
+		if ( !$editResult->isRevert() ) {
+			return null;
+		}
+
+		$revertAttrs = [];
+
+		// If revertMethod is set, then set it as a string name in revert.method.
+		$revertMethod = $editResult->getRevertMethod();
+		if ( $revertMethod !== null ) {
+			switch ( $revertMethod ) {
+				case EditResult::REVERT_ROLLBACK:
+					$revertAttrs['method'] = 'rollback';
+					break;
+				case EditResult::REVERT_UNDO:
+					$revertAttrs['method'] = 'undo';
+					break;
+				case EditResult::REVERT_MANUAL:
+					$revertAttrs['method'] = 'manual';
+					break;
+				default:
+					// This shouldn't happen.
+					throw new UnexpectedValueException( "Unexpected revert method $revertMethod." );
+			}
+		}
+
+		$revertAttrs['is_exact'] = $editResult->isExactRevert();
+
+		$originalRevId = $editResult->getOriginalRevisionId();
+		if ( is_int( $originalRevId ) ) {
+			$revertAttrs['rev_original_id'] = $originalRevId;
+			$originalRev = $this->revisionStore->getRevisionById( $originalRevId );
+			if ( $originalRev !== null ) {
+				$revertAttrs['rev_original_dt'] = EventSerializer::timestampToDt(
+					$originalRev->getTimestamp()
+				);
+			}
+		}
+
+		$oldestRevertedRevId = $editResult->getOldestRevertedRevisionId();
+		$newestRevertedRevId = $editResult->getNewestRevertedRevisionId();
+		if ( $oldestRevertedRevId && $newestRevertedRevId ) {
+			$revertedRevIds = $this->getRevisionIdsBetween(
+				$oldestRevertedRevId,
+				$newestRevertedRevId,
+				$this->revertedRevIdsMax,
+			);
+			if ( $revertedRevIds !== null ) {
+				$revertAttrs['rev_reverted_ids'] = $revertedRevIds;
+			}
+		}
+
+		return $revertAttrs;
+	}
+
+	/**
+	 * Get a list of revision IDs inclusively between the given oldest
+	 * and newest rev_ids.
+	 *
+	 * This will return null if:
+	 * - The list of revisions between is longer than $max
+	 * - The oldest or newest revision can't be found.
+	 * - The oldest and newest revisions are not part of the same page
+	 *
+	 * @param int $oldestRevId
+	 * @param int $newestRevId
+	 * @param int $max
+	 *   Max (+1) of revisions to return.
+	 * @return list<int>|null
+	 */
+	private function getRevisionIdsBetween(
+		int $oldestRevId,
+		int $newestRevId,
+		int $max,
+	): ?array {
+		if ( $max <= 0 ) {
+			return null;
+		}
+
+		$oldestRev = $this->revisionStore->getRevisionById( $oldestRevId );
+		$newestRev = $this->revisionStore->getRevisionById( $newestRevId );
+		if (
+			$oldestRev === null ||
+			$newestRev === null ||
+			$oldestRev->getPageId() !== $newestRev->getPageId()
+		) {
+			// TODO: assert here? I don't think this should happen?
+			return null;
+		}
+
+		$pageId = $newestRev->getPageId();
+
+		$revIdsBetween = $this->revisionStore->getRevisionIdsBetween(
+			$pageId,
+			$oldestRev,
+			$newestRev,
+			$max,
+			[ RevisionStore::INCLUDE_BOTH ],
+			RevisionStore::ORDER_OLDEST_TO_NEWEST
+		);
+
+		// $maxDepth + 1 is used as the limit for the revisions in between query.
+		// If there are more than $maxDepth, then there are just too many!
+		// Return null.
+		if ( count( $revIdsBetween ) > $max ) {
+			// TODO: log her
+			return null;
+		}
+
+		return $revIdsBetween;
 	}
 
 	/**
