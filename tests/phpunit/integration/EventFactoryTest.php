@@ -169,9 +169,11 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	 * @return RevisionRecord
 	 */
 	public function createMutableRevisionFromArray( $rowOverrides = [] ) {
-		$revision = new MutableRevisionRecord( Title::newFromText( self::MOCK_PAGE_TITLE ) );
+		$revision = MutableRevisionRecord::newFromContent(
+			Title::newFromText( self::MOCK_PAGE_TITLE ),
+			new WikitextContent( 'Some Content' )
+		);
 		$revId = $rowOverrides['id'] ?? 42;
-		$revision->setContent( SlotRecord::MAIN, new WikitextContent( 'Some Content' ) );
 		$slot = SlotRecord::newUnsaved( 'sidetext', new TextContent( 'some side text' ) );
 		$slot = SlotRecord::newSaved( $revId, null, "unknown", $slot );
 		$revision->setId( $revId );
