@@ -14,7 +14,7 @@ use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageLinkEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
-use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySerializer;
+use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotsEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Extension\EventBus\StreamNameMapper;
 use MediaWiki\HookContainer\HookContainer;
@@ -244,12 +244,10 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			$deps['centralIdLookup'],
 			$deps['userRegistrationLookup'],
 		);
-		$revisionEntitySerializer = new RevisionEntitySerializer(
-			new RevisionSlotEntitySerializer(
-				$deps['contentHandlerFactory'],
-			),
-			$userEntitySerializer,
+		$revisionSlotsEntitySerializer = new RevisionSlotsEntitySerializer(
+			$deps['contentHandlerFactory'],
 		);
+		$revisionEntitySerializer = new RevisionEntitySerializer();
 
 		return new PageChangeEventIngress(
 			$deps['eventBusFactory'],
@@ -259,6 +257,7 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			$pageLinkEntitySerializer,
 			$userEntitySerializer,
 			$revisionEntitySerializer,
+			$revisionSlotsEntitySerializer,
 			$deps['userFactory'],
 			$deps['revisionStore'],
 			$deps['redirectLookup'],

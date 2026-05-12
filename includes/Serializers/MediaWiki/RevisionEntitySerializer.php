@@ -22,40 +22,25 @@ namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Revision\RevisionRecord;
-use MediaWiki\Revision\RevisionSlots;
 
 /**
  * Converts a RevisionRecord to an array matching the fragment/mediawiki/state/entity/revision schema
  */
 class RevisionEntitySerializer {
-
 	/**
-	 * @var RevisionSlotEntitySerializer
+	 * The earliest schema version supported by this serializer.
 	 */
-	private RevisionSlotEntitySerializer $revisionSlotEntitySerializer;
-
-	/**
-	 * @var UserEntitySerializer
-	 */
-	private UserEntitySerializer $userEntitySerializer;
-
-	/**
-	 * @param RevisionSlotEntitySerializer $contentEntitySerializer
-	 * @param UserEntitySerializer $userEntitySerializer
-	 */
-	public function __construct(
-		RevisionSlotEntitySerializer $contentEntitySerializer,
-		UserEntitySerializer $userEntitySerializer
-	) {
-		$this->userEntitySerializer = $userEntitySerializer;
-		$this->revisionSlotEntitySerializer = $contentEntitySerializer;
-	}
+	private const SCHEMA_VERSION_EARLIEST = '2.0.0';
 
 	/**
 	 * @param RevisionRecord $revisionRecord
+	 * @param string $schemaVersion
 	 * @return array
 	 */
-	public function toArray( RevisionRecord $revisionRecord ): array {
+	public function toArray(
+		RevisionRecord $revisionRecord,
+		string $schemaVersion = self::SCHEMA_VERSION_EARLIEST
+	): array {
 		$revAttrs = [
 			'rev_id' => $revisionRecord->getId(),
 			'rev_dt' => EventSerializer::timestampToDt( $revisionRecord->getTimestamp() ),
@@ -81,35 +66,10 @@ class RevisionEntitySerializer {
 			$revAttrs['comment'] = $revisionRecord->getComment()->text;
 		}
 
-		if ( $revisionRecord->getUser() ) {
-			$revAttrs['editor'] = $this->userEntitySerializer->toArray( $revisionRecord->getUser() );
-		}
-
 		// Include this revision's visibility settings.
 		$revAttrs += self::bitsToVisibilityAttrs( $revisionRecord->getVisibility() );
 
-		// Include info about the revision content slots, as long as slots are not empty.
-		// Note that this DOES NOT include actual content bodies,
-		// just metadata about the content in each slot.
-		$contentSlots = $this->revisionSlotsToArray( $revisionRecord->getSlots() );
-		if ( $contentSlots ) {
-			$revAttrs['content_slots'] = $contentSlots;
-		}
-
 		return $revAttrs;
-	}
-
-	/**
-	 * Converts RevisionSlots to a fragment/mediawiki/state/entity/revision_slots map type entity
-	 * @param RevisionSlots $revisionSlots
-	 * @return array
-	 */
-	public function revisionSlotsToArray( RevisionSlots $revisionSlots ): array {
-		$slotsAttrs = [];
-		foreach ( $revisionSlots->getSlots() as $slotRole => $slotRecord ) {
-			$slotsAttrs[$slotRole] = $this->revisionSlotEntitySerializer->toArray( $slotRecord );
-		}
-		return $slotsAttrs;
 	}
 
 	/**

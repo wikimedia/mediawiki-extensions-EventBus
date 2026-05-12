@@ -2,8 +2,6 @@
 
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
-use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySerializer;
-use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Tests\MockWikiMapTrait;
 use MediaWiki\Title\Title;
 
@@ -17,14 +15,6 @@ class RevisionEntitySerializerTest extends MediaWikiIntegrationTestCase {
 
 	private const MOCK_PAGE_TITLE = 'MyPage';
 
-	/**
-	 * @var UserEntitySerializer
-	 */
-	private UserEntitySerializer $userEntitySerializer;
-	/**
-	 * @var RevisionSlotEntitySerializer
-	 */
-	private RevisionSlotEntitySerializer $contentEntitySerializer;
 	/**
 	 * @var RevisionEntitySerializer
 	 */
@@ -43,30 +33,9 @@ class RevisionEntitySerializerTest extends MediaWikiIntegrationTestCase {
 		}
 		$this->mockWikiMap();
 
-		$this->userEntitySerializer = new UserEntitySerializer(
-			$this->getServiceContainer()->getUserFactory(),
-			$this->getServiceContainer()->getUserGroupManager(),
-			$this->getServiceContainer()->getCentralIdLookup(),
-			$this->getServiceContainer()->getUserRegistrationLookup(),
-		);
-
-		$this->contentEntitySerializer = new RevisionSlotEntitySerializer(
-			$this->getServiceContainer()->getContentHandlerFactory()
-		);
-
-		$this->revisionEntitySerializer = new RevisionEntitySerializer(
-			$this->contentEntitySerializer,
-			$this->userEntitySerializer
-		);
+		$this->revisionEntitySerializer = new RevisionEntitySerializer();
 
 		$this->setUpHasRun = true;
-	}
-
-	/**
-	 * @covers ::__construct
-	 */
-	public function testConstruct() {
-		$this->assertInstanceOf( RevisionEntitySerializer::class, $this->revisionEntitySerializer );
 	}
 
 	/**
@@ -79,11 +48,6 @@ class RevisionEntitySerializerTest extends MediaWikiIntegrationTestCase {
 
 		$revisionRecord = $wikiPage->getRevisionRecord();
 
-		$contentSlots = [];
-		foreach ( $revisionRecord->getSlots()->getSlots() as $slotRole => $slotRecord ) {
-			$contentSlots[$slotRole] = $this->contentEntitySerializer->toArray( $slotRecord );
-		}
-
 		$expected = [
 			'rev_id' => $revisionRecord->getId(),
 			'rev_parent_id' => $revisionRecord->getParentId(),
@@ -92,11 +56,9 @@ class RevisionEntitySerializerTest extends MediaWikiIntegrationTestCase {
 			'rev_sha1' => $revisionRecord->getSha1(),
 			'rev_size' => $revisionRecord->getSize(),
 			'comment' => $revisionRecord->getComment()->text,
-			'editor' => $this->userEntitySerializer->toArray( $revisionRecord->getUser() ),
 			'is_content_visible' => true,
 			'is_editor_visible' => true,
 			'is_comment_visible' => true,
-			'content_slots' => $contentSlots,
 		];
 
 		$actual = $this->revisionEntitySerializer->toArray( $revisionRecord );

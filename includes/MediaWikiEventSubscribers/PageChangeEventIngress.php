@@ -34,6 +34,7 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageChangeEventSerializer
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageLinkEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
+use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotsEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Extension\EventBus\StreamNameMapper;
 use MediaWiki\Logger\LoggerFactory;
@@ -121,6 +122,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 		PageLinkEntitySerializer $pageLinkEntitySerializer,
 		UserEntitySerializer $userEntitySerializer,
 		RevisionEntitySerializer $revisionEntitySerializer,
+		RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer,
 		UserFactory $userFactory,
 		RevisionStore $revisionStore,
 		RedirectLookup $redirectLookup,
@@ -140,6 +142,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 			$pageLinkEntitySerializer,
 			$userEntitySerializer,
 			$revisionEntitySerializer,
+			$revisionSlotsEntitySerializer,
 		);
 
 		$this->userFactory = $userFactory;

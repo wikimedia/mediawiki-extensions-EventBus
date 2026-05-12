@@ -61,6 +61,7 @@
 				"EventBus.PageLinkEntitySerializer",
 				"EventBus.UserEntitySerializer",
 				"EventBus.RevisionEntitySerializer",
+				"EventBus.RevisionSlotsEntitySerializer",
 				"UserFactory",
 				"RevisionStore",
 				"RedirectStore",

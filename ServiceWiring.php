@@ -7,7 +7,7 @@ use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageLinkEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
-use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySerializer;
+use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotsEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Extension\EventBus\StreamNameMapper;
 use MediaWiki\Http\Telemetry;
@@ -96,10 +96,13 @@ return [
 		);
 	},
 
+	'EventBus.RevisionSlotsEntitySerializer' => static function (
+		MediaWikiServices $services
+	): RevisionSlotsEntitySerializer {
+		return new RevisionSlotsEntitySerializer( $services->getContentHandlerFactory() );
+	},
+
 	'EventBus.RevisionEntitySerializer' => static function ( MediaWikiServices $services ): RevisionEntitySerializer {
-		return new RevisionEntitySerializer(
-			new RevisionSlotEntitySerializer( $services->getContentHandlerFactory() ),
-			$services->get( 'EventBus.UserEntitySerializer' ),
-		);
+		return new RevisionEntitySerializer();
 	},
 ];

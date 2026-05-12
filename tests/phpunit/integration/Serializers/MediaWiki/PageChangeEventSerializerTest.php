@@ -5,6 +5,7 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageChangeEventSerializer
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageLinkEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
+use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotsEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\Page\WikiPage;
@@ -49,6 +50,10 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	 * @var RevisionEntitySerializer
 	 */
 	private RevisionEntitySerializer $revisionEntitySerializer;
+	/**
+	 * @var RevisionSlotsEntitySerializer
+	 */
+	private RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer;
 	/**
 	 * @var PageChangeEventSerializer
 	 */
@@ -95,6 +100,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		$this->pageLinkEntitySerializer = $services->get( 'EventBus.PageLinkEntitySerializer' );
 		$this->userEntitySerializer = $services->get( 'EventBus.UserEntitySerializer' );
 		$this->revisionEntitySerializer = $services->get( 'EventBus.RevisionEntitySerializer' );
+		$this->revisionSlotsEntitySerializer = $services->get( 'EventBus.RevisionSlotsEntitySerializer' );
 
 		$this->pageChangeEventSerializer = new PageChangeEventSerializer(
 			$this->eventSerializer,
@@ -102,9 +108,32 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			$this->pageLinkEntitySerializer,
 			$this->userEntitySerializer,
 			$this->revisionEntitySerializer,
+			$this->revisionSlotsEntitySerializer,
 		);
 
 		$this->setUpHasRun = true;
+	}
+
+	/**
+	 * Mirrors {@link PageChangeEventSerializer} private toRevisionAttrs() for expected payloads.
+	 */
+	private function expectedRevisionInPageChangeEvent( RevisionRecord $revisionRecord ): array {
+		$attrs = $this->revisionEntitySerializer->toArray(
+			$revisionRecord,
+			PageChangeEventSerializer::REVISION_ENTITY_SCHEMA_VERSION
+		);
+		if ( $revisionRecord->getUser() ) {
+			$attrs['editor'] = $this->userEntitySerializer->toArray(
+				$revisionRecord->getUser(),
+				PageChangeEventSerializer::USER_ENTITY_SCHEMA_VERSION
+			);
+		}
+		$revisionSlots = $revisionRecord->getSlots();
+		$slotsAttrs = $this->revisionSlotsEntitySerializer->toArray( $revisionSlots );
+		if ( $slotsAttrs ) {
+			$attrs['content_slots'] = $slotsAttrs;
+		}
+		return $attrs;
 	}
 
 	/**
@@ -139,7 +168,10 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 
 		# If performer is not set, don't set performer in expected result.
 		$performerArray = $performer ?
-			[ 'performer' => $this->userEntitySerializer->toArray( $performer ) ] :
+			[ 'performer' => $this->userEntitySerializer->toArray(
+				$performer,
+				PageChangeEventSerializer::USER_ENTITY_SCHEMA_VERSION
+			) ] :
 			[];
 
 		return array_merge_recursive(
@@ -152,7 +184,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 						'wiki_id' => WikiMap::getCurrentWikiId(),
 						'dt' => EventSerializer::timestampToDt( $eventTimestamp ),
 						'page' => $this->pageEntitySerializer->toArray( $wikiPage ),
-						'revision' => $this->revisionEntitySerializer->toArray( $currentRevision ),
+						'revision' => $this->expectedRevisionInPageChangeEvent( $currentRevision ),
 					],
 					$performerArray
 				),
@@ -251,7 +283,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 				'page_change_kind' => 'edit',
 				'changelog_kind' => 'update',
 				'prior_state' => [
-					'revision' => $this->revisionEntitySerializer->toArray(
+					'revision' => $this->expectedRevisionInPageChangeEvent(
 						$this->revisionStore->getRevisionById(
 							$wikiPage0->getRevisionRecord()->getParentId()
 						)
@@ -321,7 +353,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 						'page_title' => $this->pageEntitySerializer->formatLinkTarget( $oldTitle ),
 						'namespace_id' => $oldTitle->getNamespace(),
 					],
-					'revision' => $this->revisionEntitySerializer->toArray( $parentRevisionRecord )
+					'revision' => $this->expectedRevisionInPageChangeEvent( $parentRevisionRecord )
 				]
 
 			]

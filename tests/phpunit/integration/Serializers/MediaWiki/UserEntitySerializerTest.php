@@ -140,7 +140,7 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 		$expected = $this->toArrayProviders[$testName][1];
 		$this->assertEquals(
 			$expected,
-			$this->userEntitySerializer->toArray( $user )
+			$this->userEntitySerializer->toArray( $user, '1.1.0' )
 		);
 	}
 }

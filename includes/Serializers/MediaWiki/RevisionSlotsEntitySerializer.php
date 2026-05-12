@@ -18,18 +18,24 @@
  * @file
  * @author Andrew Otto <otto@wikimedia.org>
  */
+
 namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
 use MediaWiki\Content\IContentHandlerFactory;
 use MediaWiki\Content\UnknownContentModelException;
+use MediaWiki\Revision\RevisionSlots;
 use MediaWiki\Revision\SlotRecord;
 
 /**
- * Converts a SlotRecord into an array that matches the
- * fragment/mediawiki/state/entity/revision_slot schema,
- * without content bodies.
+ * Converts a {@link RevisionSlots} value object into a
+ * fragment/mediawiki/state/entity/revision_slots map field.
  */
-class RevisionSlotEntitySerializer {
+class RevisionSlotsEntitySerializer {
+	/**
+	 * The earliest schema version supported by this serializer.
+	 */
+	private const SCHEMA_VERSION_EARLIEST = '2.0.1';
+
 	/**
 	 * @var IContentHandlerFactory
 	 */
@@ -45,10 +51,26 @@ class RevisionSlotEntitySerializer {
 	}
 
 	/**
+	 * @param RevisionSlots $revisionSlots
+	 * @param string $schemaVersion
+	 * @return array<string,array> Slot role name → serialized slot entity
+	 */
+	public function toArray(
+		RevisionSlots $revisionSlots,
+		string $schemaVersion = self::SCHEMA_VERSION_EARLIEST
+	): array {
+		$slotsAttrs = [];
+		foreach ( $revisionSlots->getSlots() as $slotRole => $slotRecord ) {
+			$slotsAttrs[$slotRole] = $this->slotToArray( $slotRecord );
+		}
+		return $slotsAttrs;
+	}
+
+	/**
 	 * @param SlotRecord $slotRecord
 	 * @return array
 	 */
-	public function toArray( SlotRecord $slotRecord ): array {
+	private function slotToArray( SlotRecord $slotRecord ): array {
 		$contentModel = $slotRecord->getModel();
 		$contentFormat = $slotRecord->getFormat();
 
@@ -73,8 +95,6 @@ class RevisionSlotEntitySerializer {
 		}
 
 		if ( $slotRecord->hasOrigin() ) {
-			// unclear if necessary to guard against missing origin in this context but since it
-			// might fail on unsaved content we are better safe than sorry
 			$slotAttrs['origin_rev_id'] = $slotRecord->getOrigin();
 		}
 

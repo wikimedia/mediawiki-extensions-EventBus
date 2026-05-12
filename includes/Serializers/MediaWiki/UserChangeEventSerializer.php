@@ -39,6 +39,11 @@ class UserChangeEventSerializer {
 	public const USER_CHANGE_SCHEMA_URI = '/development/mediawiki_user_change/1.0.0';
 
 	/**
+	 * The schema version of the user entity used when serializing user entities.
+	 */
+	public const USER_ENTITY_SCHEMA_VERSION = '1.1.0';
+
+	/**
 	 * There are many kinds of changes that can happen to a MediaWiki users,
 	 * but only a few kinds of changes in a 'changelog' stream.
 	 * This maps from a MediaWiki user change kind to a changelog kind.
@@ -244,7 +249,7 @@ class UserChangeEventSerializer {
 			'wiki_id' => WikiMap::getCurrentWikiId(),
 			'user_change_kind' => $user_change_kind,
 			'dt' => $dt,
-			'user' => $this->userEntitySerializer->toArray( $user ),
+			'user' => $this->userEntitySerializer->toArray( $user, self::USER_ENTITY_SCHEMA_VERSION ),
 		];
 
 		// TODO: until first_registration_dt is moved into the user entity fragment,
@@ -258,7 +263,10 @@ class UserChangeEventSerializer {
 		}
 
 		if ( $performer !== null ) {
-			$eventAttrs['performer'] = $this->userEntitySerializer->toArray( $performer );
+			$eventAttrs['performer'] = $this->userEntitySerializer->toArray(
+				$performer,
+				self::USER_ENTITY_SCHEMA_VERSION,
+			);
 		}
 
 		return $eventAttrs;

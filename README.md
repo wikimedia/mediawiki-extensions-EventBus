@@ -209,12 +209,12 @@ EventBus ServiceWiring.php exposes a few common Serializers.
 * `EventBus.RevisionEntitySerializer`
   Serializes `RevisionRecord`s
   to [mediawiki/state/entity/revision](https://schema.wikimedia.org/#!//primary/jsonschema/fragment/mediawiki/state/entity/revision).
+* `EventBus.RevisionSlotsEntitySerializer`
+  Serializes `RevisionSlots` to [mediawiki/state/entity/revision_slots](https://schema.wikimedia.org/#!//primary/jsonschema/fragment/mediawiki/state/entity/revision) map field.
 
 Note that `PageChangeEventSerializer` is not exposed as a Service.
 This is a specific event serializer that is owned by EventBus extension,
 and probably should not be reused elsewhere.
-
-`RevisionSlotEntitySerializer` is also not exposed, but if needed it could be.
 
 ## EventBus RCFeed
 

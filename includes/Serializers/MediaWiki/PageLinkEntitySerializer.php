@@ -33,6 +33,11 @@ use MediaWiki\Title\TitleFormatter;
  * Converts a PageLink to an array matching fragment/mediawiki/state/entity/page_link.
  */
 class PageLinkEntitySerializer {
+	/**
+	 * The earliest schema version supported by this serializer.
+	 */
+	private const SCHEMA_VERSION_EARLIEST = '1.0.0';
+
 	private TitleFormatter $titleFormatter;
 
 	public function __construct( TitleFormatter $titleFormatter ) {
@@ -41,9 +46,13 @@ class PageLinkEntitySerializer {
 
 	/**
 	 * @param PageLink $pageLink
+	 * @param string $schemaVersion
 	 * @return array
 	 */
-	public function toArray( PageLink $pageLink ): array {
+	public function toArray(
+		PageLink $pageLink,
+		string $schemaVersion = self::SCHEMA_VERSION_EARLIEST
+	): array {
 		$linkTarget = $pageLink->getLink();
 
 		$attrs = [

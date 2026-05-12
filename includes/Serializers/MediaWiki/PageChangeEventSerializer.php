@@ -44,6 +44,26 @@ class PageChangeEventSerializer {
 	public const PAGE_CHANGE_SCHEMA_URI = '/mediawiki/page/change/1.3.0';
 
 	/**
+	 * The schema version of the user entity used when serializing users.
+	 */
+	public const USER_ENTITY_SCHEMA_VERSION = '1.1.0';
+
+	/**
+	 * The schema version of the revision entity used when serializing revisions.
+	 */
+	public const REVISION_ENTITY_SCHEMA_VERSION = '2.0.0';
+
+	/**
+	 * The schema version of the revision slots entity used when serializing revision slots.
+	 */
+	public const REVISION_SLOTS_ENTITY_SCHEMA_VERSION = '2.0.1';
+
+	/**
+	 * The schema version of the page link entity used when serializing page link entities.
+	 */
+	public const PAGE_LINK_ENTITY_SCHEMA_VERSION = '1.0.0';
+
+	/**
 	 * There are many kinds of changes that can happen to a MediaWiki pages,
 	 * but only a few kinds of changes in a 'changelog' stream.
 	 * This maps from a MediaWiki page change kind to a changelog kind.
@@ -83,24 +103,32 @@ class PageChangeEventSerializer {
 	private RevisionEntitySerializer $revisionEntitySerializer;
 
 	/**
+	 * @var RevisionSlotsEntitySerializer
+	 */
+	private RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer;
+
+	/**
 	 * @param EventSerializer $eventSerializer
 	 * @param PageEntitySerializer $pageEntitySerializer
 	 * @param PageLinkEntitySerializer $pageLinkEntitySerializer
 	 * @param UserEntitySerializer $userEntitySerializer
 	 * @param RevisionEntitySerializer $revisionEntitySerializer
+	 * @param RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer
 	 */
 	public function __construct(
 		EventSerializer $eventSerializer,
 		PageEntitySerializer $pageEntitySerializer,
 		PageLinkEntitySerializer $pageLinkEntitySerializer,
 		UserEntitySerializer $userEntitySerializer,
-		RevisionEntitySerializer $revisionEntitySerializer
+		RevisionEntitySerializer $revisionEntitySerializer,
+		RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer
 	) {
 		$this->eventSerializer = $eventSerializer;
 		$this->pageEntitySerializer = $pageEntitySerializer;
 		$this->pageLinkEntitySerializer = $pageLinkEntitySerializer;
 		$this->userEntitySerializer = $userEntitySerializer;
 		$this->revisionEntitySerializer = $revisionEntitySerializer;
+		$this->revisionSlotsEntitySerializer = $revisionSlotsEntitySerializer;
 	}
 
 	/**
@@ -194,11 +222,17 @@ class PageChangeEventSerializer {
 		];
 
 		if ( $redirectTarget !== null ) {
-			$eventAttrs['page']['redirect_page_link'] = $this->pageLinkEntitySerializer->toArray( $redirectTarget );
+			$eventAttrs['page']['redirect_page_link'] = $this->pageLinkEntitySerializer->toArray(
+				$redirectTarget,
+				self::PAGE_LINK_ENTITY_SCHEMA_VERSION
+			);
 		}
 
 		if ( $performer !== null ) {
-			$eventAttrs['performer'] = $this->userEntitySerializer->toArray( $performer );
+			$eventAttrs['performer'] = $this->userEntitySerializer->toArray(
+				$performer,
+				self::USER_ENTITY_SCHEMA_VERSION
+			);
 		}
 
 		if ( $comment !== null ) {
@@ -206,10 +240,43 @@ class PageChangeEventSerializer {
 		}
 
 		if ( $currentRevision !== null ) {
-			$eventAttrs['revision'] = $this->revisionEntitySerializer->toArray( $currentRevision );
+			$eventAttrs['revision'] = $this->toRevisionAttrs( $currentRevision );
 		}
 
 		return $eventAttrs;
+	}
+
+	/**
+	 * Since mediawiki/page/change 1.3.1, editor is no longer a field of the revision entity schema.
+	 * It is added to revision fields in page change schema instead.
+	 * So, we DRY setting revision and revision.editor here.
+	 * This allows us to control the user entity schema version used for serializing the editor here.
+	 */
+	private function toRevisionAttrs( RevisionRecord $revisionRecord ): array {
+		$revisionAttrs = $this->revisionEntitySerializer->toArray(
+			$revisionRecord,
+			self::REVISION_ENTITY_SCHEMA_VERSION,
+		);
+
+		// Add revision.editor
+		if ( $revisionRecord->getUser() ) {
+			$revisionAttrs['editor'] = $this->userEntitySerializer->toArray(
+				$revisionRecord->getUser(),
+				self::USER_ENTITY_SCHEMA_VERSION
+			);
+		}
+
+		// Add revision.content_slots as long as slots are not empty.
+		// Note that this DOES NOT include actual content bodies,
+		// just metadata about the content in each slot role.
+		$slotsAttrs = $this->revisionSlotsEntitySerializer->toArray(
+			$revisionRecord->getSlots(),
+			self::REVISION_SLOTS_ENTITY_SCHEMA_VERSION
+		);
+		if ( $slotsAttrs ) {
+			$revisionAttrs['content_slots'] = $slotsAttrs;
+		}
+		return $revisionAttrs;
 	}
 
 	/**
@@ -273,9 +340,9 @@ class PageChangeEventSerializer {
 
 		// On edit, the prior state is all about the previous revision.
 		if ( $parentRevision !== null ) {
-			$priorStateAttrs = [];
-			$priorStateAttrs['revision'] = $this->revisionEntitySerializer->toArray( $parentRevision );
-			$eventAttrs['prior_state'] = $priorStateAttrs;
+			$eventAttrs['prior_state'] = [
+				'revision' => $this->toRevisionAttrs( $parentRevision ),
+			];
 		}
 
 		return $this->toEvent( $stream, $page, $eventAttrs );
@@ -339,7 +406,7 @@ class PageChangeEventSerializer {
 		];
 
 		// add parent revision info in prior_state, since a page move creates a new revision.
-		$priorStateAttrs['revision'] = $this->revisionEntitySerializer->toArray( $parentRevision );
+		$priorStateAttrs['revision'] = $this->toRevisionAttrs( $parentRevision );
 
 		$eventAttrs['prior_state'] = $priorStateAttrs;
 

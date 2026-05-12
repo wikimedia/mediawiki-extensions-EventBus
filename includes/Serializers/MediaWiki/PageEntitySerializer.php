@@ -33,6 +33,11 @@ use MediaWiki\Title\TitleFormatter;
  */
 class PageEntitySerializer {
 	/**
+	 * The earliest schema version supported by this serializer.
+	 */
+	private const SCHEMA_VERSION_EARLIEST = '2.0.0';
+
+	/**
 	 * @var TitleFormatter
 	 */
 	private TitleFormatter $titleFormatter;
@@ -55,10 +60,12 @@ class PageEntitySerializer {
 
 	/**
 	 * @param ProperPageIdentity $page
+	 * @param string $schemaVersion
 	 * @return array
 	 */
 	public function toArray(
-		ProperPageIdentity $page
+		ProperPageIdentity $page,
+		string $schemaVersion = self::SCHEMA_VERSION_EARLIEST
 	): array {
 		$isRedirect = false;
 		// isRedirect() is only available on PageRecord instances.

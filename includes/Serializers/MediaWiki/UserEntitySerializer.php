@@ -34,6 +34,11 @@ use MediaWiki\User\UserIdentity;
  */
 class UserEntitySerializer {
 	/**
+	 * The earliest schema version supported by this serializer.
+	 */
+	private const SCHEMA_VERSION_EARLIEST = '1.1.0';
+
+	/**
 	 * @var UserGroupManager
 	 */
 	private UserGroupManager $userGroupManager;
@@ -83,7 +88,10 @@ class UserEntitySerializer {
 	 * @param UserIdentity $user
 	 * @return array
 	 */
-	public function toArray( UserIdentity $user ): array {
+	public function toArray(
+		UserIdentity $user,
+		string $schemaVersion = self::SCHEMA_VERSION_EARLIEST,
+	 ): array {
 		// If given a UserIdentity (that is not already a User), convert to a User.
 		$user = $this->userFactory->newFromUserIdentity( $user );
 

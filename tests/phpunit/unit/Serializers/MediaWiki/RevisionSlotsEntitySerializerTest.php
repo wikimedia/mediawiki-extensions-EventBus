@@ -3,14 +3,15 @@
 use MediaWiki\Content\IContentHandlerFactory;
 use MediaWiki\Content\TextContent;
 use MediaWiki\Content\TextContentHandler;
-use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySerializer;
+use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotsEntitySerializer;
+use MediaWiki\Revision\RevisionSlots;
 use MediaWiki\Revision\SlotRecord;
 
 /**
- * @coversDefaultClass \MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotEntitySerializer
+ * @coversDefaultClass \MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotsEntitySerializer
  * @group EventBus
  */
-class RevisionSlotEntitySerializerTest extends MediaWikiUnitTestCase {
+class RevisionSlotsEntitySerializerTest extends MediaWikiUnitTestCase {
 
 	/**
 	 * Keys into $toArrayProviders.  This allows us to provide
@@ -31,9 +32,9 @@ class RevisionSlotEntitySerializerTest extends MediaWikiUnitTestCase {
 	private array $toArrayProviders;
 
 	/**
-	 * @var RevisionSlotEntitySerializer
+	 * @var RevisionSlotsEntitySerializer
 	 */
-	private RevisionSlotEntitySerializer $revisionSlotEntitySerializer;
+	private RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer;
 
 	/**
 	 * We need to use setUp to have access to MediaWikiUnitTestCase methods,
@@ -67,24 +68,24 @@ class RevisionSlotEntitySerializerTest extends MediaWikiUnitTestCase {
 		$contentHandlerFactory = $this->createMock( IContentHandlerFactory::class );
 		$contentHandlerFactory->method( 'getContentHandler' )->willReturn( $content->getContentHandler() );
 
-		$this->revisionSlotEntitySerializer = new RevisionSlotEntitySerializer(
+		$this->revisionSlotsEntitySerializer = new RevisionSlotsEntitySerializer(
 			$contentHandlerFactory
 		);
 
 		$baseCaseSlotRecord = SlotRecord::newUnsaved( SlotRecord::MAIN, $content );
 		$baseCaseExpected = [
-			'slot_role' => $baseCaseSlotRecord->getRole(),
-			'content_model' => 'text',
-			'content_format' => 'text/plain',
-			'content_size' => 3,
-			'content_sha1' => '3r00jk1xoatd95ko7lnjrdtvi79jort',
+			'main' => [
+				'slot_role' => $baseCaseSlotRecord->getRole(),
+				'content_model' => 'text',
+				'content_format' => 'text/plain',
+				'content_size' => 3,
+				'content_sha1' => '3r00jk1xoatd95ko7lnjrdtvi79jort',
+			],
 		];
 
 		$this->toArrayProviders = [];
 		$this->toArrayProviders['Base Case'] = [
-			// SlotRecord
-			$baseCaseSlotRecord,
-			// expected
+			new RevisionSlots( [ $baseCaseSlotRecord ] ),
 			$baseCaseExpected
 		];
 
@@ -95,7 +96,7 @@ class RevisionSlotEntitySerializerTest extends MediaWikiUnitTestCase {
 	 * @covers ::__construct
 	 */
 	public function testConstruct() {
-		$this->assertInstanceOf( RevisionSlotEntitySerializer::class, $this->revisionSlotEntitySerializer );
+		$this->assertInstanceOf( RevisionSlotsEntitySerializer::class, $this->revisionSlotsEntitySerializer );
 	}
 
 	public static function provideToArray() {
@@ -109,10 +110,10 @@ class RevisionSlotEntitySerializerTest extends MediaWikiUnitTestCase {
 	 * @covers ::toArray
 	 */
 	public function testToArray( $testName ) {
-		$revisionRecord = $this->toArrayProviders[$testName][0];
+		$revisionSlots = $this->toArrayProviders[$testName][0];
 		$expected = $this->toArrayProviders[$testName][1];
 
-		$actual = $this->revisionSlotEntitySerializer->toArray( $revisionRecord );
+		$actual = $this->revisionSlotsEntitySerializer->toArray( $revisionSlots );
 		$this->assertEquals( $expected, $actual );
 	}
 }
