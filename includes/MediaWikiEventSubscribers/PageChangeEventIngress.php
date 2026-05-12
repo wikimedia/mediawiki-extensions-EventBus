@@ -25,7 +25,6 @@ declare( strict_types=1 );
 namespace MediaWiki\Extension\EventBus\MediaWikiEventSubscribers;
 
 use InvalidArgumentException;
-use MediaWiki\Config\Config;
 use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\DomainEvent\DomainEventIngress;
 use MediaWiki\Extension\EventBus\EventBusFactory;
@@ -71,17 +70,6 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	PageHistoryVisibilityChangedListener
 {
 	public const PAGE_CHANGE_STREAM_NAME_DEFAULT = "mediawiki.page_change.v1";
-
-	/**
-	 * Name of the configuration variable that controls the maximum number of reverted revision IDs
-	 * to include in the page change event.
-	 * This variable is similar to wgRevertedTagMaxDepth,
-	 * but for page_change events instead of for revision tags.
-	 * This should likely be set to the same value as wgRevertedTagMaxDepth.
-	 * Default is 15.
-	 */
-	public const REVERTED_IDS_MAX_CONFIG_NAME = "EventBusPageChangeRevertedRevIdsMax";
-	public const REVERTED_IDS_MAX_CONFIG_DEFAULT = 15;
 
 	/**
 	 * Name of the stream that events will be produced to.
@@ -131,7 +119,6 @@ class PageChangeEventIngress extends DomainEventIngress implements
 		PageEntitySerializer $pageEntitySerializer,
 		UserEntitySerializer $userEntitySerializer,
 		RevisionEntitySerializer $revisionEntitySerializer,
-		Config $mainConfig,
 		UserFactory $userFactory,
 		RevisionStore $revisionStore,
 		RedirectLookup $redirectLookup,
@@ -145,18 +132,11 @@ class PageChangeEventIngress extends DomainEventIngress implements
 
 		$this->eventBusFactory = $eventBusFactory;
 
-		$revertedRevIdsMax = (int)(
-			$mainConfig->get( self::REVERTED_IDS_MAX_CONFIG_NAME )
-			?? self::REVERTED_IDS_MAX_CONFIG_DEFAULT
-		);
-
 		$this->pageChangeEventSerializer = new PageChangeEventSerializer(
 			$eventSerializer,
 			$pageEntitySerializer,
 			$userEntitySerializer,
 			$revisionEntitySerializer,
-			$revisionStore,
-			$revertedRevIdsMax,
 		);
 
 		$this->userFactory = $userFactory;
@@ -280,8 +260,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 					$redirectTarget,
 					$this->revisionStore->getRevisionById(
 						$event->getPageRecordBefore()->getLatest()
-					),
-					$event->getEditResult(),
+					)
 				);
 
 			$this->sendEvents( $this->streamName, [ $pageChangeEvent ] );
