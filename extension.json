@@ -43,9 +43,6 @@
 		},
 		"EventBusStreamNamesMap": {
 			"value": {}
-		},
-		"EventBusPageChangeRevertedRevIdsMax": {
-			"value": 15
 		}
 	},
 	"MessagesDirs": {
@@ -63,7 +60,6 @@
 				"EventBus.PageEntitySerializer",
 				"EventBus.UserEntitySerializer",
 				"EventBus.RevisionEntitySerializer",
-				"MainConfig",
 				"UserFactory",
 				"RevisionStore",
 				"RedirectStore",
