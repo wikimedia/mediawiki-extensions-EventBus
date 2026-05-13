@@ -18,6 +18,7 @@ class PageEntitySerializerTest extends MediaWikiUnitTestCase {
 	private const MOCK_PAGE_TITLE = 'MyPage';
 	private const MOCK_PAGE_ID = 50;
 	private const MOCK_NAMESPACE_ID = 0;
+	private const MOCK_CONTENT_NAMESPACE_ID = 42;
 	private const MOCK_IS_REDIRECT = false;
 	private const MOCK_EXISTS = true;
 
@@ -46,6 +47,7 @@ class PageEntitySerializerTest extends MediaWikiUnitTestCase {
 		$config = new HashConfig( [
 			MainConfigNames::CanonicalServer => self::MOCK_CANONICAL_SERVER,
 			MainConfigNames::ArticlePath => self::MOCK_ARTICLE_PATH,
+			MainConfigNames::ContentNamespaces => [ self::MOCK_NAMESPACE_ID, self::MOCK_CONTENT_NAMESPACE_ID ],
 		] );
 
 		$titleFormatter = $this->createMock( TitleFormatter::class );
@@ -94,6 +96,42 @@ class PageEntitySerializerTest extends MediaWikiUnitTestCase {
 
 		$actual = $this->pageEntitySerializer->toArray( $wikiPage );
 		$this->assertEquals( $expected, $actual, 'Should convert WikiPage to Page entity array' );
+	}
+
+	/**
+	 * @covers ::toArray
+	 */
+	public function testToArray_schema21_contentNamespace() {
+		$contentPage = $this->createMock( WikiPage::class );
+		$contentPage->method( 'getId' )->willReturn( self::MOCK_PAGE_ID );
+		$contentPage->method( 'getTitle' )->willReturn(
+			Title::newFromLinkTarget( new TitleValue( self::MOCK_CONTENT_NAMESPACE_ID, self::MOCK_PAGE_TITLE ) )
+		);
+		$contentPage->method( 'getNamespace' )->willReturn( self::MOCK_CONTENT_NAMESPACE_ID );
+		$contentPage->method( 'isRedirect' )->willReturn( self::MOCK_IS_REDIRECT );
+		$contentPage->method( 'exists' )->willReturn( self::MOCK_EXISTS );
+
+		$actual = $this->pageEntitySerializer->toArray( $this->wikiPage, '2.1.0' );
+		$this->assertArrayHasKey( 'namespace_is_content', $actual );
+		$this->assertTrue( $actual['namespace_is_content'] );
+	}
+
+	/**
+	 * @covers ::toArray
+	 */
+	public function testToArray_schema21_notContentNamespace() {
+		$talkPage = $this->createMock( WikiPage::class );
+		$talkPage->method( 'getId' )->willReturn( self::MOCK_PAGE_ID );
+		$talkPage->method( 'getTitle' )->willReturn(
+			Title::newFromLinkTarget( new TitleValue( NS_TALK, self::MOCK_PAGE_TITLE ) )
+		);
+		$talkPage->method( 'getNamespace' )->willReturn( NS_TALK );
+		$talkPage->method( 'isRedirect' )->willReturn( self::MOCK_IS_REDIRECT );
+		$talkPage->method( 'exists' )->willReturn( self::MOCK_EXISTS );
+
+		$actual = $this->pageEntitySerializer->toArray( $talkPage, '2.1.0' );
+		$this->assertArrayHasKey( 'namespace_is_content', $actual );
+		$this->assertFalse( $actual['namespace_is_content'] );
 	}
 
 	/**

@@ -352,8 +352,6 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	 * whether a redirect was created, and serializes all this information into
 	 * a page change move event.
 	 *
-	 * Passes $event->getPageRecordBefore() directly to toMoveEvent, which accepts LinkTarget|PageReference.
-	 *
 	 * @param PageMovedEvent $event The event representing a page move, including
 	 *                              references to the page before and after the move,
 	 *                              the performing user, reason for the move, and

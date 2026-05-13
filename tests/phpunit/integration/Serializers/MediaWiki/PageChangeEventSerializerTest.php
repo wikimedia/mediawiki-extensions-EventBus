@@ -8,6 +8,7 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotsEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Http\Telemetry;
+use MediaWiki\Page\PageIdentityValue;
 use MediaWiki\Page\WikiPage;
 use MediaWiki\Revision\MutableRevisionRecord;
 use MediaWiki\Revision\RevisionRecord;
@@ -183,7 +184,10 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 					[
 						'wiki_id' => WikiMap::getCurrentWikiId(),
 						'dt' => EventSerializer::timestampToDt( $eventTimestamp ),
-						'page' => $this->pageEntitySerializer->toArray( $wikiPage ),
+						'page' => $this->pageEntitySerializer->toArray(
+							$wikiPage,
+							PageChangeEventSerializer::PAGE_ENTITY_SCHEMA_VERSION
+						),
 						'revision' => $this->expectedRevisionInPageChangeEvent( $currentRevision ),
 					],
 					$performerArray
@@ -325,7 +329,13 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			$this->getTestUser()->getUser(),
 		);
 
-		$oldTitle = $wikiPage0->getTitle();
+		// Prior title for the move: same page ID as after the move, but the pre-move DB key.
+		$defaultNs = $this->getDefaultWikitextNS();
+		$oldTitle = PageIdentityValue::localIdentity(
+			$wikiPage0->getId(),
+			$defaultNs,
+			Title::newFromText( $oldTitleText, $defaultNs )->getDBkey()
+		);
 
 		// Move the page!
 		$reason = 'test move event';
@@ -347,11 +357,13 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			[
 				'page_change_kind' => 'move',
 				'changelog_kind' => 'update',
-				'created_redirect_page' => $this->pageEntitySerializer->toArray( $createdRedirectPage ),
+				'created_redirect_page' => $this->pageEntitySerializer->toArray(
+					$createdRedirectPage,
+					PageChangeEventSerializer::PAGE_ENTITY_SCHEMA_VERSION
+				),
 				'prior_state' => [
 					'page' => [
-						'page_title' => $this->pageEntitySerializer->formatLinkTarget( $oldTitle ),
-						'namespace_id' => $oldTitle->getNamespace(),
+						'page_title' => $this->pageEntitySerializer->formatPageTitle( $oldTitle ),
 					],
 					'revision' => $this->expectedRevisionInPageChangeEvent( $parentRevisionRecord )
 				]

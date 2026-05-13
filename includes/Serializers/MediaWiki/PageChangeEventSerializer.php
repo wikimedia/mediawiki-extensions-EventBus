@@ -24,7 +24,6 @@ namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 use MediaWiki\Extension\EventBus\Entity\PageLink;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Http\Telemetry;
-use MediaWiki\Linker\LinkTarget;
 use MediaWiki\Page\ProperPageIdentity;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\User\User;
@@ -41,7 +40,7 @@ class PageChangeEventSerializer {
 	 * All page change events will have their $schema URI set to this.
 	 * https://phabricator.wikimedia.org/T308017
 	 */
-	public const PAGE_CHANGE_SCHEMA_URI = '/mediawiki/page/change/1.3.0';
+	public const PAGE_CHANGE_SCHEMA_URI = '/mediawiki/page/change/1.5.0';
 
 	/**
 	 * The schema version of the user entity used when serializing users.
@@ -62,6 +61,11 @@ class PageChangeEventSerializer {
 	 * The schema version of the page link entity used when serializing page link entities.
 	 */
 	public const PAGE_LINK_ENTITY_SCHEMA_VERSION = '1.0.0';
+
+	/**
+	 * The schema version of the page entity used when serializing page entities.
+	 */
+	public const PAGE_ENTITY_SCHEMA_VERSION = '2.1.0';
 
 	/**
 	 * There are many kinds of changes that can happen to a MediaWiki pages,
@@ -218,7 +222,7 @@ class PageChangeEventSerializer {
 			'page_change_kind' => $page_change_kind,
 			'dt' => $dt,
 			'wiki_id' => self::getWikiId( $page ),
-			'page' => $this->pageEntitySerializer->toArray( $page ),
+			'page' => $this->pageEntitySerializer->toArray( $page, self::PAGE_ENTITY_SCHEMA_VERSION ),
 		];
 
 		if ( $redirectTarget !== null ) {
@@ -350,14 +354,14 @@ class PageChangeEventSerializer {
 
 	/**
 	 * Converts from the given page, RevisionRecord
-	 * and old title LinkTarget to a page_change_kind: move event.
+	 * and old title ProperPageIdentity to a page_change_kind: move event.
 	 *
 	 * @param string $stream
 	 * @param ProperPageIdentity $page
 	 * @param User $performer
 	 * @param RevisionRecord $currentRevision
 	 * @param RevisionRecord $parentRevision
-	 * @param LinkTarget|ProperPageIdentity $oldTitle
+	 * @param ProperPageIdentity $oldTitle Page identity at the title/namespace before the move
 	 * @param string $reason
 	 * @param ProperPageIdentity|null $createdRedirectWikiPage
 	 * @param PageLink|null $redirectTarget
@@ -369,7 +373,7 @@ class PageChangeEventSerializer {
 		User $performer,
 		RevisionRecord $currentRevision,
 		RevisionRecord $parentRevision,
-		/* LinkTarget|ProperPageIdentity */ $oldTitle,
+		ProperPageIdentity $oldTitle,
 		string $reason,
 		?ProperPageIdentity $createdRedirectWikiPage = null,
 		?PageLink $redirectTarget = null
@@ -391,19 +395,19 @@ class PageChangeEventSerializer {
 		// If a new redirect page was created during this move, then include
 		// some information about it.
 		if ( $createdRedirectWikiPage ) {
-			$eventAttrs['created_redirect_page'] = $this->pageEntitySerializer->toArray( $createdRedirectWikiPage );
+			$eventAttrs['created_redirect_page'] = $this->pageEntitySerializer
+				->toArray( $createdRedirectWikiPage, self::PAGE_ENTITY_SCHEMA_VERSION );
 		}
 
-		// On move, the prior state is about page title, namespace, and also the previous revision.
-		// (Page moves create a new revision of a page).
+		// On move, prior_state.page lists only page entity fields that differ from the current page;
+		// prior_state.revision is the revision before the move (a move creates a new revision).
 		$priorStateAttrs = [];
 
-		// Include old page_title and namespace to prior_state, these are primary
-		// arguments to the move. Skip page_id as it could not have changed.
-		$priorStateAttrs['page'] = [
-			'page_title' => $this->pageEntitySerializer->formatLinkTarget( $oldTitle ),
-			'namespace_id' => $oldTitle->getNamespace(),
-		];
+		// Only keep fields that differ from the current page.
+		$priorStateAttrs['page'] = array_diff_assoc(
+			$this->pageEntitySerializer->toArray( $oldTitle, self::PAGE_ENTITY_SCHEMA_VERSION ),
+			$eventAttrs['page']
+		);
 
 		// add parent revision info in prior_state, since a page move creates a new revision.
 		$priorStateAttrs['revision'] = $this->toRevisionAttrs( $parentRevision );

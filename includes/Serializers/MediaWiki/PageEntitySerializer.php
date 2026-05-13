@@ -22,6 +22,7 @@ namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
 use MediaWiki\Config\Config;
 use MediaWiki\Linker\LinkTarget;
+use MediaWiki\MainConfigNames;
 use MediaWiki\Page\PageRecord;
 use MediaWiki\Page\PageReference;
 use MediaWiki\Page\ProperPageIdentity;
@@ -38,6 +39,18 @@ class PageEntitySerializer {
 	private const SCHEMA_VERSION_EARLIEST = '2.0.0';
 
 	/**
+	 * Map of fields that were introduced after SCHEMA_VERSION_EARLIEST to the
+	 * schema version in which they were introduced.
+	 * Fields not listed are emitted at all supported schema versions.
+	 * As new fields are added to new versions of the entity schema
+	 * they should be added here and the code should gate the serialization
+	 * of the field on the desired output $schemaVersion.
+	 */
+	private const FIELD_TO_SCHEMA_VERSION = [
+		'namespace_is_content' => '2.1.0',
+	];
+
+	/**
 	 * @var TitleFormatter
 	 */
 	private TitleFormatter $titleFormatter;
@@ -45,6 +58,13 @@ class PageEntitySerializer {
 	 * @var Config
 	 */
 	private Config $mainConfig;
+
+	/**
+	 * Namespace IDs that count as content namespaces for {@see pageWithContentNamespaceFlag}.
+	 *
+	 * @var array
+	 */
+	private array $contentNamespaces;
 
 	/**
 	 * @param Config $mainConfig
@@ -56,6 +76,9 @@ class PageEntitySerializer {
 	) {
 		$this->mainConfig = $mainConfig;
 		$this->titleFormatter = $titleFormatter;
+		$this->contentNamespaces =
+			$mainConfig->get( MainConfigNames::ContentNamespaces )
+			?? [ NS_MAIN ];
 	}
 
 	/**
@@ -79,6 +102,15 @@ class PageEntitySerializer {
 			'namespace_id' => $page->getNamespace(),
 			'is_redirect' => $isRedirect,
 		];
+
+		if ( $this->isFieldInVersion( 'namespace_is_content', $schemaVersion ) ) {
+			$serialized['namespace_is_content'] = in_array(
+				$serialized['namespace_id'],
+				$this->contentNamespaces,
+				true
+			);
+		}
+
 		return $serialized;
 	}
 
@@ -124,5 +156,17 @@ class PageEntitySerializer {
 		// The ArticlePath contains '$1' string where the article title should appear.
 		return $this->mainConfig->get( 'CanonicalServer' ) .
 			str_replace( '$1', $titleURL, $this->mainConfig->get( 'ArticlePath' ) );
+	}
+
+	/**
+	 * Helper function to check if a field is present in the page entity at a given schema version.
+	 *
+	 * @param string $field
+	 * @param string $schemaVersion
+	 * @return bool
+	 */
+	private function isFieldInVersion( string $field, string $schemaVersion ): bool {
+		$fieldSinceVersion = self::FIELD_TO_SCHEMA_VERSION[$field] ?? self::SCHEMA_VERSION_EARLIEST;
+		return version_compare( $schemaVersion, $fieldSinceVersion ) >= 0;
 	}
 }

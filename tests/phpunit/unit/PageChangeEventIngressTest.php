@@ -148,6 +148,7 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			MainConfigNames::CanonicalServer => 'http://localhost',
 			MainConfigNames::DBname => 'my_wiki-unittest_',
 			MainConfigNames::ArticlePath => '/wiki/$1',
+			MainConfigNames::ContentNamespaces => [ NS_MAIN ],
 		] );
 
 		$this->globalIdGenerator = $this->createMock( GlobalIdGenerator::class );

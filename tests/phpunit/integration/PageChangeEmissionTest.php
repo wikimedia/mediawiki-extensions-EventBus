@@ -758,14 +758,19 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		);
 
 		Assert::assertArrayHasKey( "prior_state", $destinationEvent );
+
+		// assert that the page title and namespace id of the destination event
+		// are the same as the source event. If the page title or namespace id
+		// has not changed, the prior state should not have these fields.
 		Assert::assertSame(
 			$sourceEvent['page']['page_title'],
 			$destinationEvent['prior_state']['page']['page_title']
 		);
 		Assert::assertSame(
 			$sourceEvent['page']['namespace_id'],
-			$destinationEvent['prior_state']['page']['namespace_id']
+			$destinationEvent['page']['namespace_id']
 		);
+		Assert::assertArrayNotHasKey( "namespace_id", $destinationEvent['prior_state']['page'] );
 
 		// The moved page carries information about the parent revision's prior state.
 		// Some fields. like edit_count of an editor subkey, might diverge. Here we explicitly
