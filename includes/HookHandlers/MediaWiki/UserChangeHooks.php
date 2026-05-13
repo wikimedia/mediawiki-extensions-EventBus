@@ -38,6 +38,7 @@ use MediaWiki\User\Hook\UserGroupsChangedHook;
 use MediaWiki\User\User;
 use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
+use MediaWiki\User\UserIdentity;
 use UnexpectedValueException;
 use Wikimedia\Assert\Assert;
 
@@ -221,7 +222,7 @@ class UserChangeHooks implements
 	/**
 	 * Emit user groups change events.
 	 *
-	 * @param User $user User whose groups changed
+	 * @param UserIdentity $userIdentity User whose groups changed
 	 * @param string[] $added Groups added
 	 * @param string[] $removed Groups removed
 	 * @param User|false $performer
@@ -231,7 +232,7 @@ class UserChangeHooks implements
 	 * @return void
 	 */
 	public function onUserGroupsChanged(
-		$user,
+		$userIdentity,
 		$added,
 		$removed,
 		$performer,
@@ -242,6 +243,17 @@ class UserChangeHooks implements
 		// Only set performer if they are a real named logged in user.
 		if ( $performer !== false && !$performer->isNamed() ) {
 			$performer = null;
+		}
+
+		if ( $userIdentity instanceof User ) {
+			$user = $userIdentity;
+		} else {
+			$user = $this->userFactory->newFromName( $userIdentity->getName() );
+		}
+
+		if ( $user === null ) {
+			// Shouldn't ever happen, because we're looking by a name that actually exists, but let's make Phan happy
+			return;
 		}
 
 		// A user's groups should include both implicit and explicit groups.
