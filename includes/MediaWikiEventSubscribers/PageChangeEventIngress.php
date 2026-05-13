@@ -54,7 +54,6 @@ use MediaWiki\Page\RedirectLookup;
 use MediaWiki\Page\WikiPage;
 use MediaWiki\Revision\RevisionStore;
 use MediaWiki\Storage\PageUpdateCauses;
-use MediaWiki\User\UserFactory;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use UnexpectedValueException;
@@ -95,11 +94,6 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	private PageChangeEventSerializer $pageChangeEventSerializer;
 
 	/**
-	 * @var UserFactory
-	 */
-	private UserFactory $userFactory;
-
-	/**
 	 * @var RevisionStore
 	 */
 	private RevisionStore $revisionStore;
@@ -123,7 +117,6 @@ class PageChangeEventIngress extends DomainEventIngress implements
 		UserEntitySerializer $userEntitySerializer,
 		RevisionEntitySerializer $revisionEntitySerializer,
 		RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer,
-		UserFactory $userFactory,
 		RevisionStore $revisionStore,
 		RedirectLookup $redirectLookup,
 		PageLookup $pageLookup,
@@ -145,7 +138,6 @@ class PageChangeEventIngress extends DomainEventIngress implements
 			$revisionSlotsEntitySerializer,
 		);
 
-		$this->userFactory = $userFactory;
 		$this->revisionStore = $revisionStore;
 		$this->redirectLookup = $redirectLookup;
 		$this->pageLookup = $pageLookup;
@@ -240,7 +232,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 				return;
 			}
 
-			$performer = $this->userFactory->newFromUserIdentity( $event->getPerformer() );
+			$performer = $event->getPerformer();
 			$revisionRecord = $event->getLatestRevisionAfter();
 
 			$redirectTarget =
@@ -315,9 +307,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 
 		// Don't set performer in the event if this delete suppresses the page from other admins.
 		// https://phabricator.wikimedia.org/T342487
-		$performerForEvent = $event->isSuppressed() ?
-			null :
-			$this->userFactory->newFromUserIdentity( $event->getPerformer() );
+		$performerForEvent = $event->isSuppressed() ? null : $event->getPerformer();
 
 		$redirectTarget = null;
 
@@ -369,7 +359,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 			);
 		}
 
-		$performer = $this->userFactory->newFromUserIdentity( $event->getPerformer() );
+		$performer = $event->getPerformer();
 
 		$redirectTarget =
 			self::lookupRedirectTarget(
@@ -410,7 +400,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	 */
 	public function handlePageCreatedEvent( PageCreatedEvent $event ): void {
 		if ( $event->getCause() === PageUpdateCauses::CAUSE_UNDELETE ) {
-			$performer = $this->userFactory->newFromUserIdentity( $event->getPerformer() );
+			$performer = $event->getPerformer();
 
 			$redirectTarget =
 				self::lookupRedirectTarget(

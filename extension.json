@@ -62,7 +62,6 @@
 				"EventBus.UserEntitySerializer",
 				"EventBus.RevisionEntitySerializer",
 				"EventBus.RevisionSlotsEntitySerializer",
-				"UserFactory",
 				"RevisionStore",
 				"RedirectStore",
 				"PageStore"
@@ -91,8 +90,9 @@
 				"EventBus.EventSerializer",
 				"EventBus.UserEntitySerializer",
 				"UserFactory",
-				"UserGroupManager",
-				"TitleFactory"
+				"UserGroupManagerFactory",
+				"TitleFactory",
+				"UserIdentityUtils"
 			]
 		},
 		"main": {

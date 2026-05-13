@@ -90,9 +90,11 @@ return [
 	'EventBus.UserEntitySerializer' => static function ( MediaWikiServices $services ): UserEntitySerializer {
 		return new UserEntitySerializer(
 			$services->getUserFactory(),
-			$services->getUserGroupManager(),
+			$services->getUserGroupManagerFactory(),
 			$services->getCentralIdLookup(),
 			$services->getUserRegistrationLookup(),
+			$services->getUserIdentityUtils(),
+			$services->getUserEditTracker(),
 		);
 	},
 

@@ -37,8 +37,9 @@ use MediaWiki\Title\TitleFactory;
 use MediaWiki\User\Hook\UserGroupsChangedHook;
 use MediaWiki\User\User;
 use MediaWiki\User\UserFactory;
-use MediaWiki\User\UserGroupManager;
+use MediaWiki\User\UserGroupManagerFactory;
 use MediaWiki\User\UserIdentity;
+use MediaWiki\User\UserIdentityUtils;
 use UnexpectedValueException;
 use Wikimedia\Assert\Assert;
 
@@ -59,7 +60,7 @@ class UserChangeHooks implements
 	private UserEntitySerializer $userEntitySerializer;
 	private UserChangeEventSerializer $userChangeEventSerializer;
 	private UserFactory $userFactory;
-	private UserGroupManager $userGroupManager;
+	private UserGroupManagerFactory $userGroupManagerFactory;
 
 	public function __construct(
 		EventBusFactory $eventBusFactory,
@@ -67,8 +68,9 @@ class UserChangeHooks implements
 		EventSerializer $eventSerializer,
 		UserEntitySerializer $userEntitySerializer,
 		UserFactory $userFactory,
-		UserGroupManager $userGroupManager,
+		UserGroupManagerFactory $userGroupManagerFactory,
 		TitleFactory $titleFactory,
+		UserIdentityUtils $userIdentityUtils,
 	) {
 		$this->streamName = $streamNameMapper->resolve(
 			self::USER_CHANGE_STREAM_NAME_DEFAULT
@@ -82,10 +84,11 @@ class UserChangeHooks implements
 			$eventSerializer,
 			$userEntitySerializer,
 			$titleFactory,
+			$userIdentityUtils,
 		);
 
 		$this->userFactory = $userFactory;
-		$this->userGroupManager = $userGroupManager;
+		$this->userGroupManagerFactory = $userGroupManagerFactory;
 	}
 
 	/**
@@ -245,32 +248,24 @@ class UserChangeHooks implements
 			$performer = null;
 		}
 
-		if ( $userIdentity instanceof User ) {
-			$user = $userIdentity;
-		} else {
-			$user = $this->userFactory->newFromName( $userIdentity->getName() );
-		}
-
-		if ( $user === null ) {
-			// Shouldn't ever happen, because we're looking by a name that actually exists, but let's make Phan happy
-			return;
-		}
-
+		// Pass the UserIdentity straight through to preserve cross-wiki context
+		// (interwiki rights changes via Special:UserRights deliver a UserIdentity
+		// whose getWikiId() refers to a foreign wiki).
 		// A user's groups should include both implicit and explicit groups.
 		// This hook gives us the explicit groups that have changed, but not
 		// implicit ones.
 		// But, because implicit groups are not modified by this hook,
 		// we can get the list of effective current and prior groups
 		// by unioning the explicit groups (changed) by this hook with the implicit groups.
-		$groupsCurrent = $this->calculateUserEffectiveGroups( $user, $newUGMs );
-		$groupsPrior = $this->calculateUserEffectiveGroups( $user, $oldUGMs );
+		$groupsCurrent = $this->calculateUserEffectiveGroups( $userIdentity, $newUGMs );
+		$groupsPrior = $this->calculateUserEffectiveGroups( $userIdentity, $oldUGMs );
 
 		$event = $this->userChangeEventSerializer->toGroupsChangedEvent(
 			$this->streamName,
 			// UserGroupsChanged does not provide a timestamp,
 			// so we use the current time as the event timestamp.
 			wfTimestampNow(),
-			$user,
+			$userIdentity,
 			// Don't set performer if they are not a real logged in user.
 			$performer !== false && $performer->isNamed() ? $performer : null,
 			$groupsCurrent,
@@ -289,13 +284,23 @@ class UserChangeHooks implements
 	 * calcualted effective groups =
 	 * (current effective groups - all possible explicit groups) + $explicitUserGroupMembership param
 	 *
-	 * @param User $user
+	 * Uses the wiki-aware UserGroupManager keyed by $user->getWikiId(), so that
+	 * implicit groups and the explicit-groups list are computed against the
+	 * user's home wiki (not necessarily the current wiki).
+	 *
+	 * @param UserIdentity $user
 	 * @param array $explicitUserGroupMembership
 	 * @return array
 	 */
-	private function calculateUserEffectiveGroups( User $user, array $explicitUserGroupMembership ): array {
-		$currentEffectiveGroups = $this->userGroupManager->getUserEffectiveGroups( $user );
-		$allExplicitGroups = $this->userGroupManager->listAllGroups();
+	private function calculateUserEffectiveGroups(
+		UserIdentity $user,
+		array $explicitUserGroupMembership
+	): array {
+		$userGroupManager = $this->userGroupManagerFactory
+			->getUserGroupManager( $user->getWikiId() );
+
+		$currentEffectiveGroups = $userGroupManager->getUserEffectiveGroups( $user );
+		$allExplicitGroups = $userGroupManager->listAllGroups();
 
 		// Subtract all possible explicit groups from the current effective groups.
 		// This let's us union the non-explicit groups with the explicitly provided groups parameter.

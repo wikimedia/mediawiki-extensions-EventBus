@@ -26,7 +26,7 @@ use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\Page\ProperPageIdentity;
 use MediaWiki\Revision\RevisionRecord;
-use MediaWiki\User\User;
+use MediaWiki\User\UserIdentity;
 use MediaWiki\WikiMap\WikiMap;
 use Wikimedia\Assert\Assert;
 
@@ -45,7 +45,7 @@ class PageChangeEventSerializer {
 	/**
 	 * The schema version of the user entity used when serializing users.
 	 */
-	public const USER_ENTITY_SCHEMA_VERSION = '1.1.0';
+	public const USER_ENTITY_SCHEMA_VERSION = '1.2.0';
 
 	/**
 	 * The schema version of the revision entity used when serializing revisions.
@@ -202,7 +202,7 @@ class PageChangeEventSerializer {
 	 * @param string $page_change_kind
 	 * @param string $dt
 	 * @param ProperPageIdentity $page
-	 * @param User|null $performer
+	 * @param UserIdentity|null $performer
 	 * @param RevisionRecord|null $currentRevision
 	 * @param PageLink|null $redirectTarget
 	 * @param string|null $comment
@@ -212,7 +212,7 @@ class PageChangeEventSerializer {
 		string $page_change_kind,
 		string $dt,
 		ProperPageIdentity $page,
-		?User $performer,
+		?UserIdentity $performer,
 		?RevisionRecord $currentRevision = null,
 		?PageLink $redirectTarget = null,
 		?string $comment = null
@@ -288,7 +288,7 @@ class PageChangeEventSerializer {
 	 *
 	 * @param string $stream
 	 * @param ProperPageIdentity $page
-	 * @param User $performer
+	 * @param UserIdentity $performer
 	 * @param RevisionRecord $currentRevision
 	 * @param PageLink|null $redirectTarget
 	 * @return array
@@ -296,7 +296,7 @@ class PageChangeEventSerializer {
 	public function toCreateEvent(
 		string $stream,
 		ProperPageIdentity $page,
-		User $performer,
+		UserIdentity $performer,
 		RevisionRecord $currentRevision,
 		?PageLink $redirectTarget = null
 	): array {
@@ -318,7 +318,7 @@ class PageChangeEventSerializer {
 	 *
 	 * @param string $stream
 	 * @param ProperPageIdentity $page
-	 * @param User $performer
+	 * @param UserIdentity $performer
 	 * @param RevisionRecord $currentRevision
 	 * @param PageLink|null $redirectTarget
 	 * @param RevisionRecord|null $parentRevision
@@ -327,7 +327,7 @@ class PageChangeEventSerializer {
 	public function toEditEvent(
 		string $stream,
 		ProperPageIdentity $page,
-		User $performer,
+		UserIdentity $performer,
 		RevisionRecord $currentRevision,
 		?PageLink $redirectTarget = null,
 		?RevisionRecord $parentRevision = null
@@ -358,7 +358,7 @@ class PageChangeEventSerializer {
 	 *
 	 * @param string $stream
 	 * @param ProperPageIdentity $page
-	 * @param User $performer
+	 * @param UserIdentity $performer
 	 * @param RevisionRecord $currentRevision
 	 * @param RevisionRecord $parentRevision
 	 * @param ProperPageIdentity $oldTitle Page identity at the title/namespace before the move
@@ -370,7 +370,7 @@ class PageChangeEventSerializer {
 	public function toMoveEvent(
 		string $stream,
 		ProperPageIdentity $page,
-		User $performer,
+		UserIdentity $performer,
 		RevisionRecord $currentRevision,
 		RevisionRecord $parentRevision,
 		ProperPageIdentity $oldTitle,
@@ -427,7 +427,7 @@ class PageChangeEventSerializer {
 	 *
 	 * @param string $stream
 	 * @param ProperPageIdentity $page
-	 * @param User|null $performer
+	 * @param UserIdentity|null $performer
 	 * @param RevisionRecord $currentRevision
 	 * @param string $reason
 	 * @param string|null $eventTimestamp
@@ -443,7 +443,7 @@ class PageChangeEventSerializer {
 	public function toDeleteEvent(
 		string $stream,
 		ProperPageIdentity $page,
-		?User $performer,
+		?UserIdentity $performer,
 		RevisionRecord $currentRevision,
 		string $reason,
 		?string $eventTimestamp = null,
@@ -500,7 +500,7 @@ class PageChangeEventSerializer {
 	 *
 	 * @param string $stream
 	 * @param ProperPageIdentity $page
-	 * @param User $performer
+	 * @param UserIdentity $performer
 	 * @param RevisionRecord $currentRevision
 	 * @param string $reason
 	 * @param PageLink|null $redirectTarget
@@ -511,7 +511,7 @@ class PageChangeEventSerializer {
 	public function toUndeleteEvent(
 		string $stream,
 		ProperPageIdentity $page,
-		User $performer,
+		UserIdentity $performer,
 		RevisionRecord $currentRevision,
 		string $reason,
 		?PageLink $redirectTarget = null,
@@ -552,7 +552,7 @@ class PageChangeEventSerializer {
 	 *
 	 * @param string $stream
 	 * @param ProperPageIdentity $page
-	 * @param User|null $performer
+	 * @param UserIdentity|null $performer
 	 * @param RevisionRecord $currentRevision
 	 * @param int $priorVisibilityBitfield
 	 * @param string|null $eventTimestamp
@@ -561,7 +561,7 @@ class PageChangeEventSerializer {
 	public function toVisibilityChangeEvent(
 		string $stream,
 		ProperPageIdentity $page,
-		?User $performer,
+		?UserIdentity $performer,
 		RevisionRecord $currentRevision,
 		int $priorVisibilityBitfield,
 		?string $eventTimestamp = null

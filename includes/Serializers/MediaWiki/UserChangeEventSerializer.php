@@ -26,6 +26,8 @@ namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Title\TitleFactory;
 use MediaWiki\User\User;
+use MediaWiki\User\UserIdentity;
+use MediaWiki\User\UserIdentityUtils;
 use MediaWiki\WikiMap\WikiMap;
 use Wikimedia\Assert\Assert;
 
@@ -36,12 +38,12 @@ class UserChangeEventSerializer {
 	/**
 	 * All user_change events will have their $schema URI set to this.
 	 */
-	public const USER_CHANGE_SCHEMA_URI = '/development/mediawiki_user_change/1.0.0';
+	public const USER_CHANGE_SCHEMA_URI = '/development/mediawiki_user_change/1.1.0';
 
 	/**
 	 * The schema version of the user entity used when serializing user entities.
 	 */
-	public const USER_ENTITY_SCHEMA_VERSION = '1.1.0';
+	public const USER_ENTITY_SCHEMA_VERSION = '1.2.0';
 
 	/**
 	 * There are many kinds of changes that can happen to a MediaWiki users,
@@ -66,15 +68,21 @@ class UserChangeEventSerializer {
 	 * @var TitleFactory
 	 */
 	private TitleFactory $titleFactory;
+	/**
+	 * @var UserIdentityUtils
+	 */
+	private UserIdentityUtils $userIdentityUtils;
 
 	public function __construct(
 		EventSerializer $eventSerializer,
 		UserEntitySerializer $userEntitySerializer,
 		TitleFactory $titleFactory,
+		UserIdentityUtils $userIdentityUtils,
 	) {
 		$this->eventSerializer = $eventSerializer;
 		$this->userEntitySerializer = $userEntitySerializer;
 		$this->titleFactory = $titleFactory;
+		$this->userIdentityUtils = $userIdentityUtils;
 	}
 
 	/**
@@ -149,9 +157,13 @@ class UserChangeEventSerializer {
 	/**
 	 * Creates a mediawiki/user/change user groups changed event.
 	 *
+	 * Accepts a UserIdentity (rather than a User) so that interwiki rights
+	 * changes - where the target user lives on a different wiki - can be
+	 * serialized correctly.
+	 *
 	 * @param string $stream
 	 * @param string $eventTimestamp Timestamp of the change (MW TS14 or any wfTimestamp()-compatible format)
-	 * @param User $user User whose groups changed
+	 * @param UserIdentity $user User whose groups changed (may belong to a foreign wiki)
 	 * @param User|null $performer Actor that caused this change; null for autopromotion (hook passes false)
 	 * @param string[] $groupsCurrent All groups after the change (implicit + explicit)
 	 * @param string[] $groupsPrior All groups before the change (implicit + explicit)
@@ -161,7 +173,7 @@ class UserChangeEventSerializer {
 	public function toGroupsChangedEvent(
 		string $stream,
 		string $eventTimestamp,
-		User $user,
+		UserIdentity $user,
 		?User $performer,
 		array $groupsCurrent,
 		array $groupsPrior,
@@ -192,13 +204,13 @@ class UserChangeEventSerializer {
 	/**
 	 * Uses EventSerializer to create the mediawiki/user/change event for the given $eventAttrs
 	 * @param string $stream
-	 * @param User $user
+	 * @param UserIdentity $user
 	 * @param array $eventAttrs
 	 * @return array
 	 */
 	private function toEvent(
 		string $stream,
-		User $user,
+		UserIdentity $user,
 		array $eventAttrs,
 	): array {
 		return $this->eventSerializer->createEvent(
@@ -215,21 +227,21 @@ class UserChangeEventSerializer {
 	 *
 	 * @param string $user_change_kind
 	 * @param string $dt
-	 * @param User $user
+	 * @param UserIdentity $user
 	 * @param User|null $performer
 	 * @return array
 	 */
 	private function toCommonAttrs(
 		string $user_change_kind,
 		string $dt,
-		User $user,
+		UserIdentity $user,
 		?User $performer,
 		?string $comment = null
 	): array {
 		// Defense: we never want to emit events about any non named users.
 		// Non anons, no temps, etc.
 		Assert::parameter(
-			$user->isNamed(),
+			$this->userIdentityUtils->isNamed( $user ),
 			'user',
 			'user_change events shoud only emit information about named (real) user accounts. ' .
 			"User {$user->getName()} is not a named user."
@@ -237,7 +249,7 @@ class UserChangeEventSerializer {
 
 		if ( $performer !== null ) {
 			Assert::parameter(
-				$performer->isNamed(),
+				$this->userIdentityUtils->isNamed( $performer ),
 				'performer',
 				'user_change events shoud only emit information about named (real) user accounts. ' .
 				"Performer {$performer->getName()} is not a named user."
@@ -291,11 +303,41 @@ class UserChangeEventSerializer {
 
 	/**
 	 * Returns the canonical URL for the user's page.
-	 * @param User $user
+	 *
+	 * For local users, the URL is built using the local wiki's namespace
+	 * localization, e.g. "https://de.wikipedia.org/wiki/Benutzer:Foo".
+	 *
+	 * For users from a foreign wiki, the URL is resolved via WikiMap to the
+	 * foreign wiki's canonical server. We use the canonical English "User:"
+	 * namespace prefix, because MediaWiki accepts canonical namespace names
+	 * in URLs regardless of the foreign wiki's content language, and we
+	 * don't have access to the foreign wiki's namespace localization from
+	 * here.
+	 *
+	 * If the foreign wiki cannot be resolved (i.e. not registered in the
+	 * local WikiMap), we fall back to building a local URL.
+	 *
+	 * @param UserIdentity $userIdentity
 	 * @return string
 	 */
-	private function canonicalUserPageURL( User $user ): string {
-		$userTitle = $this->titleFactory->makeTitle( NS_USER, $user->getName() );
+	private function canonicalUserPageURL( UserIdentity $userIdentity ): string {
+		$wikiId = $userIdentity->getWikiId();
+
+		// If $userIdentity is for a user on a foreign wiki, attempt to resolve the
+		// User page URL via WikiReference.  This method works, but
+		// the User namespace prefix probably won't be localized.
+		// Usually wikis will 301 redirect to the localized User namespace URL,
+		// so this is better than nothing!
+		if ( $wikiId !== UserIdentity::LOCAL ) {
+			$foreignWiki = WikiMap::getWiki( $wikiId );
+			if ( $foreignWiki !== null ) {
+				return $foreignWiki->getCanonicalUrl( 'User:' . $userIdentity->getName() );
+			}
+		}
+
+		// If we get here, either we couldn't lookup the foreign WikiReference, or
+		// the user is local. Use the local wiki User localized namespace URL.
+		$userTitle = $this->titleFactory->makeTitle( NS_USER, $userIdentity->getName() );
 		return $userTitle->getCanonicalURL();
 	}
 }

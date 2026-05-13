@@ -21,15 +21,27 @@
 
 namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
+use LogicException;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\User\CentralId\CentralIdLookup;
 use MediaWiki\User\Registration\UserRegistrationLookup;
+use MediaWiki\User\UserEditTracker;
 use MediaWiki\User\UserFactory;
-use MediaWiki\User\UserGroupManager;
+use MediaWiki\User\UserGroupManagerFactory;
 use MediaWiki\User\UserIdentity;
+use MediaWiki\User\UserIdentityUtils;
+use MediaWiki\WikiMap\WikiMap;
+use Wikimedia\Rdbms\IDBAccessObject;
 
 /**
- * Converts a User to an array matching the fragment/mediawiki/state/entity/user schema
+ * Converts a UserIdentity to an array matching the fragment/mediawiki/state/entity/user schema.
+ *
+ * This serializer is wiki-aware: it can serialize a UserIdentity whose
+ * getWikiId() refers to a foreign wiki. For foreign users the local-only
+ * fields is_bot and is_system are omitted because MediaWiki has no
+ * first-class cross-wiki service for either (they depend on the local
+ * PermissionManager and AuthManager respectively).
+ *
  * @newable - used by WikimediaEvents
  */
 class UserEntitySerializer {
@@ -39,88 +51,118 @@ class UserEntitySerializer {
 	private const SCHEMA_VERSION_EARLIEST = '1.1.0';
 
 	/**
-	 * @var UserGroupManager
+	 * Map of fields that were introduced after SCHEMA_VERSION_EARLIEST to the
+	 * schema version in which they were introduced.
+	 * Fields not listed are emitted at all supported schema versions.
+	 * As new fields are added to new versions of the entity schema
+	 * they should be added here and the code should gate the serialization
+	 * of the field on the desired output $schemaVersion.
 	 */
-	private UserGroupManager $userGroupManager;
-	/**
-	 * @var UserFactory
-	 */
-	private UserFactory $userFactory;
+	private const FIELD_TO_SCHEMA_VERSION = [
+		'wiki_id' => '1.2.0',
+	];
 
-	/**
-	 * @var CentralIdLookup
-	 */
-	private CentralIdLookup $centralIdLookup;
-
-	/**
-	 * @var UserRegistrationLookup
-	 */
-	private UserRegistrationLookup $userRegistrationLookup;
-
-	/**
-	 * @param UserFactory $userFactory
-	 * @param UserGroupManager $userGroupManager
-	 * @param CentralIdLookup $centralIdLookup
-	 * @param UserRegistrationLookup $userRegistrationLookup
-	 */
 	public function __construct(
-		// NOTE: It would be better not to need a UserFactory
-		// and have toArray only take instances of User.
-		// But we need to call ::toArray( $userIdentity ) from within RevisionEntitySerializer,
-		// which gets the editor of the revision as a UserIdentity,
-		// and the correct way to convert a UserIdentity to a User is with a UserFactory.
-		// So either we need a UserFactory here, or in RevisionEntitySerializer.  It is more useful here.
-		UserFactory $userFactory,
-		UserGroupManager $userGroupManager,
-		CentralIdLookup $centralIdLookup,
-		UserRegistrationLookup $userRegistrationLookup,
+		// NOTE: UserFactory is only used in the local-wiki branch to coerce a
+		// UserIdentity into a User instance, so we can call User::isBot() etc.
+		private readonly UserFactory $userFactory,
+		private readonly UserGroupManagerFactory $userGroupManagerFactory,
+		private readonly CentralIdLookup $centralIdLookup,
+		private readonly UserRegistrationLookup $userRegistrationLookup,
+		private readonly UserIdentityUtils $userIdentityUtils,
+		private readonly UserEditTracker $userEditTracker,
 	) {
-		$this->userFactory = $userFactory;
-		$this->userGroupManager = $userGroupManager;
-		$this->centralIdLookup = $centralIdLookup;
-		$this->userRegistrationLookup = $userRegistrationLookup;
 	}
 
 	/**
-	 * Given a UserIdentity $user, returns an array suitable for
+	 * Given a UserIdentity $userIdentity, returns an array suitable for
 	 * use as a mediawiki/state/entity/user JSON object in other MediaWiki
 	 * state/entity schemas.
-	 * @param UserIdentity $user
+	 *
+	 * If $userIdentity->getWikiId() refers to a foreign wiki, this serializer
+	 * uses the wiki-aware UserGroupManager and CentralIdLookup paths and
+	 * omits is_bot, is_system, and edit_count (no first-class cross-wiki
+	 * service exists for those fields).
+	 *
+	 * @param UserIdentity $userIdentity
+	 * @param string $schemaVersion Target schema version for the user entity fragment.
 	 * @return array
 	 */
 	public function toArray(
-		UserIdentity $user,
+		UserIdentity $userIdentity,
 		string $schemaVersion = self::SCHEMA_VERSION_EARLIEST,
-	 ): array {
-		// If given a UserIdentity (that is not already a User), convert to a User.
-		$user = $this->userFactory->newFromUserIdentity( $user );
+	): array {
+		$isLocal = ( $userIdentity->getWikiId() === UserIdentity::LOCAL );
+
+		// Always use the wiki-aware UserGroupManager - this gives correct
+		// effective groups whether the user is local or foreign.
+		$userGroupManager = $this->userGroupManagerFactory
+			->getUserGroupManager( $userIdentity->getWikiId() );
 
 		$userAttrs = [
-			'user_text' => $user->getName(),
-			'groups' => $this->userGroupManager->getUserEffectiveGroups( $user ),
-			'is_bot' => $user->isRegistered() && $user->isBot(),
-			'is_system' => $user->isSystemUser(),
-			'is_temp' => $user->isTemp()
+			'user_text' => $userIdentity->getName(),
+			'groups' => $userGroupManager->getUserEffectiveGroups( $userIdentity ),
+			'is_temp' => $this->userIdentityUtils->isTemp( $userIdentity ),
 		];
 
-		if ( $user->getId() ) {
-			$userAttrs['user_id'] = $user->getId();
+		// wiki_id is the only field gated on schema version >= 1.2.0.
+		if ( $this->isFieldInVersion( 'wiki_id', $schemaVersion ) ) {
+			$userAttrs['wiki_id'] = $userIdentity->getWikiId() ?: WikiMap::getCurrentWikiId();
 		}
 
-		$registrationTimestamp = $this->getRegistrationTimestamp( $user );
+		if ( $userIdentity->isRegistered() ) {
+			// Pass the user's own wikiId to satisfy assertWiki().
+			$userAttrs['user_id'] = $userIdentity->getId( $userIdentity->getWikiId() );
+
+			// UserEditTracker is wiki-aware: getUserEditCount reads from the
+			// replica DB for $user->getWikiId(). For foreign users the
+			// user_editcount field is read from the foreign wiki's user table.
+			// Defensive try/catch: when user_editcount is null on a foreign
+			// wiki, UserEditTracker falls back to initializeUserEditCount(),
+			// which throws LogicException for non-local users (it only knows
+			// how to initialize on the local wiki).
+			try {
+				$editCount = $this->userEditTracker->getUserEditCount( $userIdentity );
+				if ( $editCount !== null ) {
+					$userAttrs['edit_count'] = $editCount;
+				}
+			} catch ( LogicException ) {
+				// user_editcount is uninitialized on a foreign wiki - skip.
+			}
+		}
+
+		// UserRegistrationLookup is already wiki-aware internally.
+		$registrationTimestamp = $this->getRegistrationTimestamp( $userIdentity );
 		if ( $registrationTimestamp ) {
 			$userAttrs['registration_dt'] =
 				EventSerializer::timestampToDt( $registrationTimestamp );
 		}
 
-		if ( $user->isRegistered() ) {
-			$userAttrs['edit_count'] = $user->getEditCount();
-		}
+		if ( $isLocal ) {
+			// Local wiki user only fields.
+			// Coerce to User so we can call methods that
+			// depend on the local PermissionManager and AuthManager.
+			$user = $this->userFactory->newFromUserIdentity( $userIdentity );
+			$userAttrs['is_bot'] = $user->isRegistered() && $user->isBot();
+			$userAttrs['is_system'] = $user->isSystemUser();
 
-		// NOTE: centralIdFromLocalUser() returns 0 if the user's central id can't be obtained
-		$centralUserId = $this->centralIdLookup->centralIdFromLocalUser( $user );
-		if ( $centralUserId ) {
-			$userAttrs['user_central_id'] = $centralUserId;
+			// NOTE: centralIdFromLocalUser() returns 0 if the user's central id can't be obtained.
+			$centralUserId = $this->centralIdLookup->centralIdFromLocalUser( $userIdentity );
+			if ( $centralUserId ) {
+				$userAttrs['user_central_id'] = $centralUserId;
+			}
+		} else {
+			// Foreign user: look up the central id via the wiki-aware path.
+			$name = $userIdentity->getName();
+			$nameToId = $this->centralIdLookup->lookupAttachedUserNames(
+				[ $name => 0 ],
+				CentralIdLookup::AUDIENCE_PUBLIC,
+				IDBAccessObject::READ_NORMAL,
+				$userIdentity->getWikiId()
+			);
+			if ( !empty( $nameToId[$name] ) ) {
+				$userAttrs['user_central_id'] = $nameToId[$name];
+			}
 		}
 
 		return $userAttrs;
@@ -148,6 +190,11 @@ class UserEntitySerializer {
 	 */
 	public function getFirstRegistrationTimestamp( UserIdentity $user ): ?string {
 		return $this->userRegistrationLookup->getFirstRegistration( $user );
+	}
+
+	private function isFieldInVersion( string $field, string $schemaVersion ): bool {
+		$fieldSinceVersion = self::FIELD_TO_SCHEMA_VERSION[$field] ?? self::SCHEMA_VERSION_EARLIEST;
+		return version_compare( $schemaVersion, $fieldSinceVersion ) >= 0;
 	}
 
 }

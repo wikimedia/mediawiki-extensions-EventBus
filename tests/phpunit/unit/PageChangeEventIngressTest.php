@@ -35,9 +35,12 @@ use MediaWiki\Title\Title;
 use MediaWiki\Title\TitleFormatter;
 use MediaWiki\User\CentralId\CentralIdLookup;
 use MediaWiki\User\Registration\UserRegistrationLookup;
+use MediaWiki\User\UserEditTracker;
 use MediaWiki\User\UserFactory;
 use MediaWiki\User\UserGroupManager;
+use MediaWiki\User\UserGroupManagerFactory;
 use MediaWiki\User\UserIdentity;
+use MediaWiki\User\UserIdentityUtils;
 use MediaWikiUnitTestCase;
 use PHPUnit\Framework\Assert;
 use Psr\Log\LoggerInterface;
@@ -69,6 +72,15 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 
 	/** @var UserGroupManager */
 	private $userGroupManager;
+
+	/** @var UserGroupManagerFactory */
+	private $userGroupManagerFactory;
+
+	/** @var UserIdentityUtils */
+	private $userIdentityUtils;
+
+	/** @var UserEditTracker */
+	private $userEditTracker;
 
 	/** @var TitleFormatter */
 	private $titleFormatter;
@@ -153,6 +165,11 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 
 		$this->globalIdGenerator = $this->createMock( GlobalIdGenerator::class );
 		$this->userGroupManager = $this->createMock( UserGroupManager::class );
+		$this->userGroupManagerFactory = $this->createMock( UserGroupManagerFactory::class );
+		$this->userGroupManagerFactory->method( 'getUserGroupManager' )
+			->willReturn( $this->userGroupManager );
+		$this->userIdentityUtils = $this->createMock( UserIdentityUtils::class );
+		$this->userEditTracker = $this->createMock( UserEditTracker::class );
 		$this->titleFormatter = $this->createMock( TitleFormatter::class );
 		$this->userFactory = $this->createMock( UserFactory::class );
 		$this->revisionStore = $this->createMock( RevisionStore::class );
@@ -217,7 +234,10 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			'streamNameMapper' => $this->streamNameMapper ?? $this->createMock( StreamNameMapper::class ),
 			'mainConfig' => $this->mainConfig ?? new HashConfig(),
 			'globalIdGenerator' => $this->globalIdGenerator ?? $this->createMock( GlobalIdGenerator::class ),
-			'userGroupManager' => $this->userGroupManager ?? $this->createMock( UserGroupManager::class ),
+			'userGroupManagerFactory' => $this->userGroupManagerFactory
+				?? $this->createMock( UserGroupManagerFactory::class ),
+			'userIdentityUtils' => $this->userIdentityUtils ?? $this->createMock( UserIdentityUtils::class ),
+			'userEditTracker' => $this->userEditTracker ?? $this->createMock( UserEditTracker::class ),
 			'titleFormatter' => $this->titleFormatter ?? $this->createMock( TitleFormatter::class ),
 			'userFactory' => $this->userFactory ?? $this->createMock( UserFactory::class ),
 			'revisionStore' => $this->revisionStore ?? $this->createMock( RevisionStore::class ),
@@ -241,9 +261,11 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 
 		$userEntitySerializer = new UserEntitySerializer(
 			$deps['userFactory'],
-			$deps['userGroupManager'],
+			$deps['userGroupManagerFactory'],
 			$deps['centralIdLookup'],
 			$deps['userRegistrationLookup'],
+			$deps['userIdentityUtils'],
+			$deps['userEditTracker'],
 		);
 		$revisionSlotsEntitySerializer = new RevisionSlotsEntitySerializer(
 			$deps['contentHandlerFactory'],
@@ -259,7 +281,6 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			$userEntitySerializer,
 			$revisionEntitySerializer,
 			$revisionSlotsEntitySerializer,
-			$deps['userFactory'],
 			$deps['revisionStore'],
 			$deps['redirectLookup'],
 			$deps['pageLookup'],
