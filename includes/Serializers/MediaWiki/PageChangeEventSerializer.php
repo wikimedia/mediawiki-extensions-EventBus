@@ -40,7 +40,7 @@ class PageChangeEventSerializer {
 	 * All page change events will have their $schema URI set to this.
 	 * https://phabricator.wikimedia.org/T308017
 	 */
-	public const PAGE_CHANGE_SCHEMA_URI = '/mediawiki/page/change/1.5.0';
+	public const PAGE_CHANGE_SCHEMA_URI = '/mediawiki/page/change/1.6.0';
 
 	/**
 	 * The schema version of the user entity used when serializing users.
