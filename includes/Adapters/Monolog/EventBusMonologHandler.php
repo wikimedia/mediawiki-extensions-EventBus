@@ -8,6 +8,7 @@ use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\EventBusSendUpdate;
 use MediaWiki\MediaWikiServices;
 use Monolog\Handler\AbstractProcessingHandler;
+use Monolog\LogRecord;
 use Psr\Log\LogLevel;
 
 /**
@@ -45,11 +46,8 @@ class EventBusMonologHandler extends AbstractProcessingHandler {
 
 	/**
 	 * Assumes that $record['context'] contains the event to send via EventBus.
-	 *
-	 * @param array $record
-	 * @return void
 	 */
-	protected function write( array $record ): void {
+	protected function write( array|LogRecord $record ): void {
 		// Use the log record context as formatted as the event data.
 		$event = $record['context'];
 
