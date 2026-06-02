@@ -118,11 +118,11 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		?string $streamName = null,
 		bool $skipCommonAssertions = false
 	): EventBusFactory {
-		$invocationCounter = $this->exactly( $expectedNumberOfEvents );
+		$invocationCount = 0;
 		$capturedEvents = [];
 
 		$commonAssertionCallback = function ( $events ) use (
-			$invocationCounter,
+			&$invocationCount,
 			$expectedNumberOfEvents,
 			&$capturedEvents,
 			$sendCallback,
@@ -147,7 +147,8 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 				$capturedEvents = array_merge( $capturedEvents, $events );
 			}
 
-			if ( $invocationCounter->getInvocationCount() === $expectedNumberOfEvents ) {
+			$invocationCount++;
+			if ( $invocationCount === $expectedNumberOfEvents ) {
 				$sendCallback( $capturedEvents );
 			}
 		};
@@ -157,7 +158,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		// For example, the mocked instances will only be injected (and asserted on)
 		// for mediawiki.page_change.v1 streams.
 		$spyEventBus = $this->createNoOpMock( EventBus::class, [ 'send', 'getFactory' ] );
-		$spyEventBus->expects( $invocationCounter )
+		$spyEventBus->expects( $this->exactly( $expectedNumberOfEvents ) )
 			->method( 'send' )
 			->willReturnCallback( $commonAssertionCallback );
 

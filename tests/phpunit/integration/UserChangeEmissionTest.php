@@ -28,22 +28,20 @@ class UserChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		int $expectedNumberOfEvents,
 		?string $streamName = null
 	): EventBusFactory {
-		$invocationCounter = $this->exactly( $expectedNumberOfEvents );
 		$capturedEvents = [];
 
 		$spyEventBus = $this->createNoOpMock( EventBus::class, [ 'send' ] );
-		$spyEventBus->expects( $invocationCounter )
+		$spyEventBus->expects( $this->exactly( $expectedNumberOfEvents ) )
 			->method( 'send' )
 			->willReturnCallback( static function ( array $events ) use (
 				&$capturedEvents,
-				$invocationCounter,
 				$expectedNumberOfEvents,
 				$sendCallback
 			) {
 				self::assertHasProducedOneUserChangeEvent( $events );
 				$capturedEvents[] = $events[0];
 
-				if ( $invocationCounter->getInvocationCount() === $expectedNumberOfEvents ) {
+				if ( count( $capturedEvents ) === $expectedNumberOfEvents ) {
 					$sendCallback( $capturedEvents );
 				}
 			} );
