@@ -1,5 +1,6 @@
 <?php
 
+use MediaWiki\Extension\EventBus\Entity\PageLink;
 use MediaWiki\Extension\EventBus\GlobalEditCountLookup;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageChangeEventSerializer;
@@ -8,6 +9,7 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageLinkEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotsEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
+use MediaWiki\Extension\EventBus\WikibaseItemIdLookup;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\Page\PageIdentityValue;
 use MediaWiki\Page\WikiPage;
@@ -54,6 +56,10 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	 * @var GlobalEditCountLookup
 	 */
 	private GlobalEditCountLookup $globalEditCountLookup;
+	/**
+	 * @var WikibaseItemIdLookup
+	 */
+	private WikibaseItemIdLookup $wikibaseItemIdLookup;
 	/**
 	 * @var RevisionEntitySerializer
 	 */
@@ -108,6 +114,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		$this->pageLinkEntitySerializer = $services->get( 'EventBus.PageLinkEntitySerializer' );
 		$this->userEntitySerializer = $services->get( 'EventBus.UserEntitySerializer' );
 		$this->globalEditCountLookup = $services->get( 'EventBus.GlobalEditCountLookup' );
+		$this->wikibaseItemIdLookup = $services->get( 'EventBus.WikibaseItemIdLookup' );
 		$this->revisionEntitySerializer = $services->get( 'EventBus.RevisionEntitySerializer' );
 		$this->revisionSlotsEntitySerializer = $services->get( 'EventBus.RevisionSlotsEntitySerializer' );
 
@@ -117,6 +124,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			$this->pageLinkEntitySerializer,
 			$this->userEntitySerializer,
 			$this->globalEditCountLookup,
+			$this->wikibaseItemIdLookup,
 			$this->revisionEntitySerializer,
 			$this->revisionSlotsEntitySerializer,
 			$this->revisionStore,
@@ -138,6 +146,21 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			if ( $globalEditCount !== null ) {
 				$attrs['edit_global_count'] = $globalEditCount;
 			}
+		}
+		return $attrs;
+	}
+
+	/**
+	 * Mirrors {@link PageChangeEventSerializer} private toPageAttrs() for expected payloads.
+	 */
+	private function expectedPageInPageChangeEvent( WikiPage $wikiPage ): array {
+		$attrs = $this->pageEntitySerializer->toArray(
+			$wikiPage,
+			PageChangeEventSerializer::PAGE_ENTITY_SCHEMA_VERSION
+		);
+		$wikibaseItemId = $this->wikibaseItemIdLookup->getWikibaseItemIdForPage( $wikiPage );
+		if ( $wikibaseItemId !== null ) {
+			$attrs['wikibase_item_id'] = $wikibaseItemId;
 		}
 		return $attrs;
 	}
@@ -205,10 +228,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 					[
 						'wiki_id' => WikiMap::getCurrentWikiId(),
 						'dt' => EventSerializer::timestampToDt( $eventTimestamp ),
-						'page' => $this->pageEntitySerializer->toArray(
-							$wikiPage,
-							PageChangeEventSerializer::PAGE_ENTITY_SCHEMA_VERSION
-						),
+						'page' => $this->expectedPageInPageChangeEvent( $wikiPage ),
 						'revision' => $this->expectedRevisionInPageChangeEvent( $currentRevision ),
 					],
 					$performerArray
@@ -291,6 +311,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			$this->pageLinkEntitySerializer,
 			$userEntitySerializer,
 			$globalEditCountLookup,
+			$this->wikibaseItemIdLookup,
 			$this->revisionEntitySerializer,
 			$this->revisionSlotsEntitySerializer,
 			$this->revisionStore,
@@ -835,6 +856,127 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		);
 
 		$this->assertEventEquals( $expected, $actual );
+	}
+
+	/**
+	 * Builds a PageChangeEventSerializer whose WikibaseItemIdLookup reports
+	 * $itemId for the page and $linkItemId for a redirect target link.
+	 */
+	private function newSerializerWithWikibaseItemIds(
+		?string $itemId,
+		?string $linkItemId = null
+	): PageChangeEventSerializer {
+		$lookup = $this->createMock( WikibaseItemIdLookup::class );
+		$lookup->method( 'getWikibaseItemIdForPage' )->willReturn( $itemId );
+		$lookup->method( 'getWikibaseItemIdForLinkTarget' )->willReturn( $linkItemId );
+
+		return new PageChangeEventSerializer(
+			$this->eventSerializer,
+			$this->pageEntitySerializer,
+			$this->pageLinkEntitySerializer,
+			$this->userEntitySerializer,
+			$this->globalEditCountLookup,
+			$lookup,
+			$this->revisionEntitySerializer,
+			$this->revisionSlotsEntitySerializer,
+			$this->revisionStore,
+		);
+	}
+
+	/**
+	 * page.wikibase_item_id is set from the Wikibase item linked to the page.
+	 *
+	 * An edit event is used here since that is the steady-state case in which
+	 * wikibase_item_id is expected to be set. On page create events the
+	 * wikibase_item page prop will usually not (yet) exist.
+	 *
+	 * @covers ::toEditEvent
+	 * @covers ::toCommonAttrs
+	 * @covers ::toPageAttrs
+	 */
+	public function testSetsWikibaseItemIdOnPage() {
+		$wikiPage0 = $this->getExistingTestPage(
+			Title::makeTitle( $this->getDefaultWikitextNS(), 'MyPageWithWikibaseItem' )
+		);
+
+		// Make an edit so the page has at least 2 revisions, so the parent revision
+		// will be represented properly.
+		$this->editPage(
+			$wikiPage0,
+			$wikiPage0->getContent()->getText() . ' edit1',
+			'test edit summary',
+			$this->getTestUser()->getUser(),
+		);
+
+		$actual = $this->newSerializerWithWikibaseItemIds( 'Q42' )->toEditEvent(
+			self::MOCK_STREAM_NAME,
+			$wikiPage0,
+			$this->userFactory->newFromUserIdentity(
+				$wikiPage0->getRevisionRecord()->getUser()
+			),
+			$wikiPage0->getRevisionRecord(),
+			null,
+			$this->revisionStore->getRevisionById(
+				$wikiPage0->getRevisionRecord()->getParentId()
+			)
+		);
+
+		$this->assertSame( 'Q42', $actual['page']['wikibase_item_id'] );
+	}
+
+	/**
+	 * When the page has no linked Wikibase item (or Wikibase Client is not
+	 * loaded), wikibase_item_id is omitted.
+	 *
+	 * @covers ::toCreateEvent
+	 * @covers ::toPageAttrs
+	 */
+	public function testOmitsWikibaseItemIdWhenLookupReturnsNull() {
+		$wikiPage = $this->getExistingTestPage(
+			Title::makeTitle( $this->getDefaultWikitextNS(), 'MyPageWithoutWikibaseItem' )
+		);
+
+		$actual = $this->newSerializerWithWikibaseItemIds( null )->toCreateEvent(
+			self::MOCK_STREAM_NAME,
+			$wikiPage,
+			$this->userFactory->newFromUserIdentity(
+				$wikiPage->getRevisionRecord()->getUser()
+			),
+			$wikiPage->getRevisionRecord(),
+			null
+		);
+
+		$this->assertArrayNotHasKey( 'wikibase_item_id', $actual['page'] );
+	}
+
+	/**
+	 * A redirect target's own Wikibase item is set at
+	 * page.redirect_page_link.wikibase_item_id.
+	 *
+	 * @covers ::toCreateEvent
+	 * @covers ::toCommonAttrs
+	 * @covers ::toPageLinkAttrs
+	 */
+	public function testSetsWikibaseItemIdOnRedirectPageLink() {
+		$wikiPage = $this->getExistingTestPage(
+			Title::makeTitle( $this->getDefaultWikitextNS(), 'MyRedirectWithWikibaseItem' )
+		);
+		$redirectTarget = new PageLink(
+			Title::makeTitle( $this->getDefaultWikitextNS(), 'MyRedirectTarget' )
+		);
+
+		$actual = $this->newSerializerWithWikibaseItemIds( 'Q42', 'Q937' )->toCreateEvent(
+			self::MOCK_STREAM_NAME,
+			$wikiPage,
+			$this->userFactory->newFromUserIdentity(
+				$wikiPage->getRevisionRecord()->getUser()
+			),
+			$wikiPage->getRevisionRecord(),
+			$redirectTarget
+		);
+
+		$this->assertSame( 'Q42', $actual['page']['wikibase_item_id'] );
+		$this->assertSame( 'Q937', $actual['page']['redirect_page_link']['wikibase_item_id'] );
 	}
 
 	/**

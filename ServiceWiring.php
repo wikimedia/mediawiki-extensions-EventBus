@@ -12,6 +12,7 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotsEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Extension\EventBus\StreamNameMapper;
+use MediaWiki\Extension\EventBus\WikibaseItemIdLookup;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
@@ -118,6 +119,23 @@ return [
 		return new GlobalEditCountLookup(
 			$centralAuthEditCounter,
 			$centralAuthUserHelper,
+		);
+	},
+
+	// NOTE: Private service, internal to the EventBus event producers, for the
+	// same reasons as EventBus.GlobalEditCountLookup above.
+	'EventBus.WikibaseItemIdLookup' => static function (
+		MediaWikiServices $services
+	): WikibaseItemIdLookup {
+		// Wikibase Client is an optional dependency. When absent, the lookup
+		// always returns null and wikibase_item_id is omitted from events.
+		$entityIdLookup = ExtensionRegistry::getInstance()->isLoaded( 'WikibaseClient' )
+			? $services->get( 'WikibaseClient.EntityIdLookup' )
+			: null;
+
+		return new WikibaseItemIdLookup(
+			$services->getTitleFactory(),
+			$entityIdLookup,
 		);
 	},
 

@@ -18,6 +18,7 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotsEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Extension\EventBus\StreamNameMapper;
+use MediaWiki\Extension\EventBus\WikibaseItemIdLookup;
 use MediaWiki\HookContainer\HookContainer;
 use MediaWiki\MainConfigNames;
 use MediaWiki\Page\Event\PageDeletedEvent;
@@ -33,6 +34,7 @@ use MediaWiki\Storage\EditResult;
 use MediaWiki\Storage\PageUpdateCauses;
 use MediaWiki\Storage\RevisionSlotsUpdate;
 use MediaWiki\Title\Title;
+use MediaWiki\Title\TitleFactory;
 use MediaWiki\Title\TitleFormatter;
 use MediaWiki\User\CentralId\CentralIdLookup;
 use MediaWiki\User\Registration\UserRegistrationLookup;
@@ -240,6 +242,7 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			'userIdentityUtils' => $this->userIdentityUtils ?? $this->createMock( UserIdentityUtils::class ),
 			'userEditTracker' => $this->userEditTracker ?? $this->createMock( UserEditTracker::class ),
 			'titleFormatter' => $this->titleFormatter ?? $this->createMock( TitleFormatter::class ),
+			'titleFactory' => $this->createMock( TitleFactory::class ),
 			'userFactory' => $this->userFactory ?? $this->createMock( UserFactory::class ),
 			'revisionStore' => $this->revisionStore ?? $this->createMock( RevisionStore::class ),
 			'contentHandlerFactory' => $this->contentHandlerFactory ?? $this->createMock(
@@ -271,6 +274,8 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 		// Without CentralAuth services the lookup always returns null, so
 		// edit_global_count is omitted.
 		$globalEditCountLookup = new GlobalEditCountLookup();
+		// Likewise, without Wikibase Client wikibase_item_id is omitted.
+		$wikibaseItemIdLookup = new WikibaseItemIdLookup( $deps['titleFactory'] );
 		$revisionSlotsEntitySerializer = new RevisionSlotsEntitySerializer(
 			$deps['contentHandlerFactory'],
 		);
@@ -284,6 +289,7 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			$pageLinkEntitySerializer,
 			$userEntitySerializer,
 			$globalEditCountLookup,
+			$wikibaseItemIdLookup,
 			$revisionEntitySerializer,
 			$revisionSlotsEntitySerializer,
 			$deps['revisionStore'],

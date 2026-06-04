@@ -24,6 +24,7 @@ namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 use MediaWiki\Extension\EventBus\Entity\PageLink;
 use MediaWiki\Extension\EventBus\GlobalEditCountLookup;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
+use MediaWiki\Extension\EventBus\WikibaseItemIdLookup;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\Page\ProperPageIdentity;
 use MediaWiki\Revision\RevisionRecord;
@@ -44,7 +45,7 @@ class PageChangeEventSerializer {
 	 * All page change events will have their $schema URI set to this.
 	 * https://phabricator.wikimedia.org/T308017
 	 */
-	public const PAGE_CHANGE_SCHEMA_URI = '/mediawiki/page/change/1.10.0';
+	public const PAGE_CHANGE_SCHEMA_URI = '/mediawiki/page/change/1.11.0';
 
 	/**
 	 * The schema version of the user entity used when serializing users.
@@ -111,6 +112,11 @@ class PageChangeEventSerializer {
 	private GlobalEditCountLookup $globalEditCountLookup;
 
 	/**
+	 * @var WikibaseItemIdLookup
+	 */
+	private WikibaseItemIdLookup $wikibaseItemIdLookup;
+
+	/**
 	 * @var RevisionEntitySerializer
 	 */
 	private RevisionEntitySerializer $revisionEntitySerializer;
@@ -131,6 +137,7 @@ class PageChangeEventSerializer {
 	 * @param PageLinkEntitySerializer $pageLinkEntitySerializer
 	 * @param UserEntitySerializer $userEntitySerializer
 	 * @param GlobalEditCountLookup $globalEditCountLookup
+	 * @param WikibaseItemIdLookup $wikibaseItemIdLookup
 	 * @param RevisionEntitySerializer $revisionEntitySerializer
 	 * @param RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer
 	 * @param RevisionStore $revisionStore
@@ -141,6 +148,7 @@ class PageChangeEventSerializer {
 		PageLinkEntitySerializer $pageLinkEntitySerializer,
 		UserEntitySerializer $userEntitySerializer,
 		GlobalEditCountLookup $globalEditCountLookup,
+		WikibaseItemIdLookup $wikibaseItemIdLookup,
 		RevisionEntitySerializer $revisionEntitySerializer,
 		RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer,
 		RevisionStore $revisionStore
@@ -150,6 +158,7 @@ class PageChangeEventSerializer {
 		$this->pageLinkEntitySerializer = $pageLinkEntitySerializer;
 		$this->userEntitySerializer = $userEntitySerializer;
 		$this->globalEditCountLookup = $globalEditCountLookup;
+		$this->wikibaseItemIdLookup = $wikibaseItemIdLookup;
 		$this->revisionEntitySerializer = $revisionEntitySerializer;
 		$this->revisionSlotsEntitySerializer = $revisionSlotsEntitySerializer;
 		$this->revisionStore = $revisionStore;
@@ -242,14 +251,11 @@ class PageChangeEventSerializer {
 			'page_change_kind' => $page_change_kind,
 			'dt' => $dt,
 			'wiki_id' => self::getWikiId( $page ),
-			'page' => $this->pageEntitySerializer->toArray( $page, self::PAGE_ENTITY_SCHEMA_VERSION ),
+			'page' => $this->toPageAttrs( $page ),
 		];
 
 		if ( $redirectTarget !== null ) {
-			$eventAttrs['page']['redirect_page_link'] = $this->pageLinkEntitySerializer->toArray(
-				$redirectTarget,
-				self::PAGE_LINK_ENTITY_SCHEMA_VERSION
-			);
+			$eventAttrs['page']['redirect_page_link'] = $this->toPageLinkAttrs( $redirectTarget );
 		}
 
 		if ( $performer !== null ) {
@@ -265,6 +271,50 @@ class PageChangeEventSerializer {
 		}
 
 		return $eventAttrs;
+	}
+
+	/**
+	 * DRY helper to serialize the a page entity for page_change events.
+	 *
+	 * wikibase_item_id is set here rather than by PageEntitySerializer because
+	 * it is a field of the page_change schema, not of the reusable page entity
+	 * fragment: resolving it needs the optional Wikibase Client extension.
+	 * See https://phabricator.wikimedia.org/T428176
+	 *
+	 * NOTE: Wikibase Client writes the wikibase_item page property in the
+	 * deferred LinksUpdate that runs after page change events are dispatched, so
+	 * on page create the property is usually not set yet.
+	 */
+	private function toPageAttrs( ProperPageIdentity $page ): array {
+		$pageAttrs = $this->pageEntitySerializer->toArray( $page, self::PAGE_ENTITY_SCHEMA_VERSION );
+
+		$wikibaseItemId = $this->wikibaseItemIdLookup->getWikibaseItemIdForPage( $page );
+		if ( $wikibaseItemId !== null ) {
+			$pageAttrs['wikibase_item_id'] = $wikibaseItemId;
+		}
+
+		return $pageAttrs;
+	}
+
+	/**
+	 * DRY helper to serialize a page link entity in page_change events.
+	 *
+	 * wikibase_item_id is set here for the same reason as in toPageAttrs().
+	 */
+	private function toPageLinkAttrs( PageLink $pageLink ): array {
+		$pageLinkAttrs = $this->pageLinkEntitySerializer->toArray(
+			$pageLink,
+			self::PAGE_LINK_ENTITY_SCHEMA_VERSION
+		);
+
+		$wikibaseItemId = $this->wikibaseItemIdLookup->getWikibaseItemIdForLinkTarget(
+			$pageLink->getLink()
+		);
+		if ( $wikibaseItemId !== null ) {
+			$pageLinkAttrs['wikibase_item_id'] = $wikibaseItemId;
+		}
+
+		return $pageLinkAttrs;
 	}
 
 	/**

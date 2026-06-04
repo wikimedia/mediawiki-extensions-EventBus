@@ -8,6 +8,7 @@ $cfg['directory_list'] = array_merge(
 		'../../extensions/CentralAuth',
 		'../../extensions/CentralNotice',
 		'../../extensions/EventStreamConfig',
+		'../../extensions/Wikibase',
 	]
 );
 
@@ -17,6 +18,7 @@ $cfg['exclude_analysis_directory_list'] = array_merge(
 		'../../extensions/CentralAuth',
 		'../../extensions/CentralNotice',
 		'../../extensions/EventStreamConfig',
+		'../../extensions/Wikibase',
 	]
 );
 
