@@ -46,6 +46,11 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 	private UserEntitySerializer $userEntitySerializer;
 
 	/**
+	 * Fixed first-edit timestamp used by the mocked UserEditTracker.
+	 */
+	private const MOCK_FIRST_EDIT_TIMESTAMP = '20200101120000';
+
+	/**
 	 * We need to use setUp to have access to MediaWikiIntegrationTestCase methods,
 	 * but we only need to initialize things once.
 	 * @var bool
@@ -66,13 +71,22 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 		$userFactory = $this->getServiceContainer()->getUserFactory();
 		$centralIdLookup = $this->getServiceContainer()->getCentralIdLookup();
 		$userRegistrationLookup = $this->getServiceContainer()->getUserRegistrationLookup();
+
+		$regUser = $this->getTestUser()->getUser();
+
+		$userEditTracker = $this->createMock( UserEditTracker::class );
+		$userEditTracker->method( 'getUserEditCount' )
+			->willReturn( $regUser->getEditCount() );
+		$userEditTracker->method( 'getFirstEditTimestamp' )
+			->willReturn( self::MOCK_FIRST_EDIT_TIMESTAMP );
+
 		$this->userEntitySerializer = new UserEntitySerializer(
 			$userFactory,
 			$this->getServiceContainer()->getUserGroupManagerFactory(),
 			$centralIdLookup,
 			$userRegistrationLookup,
 			$this->getServiceContainer()->getUserIdentityUtils(),
-			$this->getServiceContainer()->getUserEditTracker()
+			$userEditTracker
 		);
 		// This is stupid workaround that allows us to declare a dataProider with
 		// the arguments initialized dynamically using getServiceContainer.
@@ -81,7 +95,6 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 		// key name.
 		$anonUser = $userFactory->newAnonymous( self::MOCK_ANON_IP );
 		$anonUserIdentity = UserIdentityValue::newAnonymous( self::MOCK_ANON_IP );
-		$regUser = $this->getTestUser()->getUser();
 		$firstRegistration = $userRegistrationLookup->getFirstRegistration( $regUser );
 		$firstRegistrationDt = $firstRegistration !== null
 			? EventSerializer::timestampToDt( $firstRegistration )
@@ -154,59 +167,93 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 	}
 
 	/**
-	 * The wiki_id field was added at schema version 1.2.0.
-	 * It must not be emitted when serializing to schema version 1.1.0.
-	 * @covers ::toArray
+	 * Data provider for testToArrayVersionGatedFields.
+	 * Each case is [ schemaVersion|null, isAnon, assertions ] where assertions is a
+	 * callable( self, array $result ): void that runs the per-case assertions.
+	 * null schemaVersion means call toArray() with no version argument (tests the default).
 	 */
-	public function testToArrayVersion_1_1_0_DoesNotIncludeWikiId() {
-		$user = $this->getTestUser()->getUser();
-		$result = $this->userEntitySerializer->toArray( $user, '1.1.0' );
-		$this->assertArrayNotHasKey( 'wiki_id', $result );
+	public function provideToArrayVersionGatedFields(): array {
+		return [
+			'default registered: wiki_id absent' => [
+				null, false,
+				function ( array $result ) {
+					$this->assertArrayNotHasKey( 'wiki_id', $result );
+				},
+			],
+			'1.1.0 registered: wiki_id absent' => [
+				'1.1.0', false,
+				function ( array $result ) {
+					$this->assertArrayNotHasKey( 'wiki_id', $result );
+				},
+			],
+			'1.2.0 registered: wiki_id present' => [
+				'1.2.0', false,
+				function ( array $result ) {
+					$this->assertArrayHasKey( 'wiki_id', $result );
+					$this->assertSame( WikiMap::getCurrentWikiId(), $result['wiki_id'] );
+					$this->assertIsString( $result['wiki_id'] );
+					$this->assertNotEmpty( $result['wiki_id'] );
+				},
+			],
+			'1.2.0 anon: wiki_id present' => [
+				'1.2.0', true,
+				function ( array $result ) {
+					$this->assertArrayHasKey( 'wiki_id', $result );
+					$this->assertSame( WikiMap::getCurrentWikiId(), $result['wiki_id'] );
+				},
+			],
+			'1.1.0 registered: first_edit_dt absent' => [
+				'1.1.0', false,
+				function ( array $result ) {
+					$this->assertArrayNotHasKey( 'first_edit_dt', $result );
+				},
+			],
+			'1.2.0 registered: first_edit_dt absent' => [
+				'1.2.0', false,
+				function ( array $result ) {
+					$this->assertArrayNotHasKey( 'first_edit_dt', $result );
+				},
+			],
+			'1.3.0 registered: first_edit_dt present with correct value' => [
+				'1.3.0', false,
+				function ( array $result ) {
+					$this->assertArrayHasKey( 'first_edit_dt', $result );
+					$this->assertSame(
+						EventSerializer::timestampToDt( self::MOCK_FIRST_EDIT_TIMESTAMP ),
+						$result['first_edit_dt']
+					);
+				},
+			],
+			'1.3.0 anon: first_edit_dt absent' => [
+				'1.3.0', true,
+				function ( array $result ) {
+					$this->assertArrayNotHasKey( 'first_edit_dt', $result );
+				},
+			],
+		];
 	}
 
 	/**
-	 * The default schema version is 1.1.0, so wiki_id should not be emitted
-	 * when no schema version is given.
 	 * @covers ::toArray
+	 * @dataProvider provideToArrayVersionGatedFields
+	 * @param string|null $schemaVersion Version to serialize at, or null to use the default.
+	 * @param bool $isAnon Whether to use an anonymous user instead of a registered one.
+	 * @param callable(array): void $assertions Assertions to run against the result.
 	 */
-	public function testToArrayDefaultVersionDoesNotIncludeWikiId() {
-		$user = $this->getTestUser()->getUser();
-		$result = $this->userEntitySerializer->toArray( $user );
-		$this->assertArrayNotHasKey( 'wiki_id', $result );
-	}
+	public function testToArrayVersionGatedFields(
+		?string $schemaVersion,
+		bool $isAnon,
+		callable $assertions
+	): void {
+		$user = $isAnon
+			? $this->getServiceContainer()->getUserFactory()->newAnonymous( self::MOCK_ANON_IP )
+			: $this->getTestUser()->getUser();
 
-	/**
-	 * The wiki_id field was added at schema version 1.2.0.
-	 * It must be emitted as a non-empty string when serializing to schema version 1.2.0.
-	 * For users that belong to the local wiki, this falls back to
-	 * WikiMap::getCurrentWikiId().
-	 * @covers ::toArray
-	 */
-	public function testToArrayVersion_1_2_0_IncludesWikiId() {
-		$user = $this->getTestUser()->getUser();
-		$result = $this->userEntitySerializer->toArray( $user, '1.2.0' );
-		$this->assertArrayHasKey( 'wiki_id', $result );
-		$this->assertSame(
-			$user->getWikiId() ?: WikiMap::getCurrentWikiId(),
-			$result['wiki_id']
-		);
-		// The schema requires a non-empty string.
-		$this->assertIsString( $result['wiki_id'] );
-		$this->assertNotEmpty( $result['wiki_id'] );
-	}
+		$result = $schemaVersion !== null
+			? $this->userEntitySerializer->toArray( $user, $schemaVersion )
+			: $this->userEntitySerializer->toArray( $user );
 
-	/**
-	 * The wiki_id field should also be emitted for anonymous users at version 1.2.0.
-	 * @covers ::toArray
-	 */
-	public function testToArrayVersion_1_2_0_IncludesWikiIdForAnonymousUser() {
-		$anonUser = $this->getServiceContainer()->getUserFactory()->newAnonymous( self::MOCK_ANON_IP );
-		$result = $this->userEntitySerializer->toArray( $anonUser, '1.2.0' );
-		$this->assertArrayHasKey( 'wiki_id', $result );
-		$this->assertSame(
-			$anonUser->getWikiId() ?: WikiMap::getCurrentWikiId(),
-			$result['wiki_id']
-		);
+		$assertions( $result );
 	}
 
 	/**
@@ -245,6 +292,7 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 
 		$userEditTracker = $this->createMock( UserEditTracker::class );
 		$userEditTracker->method( 'getUserEditCount' )->willReturn( $editCount );
+		$userEditTracker->method( 'getFirstEditTimestamp' )->willReturn( false );
 
 		return new UserEntitySerializer(
 			$this->getServiceContainer()->getUserFactory(),
@@ -314,6 +362,7 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 		$userEditTracker = $this->createMock( UserEditTracker::class );
 		$userEditTracker->method( 'getUserEditCount' )
 			->willThrowException( new \LogicException( 'uninitialized on foreign wiki' ) );
+		$userEditTracker->method( 'getFirstEditTimestamp' )->willReturn( false );
 
 		$serializer = new UserEntitySerializer(
 			$this->getServiceContainer()->getUserFactory(),

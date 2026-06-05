@@ -60,6 +60,7 @@ class UserEntitySerializer {
 	 */
 	private const FIELD_TO_SCHEMA_VERSION = [
 		'wiki_id' => '1.2.0',
+		'first_edit_dt' => '1.3.0',
 	];
 
 	public function __construct(
@@ -108,6 +109,14 @@ class UserEntitySerializer {
 		// wiki_id is the only field gated on schema version >= 1.2.0.
 		if ( $this->isFieldInVersion( 'wiki_id', $schemaVersion ) ) {
 			$userAttrs['wiki_id'] = $userIdentity->getWikiId() ?: WikiMap::getCurrentWikiId();
+		}
+
+		// first_edit_dt is the only field gated on schema version >= 1.3.0.
+		if ( $this->isFieldInVersion( 'first_edit_dt', $schemaVersion ) && $userIdentity->isRegistered() ) {
+			$firstEditTimestamp = $this->userEditTracker->getFirstEditTimestamp( $userIdentity );
+			if ( $firstEditTimestamp !== false ) {
+				$userAttrs['first_edit_dt'] = EventSerializer::timestampToDt( $firstEditTimestamp );
+			}
 		}
 
 		if ( $userIdentity->isRegistered() ) {

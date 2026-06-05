@@ -201,8 +201,8 @@ class UserChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	 *
 	 * @covers ::toCommonAttrs
 	 */
-	public function testUserEntitySchemaVersionIs_1_2_0(): void {
-		$this->assertSame( '1.2.0', UserChangeEventSerializer::USER_ENTITY_SCHEMA_VERSION );
+	public function testUserEntitySchemaVersionIs_1_3_0(): void {
+		$this->assertSame( '1.3.0', UserChangeEventSerializer::USER_ENTITY_SCHEMA_VERSION );
 	}
 
 	/**

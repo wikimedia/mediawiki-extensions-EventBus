@@ -38,12 +38,12 @@ class UserChangeEventSerializer {
 	/**
 	 * All user_change events will have their $schema URI set to this.
 	 */
-	public const USER_CHANGE_SCHEMA_URI = '/development/mediawiki_user_change/1.1.0';
+	public const USER_CHANGE_SCHEMA_URI = '/development/mediawiki_user_change/1.2.0';
 
 	/**
 	 * The schema version of the user entity used when serializing user entities.
 	 */
-	public const USER_ENTITY_SCHEMA_VERSION = '1.2.0';
+	public const USER_ENTITY_SCHEMA_VERSION = '1.3.0';
 
 	/**
 	 * There are many kinds of changes that can happen to a MediaWiki users,
