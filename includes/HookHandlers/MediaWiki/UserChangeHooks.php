@@ -108,7 +108,8 @@ class UserChangeHooks implements
 		// MediaWiki does not expose the main RequestContext as a DI service (see T218555 / RequestContext).
 		$performer = RequestContext::getMain()->getUser();
 		// Only set performer if they are a real named logged in user.
-		if ( !$performer->isNamed() ) {
+		// During auto-creation the session user may not be safe to load yet (T401400).
+		if ( !$performer->isSafeToLoad() || !$performer->isNamed() ) {
 			$performer = null;
 		}
 
