@@ -218,8 +218,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	 * @param string $streamName
 	 */
 	public function testPageCreateEdit( string $streamName ) {
-		$pageTitle =
-			Title::newFromText( "TestPageCreateEdit", $this->getDefaultWikitextNS() );
+		$pageTitle = Title::makeTitle( $this->getDefaultWikitextNS(), 'TestPageCreateEdit' );
 
 		// Flush any pending events in the queue
 		$this->runDeferredUpdates();
@@ -256,8 +255,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	 * @param string $streamName
 	 */
 	public function testPageDeleteThenUndelete( string $streamName ) {
-		$pageTitle =
-			Title::newFromText( "TestPageDeleteUndelete", $this->getDefaultWikitextNS() );
+		$pageTitle = Title::makeTitle( $this->getDefaultWikitextNS(), 'TestPageDeleteUndelete' );
 
 		// Flush any pending events in the queue
 		$this->runDeferredUpdates();
@@ -359,15 +357,8 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		bool $createRedirect = true,
 		int $expectedNumberOfEvents = 3
 	) {
-		$moveFrom = Title::newFromText(
-			$sourceTitle,
-			$this->getDefaultWikitextNS()
-		);
-
-		$moveTo = Title::newFromText(
-			$destinationTitle,
-			$this->getDefaultWikitextNS()
-		);
+		$moveFrom = Title::makeTitle( $this->getDefaultWikitextNS(), $sourceTitle );
+		$moveTo = Title::makeTitle( $this->getDefaultWikitextNS(), $destinationTitle );
 
 		// Flush any pending events in the queue
 		$this->runDeferredUpdates();
@@ -436,10 +427,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		// flush
 		$this->runDeferredUpdates();
 
-		$pageTile = Title::newFromText(
-			"TestRevisionVisibilityChange",
-			$this->getDefaultWikitextNS()
-		);
+		$pageTile = Title::makeTitle( $this->getDefaultWikitextNS(), 'TestRevisionVisibilityChange' );
 
 		// Don't assert on page creation and edit.
 		// We need these operation to create a new test page,

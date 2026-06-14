@@ -43,7 +43,7 @@ class RevisionEntitySerializerTest extends MediaWikiIntegrationTestCase {
 	 */
 	public function testToArray() {
 		$wikiPage = $this->getExistingTestPage(
-			Title::newFromText( self::MOCK_PAGE_TITLE, $this->getDefaultWikitextNS() )
+			Title::makeTitle( $this->getDefaultWikitextNS(), self::MOCK_PAGE_TITLE )
 		);
 
 		$revisionRecord = $wikiPage->getRevisionRecord();

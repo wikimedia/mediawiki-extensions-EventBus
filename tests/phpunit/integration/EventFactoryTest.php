@@ -170,7 +170,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	 */
 	public function createMutableRevisionFromArray( $rowOverrides = [] ) {
 		$revision = MutableRevisionRecord::newFromContent(
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
+			Title::makeTitle( NS_MAIN, self::MOCK_PAGE_TITLE ),
 			new WikitextContent( 'Some Content' )
 		);
 		$revId = $rowOverrides['id'] ?? 42;
@@ -319,7 +319,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createPageLinksChangeEvent(
 			'mediawiki.page-links-change',
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
+			Title::makeTitle( NS_MAIN, self::MOCK_PAGE_TITLE ),
 			$addedLinks,
 			$addedExternalLinks,
 			$removedLinks,
@@ -528,8 +528,8 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$eventFactory->setCommentFormatter( $this->getServiceContainer()->getCommentFormatter() );
 		$event = $eventFactory->createPageMoveEvent(
 			'mediawiki.page-move',
-			Title::newFromText( 'Old_Title' ),
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
+			Title::makeTitle( NS_MAIN, 'Old_Title' ),
+			Title::makeTitle( NS_MAIN, self::MOCK_PAGE_TITLE ),
 			$this->createMutableRevisionFromArray(),
 			UserIdentityValue::newRegistered( 1, 'Test_User' ),
 			'Comment'
@@ -550,13 +550,13 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 
 	public function testPageMoveEventWithRedirectPageId() {
 		$redirect = $this->getExistingTestPage(
-			Title::newFromText( __FUNCTION__ . '/redirect', $this->getDefaultWikitextNS() )
+			Title::makeTitle( $this->getDefaultWikitextNS(), 'TestPageMoveEventWithRedirectPageId/redirect' )
 		);
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createPageMoveEvent(
 			'mediawiki.page-move',
-			Title::newFromText( 'Old_Title' ),
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
+			Title::makeTitle( NS_MAIN, 'Old_Title' ),
+			Title::makeTitle( NS_MAIN, self::MOCK_PAGE_TITLE ),
 			$this->createMutableRevisionFromArray(),
 			UserIdentityValue::newRegistered( 1, 'Test_User' ),
 			'Comment',
@@ -571,7 +571,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createPagePropertiesChangeEvent(
 			'mediawiki.page-properties-change',
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
+			Title::makeTitle( NS_MAIN, self::MOCK_PAGE_TITLE ),
 			null,
 			null,
 			UserIdentityValue::newRegistered( 1, 'Test_User' ),
@@ -588,7 +588,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createPagePropertiesChangeEvent(
 			'mediawiki.page-properties-change',
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
+			Title::makeTitle( NS_MAIN, self::MOCK_PAGE_TITLE ),
 			[ 'addedAttr' ],
 			[ 'removedAttr' ],
 			UserIdentityValue::newRegistered( 1, 'Test_User' ),
@@ -605,7 +605,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createPagePropertiesChangeEvent(
 			'mediawiki.page-properties-change',
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
+			Title::makeTitle( NS_MAIN, self::MOCK_PAGE_TITLE ),
 			null,
 			null,
 			null,
@@ -624,7 +624,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createPageLinksChangeEvent(
 			'mediawiki.page-links-change',
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
+			Title::makeTitle( NS_MAIN, self::MOCK_PAGE_TITLE ),
 			null,
 			null,
 			null,
@@ -643,7 +643,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createPageLinksChangeEvent(
 			'mediawiki.page-links-change',
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
+			Title::makeTitle( NS_MAIN, self::MOCK_PAGE_TITLE ),
 			[ 'addedLinks' ],
 			[ 'addedExtLinks' ],
 			[ 'removedLinks' ],
@@ -662,7 +662,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createPageLinksChangeEvent(
 			'mediawiki.page-links-change',
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
+			Title::makeTitle( NS_MAIN, self::MOCK_PAGE_TITLE ),
 			null,
 			null,
 			null,
@@ -724,7 +724,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	public function testRevisionCreationEventContentChangeExists() {
 		// Make sure that the page exists, so we can use its latest revision as parent.
 		$page = $this->getExistingTestPage(
-			Title::newFromText( self::MOCK_PAGE_TITLE, $this->getDefaultWikitextNS() )
+			Title::makeTitle( $this->getDefaultWikitextNS(), self::MOCK_PAGE_TITLE )
 		);
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$event = $eventFactory->createRevisionCreateEvent(
@@ -861,7 +861,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 			'mediawiki.page-delete',
 			UserIdentityValue::newRegistered( 1, 'Test_User' ),
 			self::MOCK_PAGE_ID,
-			Title::newFromText( self::MOCK_PAGE_TITLE ),
+			Title::makeTitle( NS_MAIN, self::MOCK_PAGE_TITLE ),
 			true,
 			2,
 			$revisionRecord,
@@ -879,7 +879,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	}
 
 	public function testPageUndeleteEvent() {
-		$title = Title::newFromText( self::MOCK_PAGE_TITLE, $this->getDefaultWikitextNS() );
+		$title = Title::makeTitle( $this->getDefaultWikitextNS(), self::MOCK_PAGE_TITLE );
 		$page = $this->getExistingTestPage( $title );
 		$expectedRevId = 123;
 		$revisionRecord = $this->createMutableRevisionFromArray( [
@@ -1094,7 +1094,7 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	public function testCreateJobEvent() {
 		global $wgDBname, $wgServerName;
 		$command = 'deletePage';
-		$title = Title::newFromText( self::MOCK_PAGE_TITLE );
+		$title = Title::makeTitle( NS_MAIN, self::MOCK_PAGE_TITLE );
 		$stream = 'mediawiki.job.' . $command;
 		$services = $this->getServiceContainer();
 		$job = $services->getJobFactory()->newJob( $command, [
