@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Wizzard"
+		]
+	},
+	"eventbus-desc": "Propaguje informácie o zmenách do RESTful služby udalostí"
+}
