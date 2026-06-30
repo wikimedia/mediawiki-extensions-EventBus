@@ -136,6 +136,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 			$userEntitySerializer,
 			$revisionEntitySerializer,
 			$revisionSlotsEntitySerializer,
+			$revisionStore,
 		);
 
 		$this->revisionStore = $revisionStore;
@@ -258,7 +259,8 @@ class PageChangeEventIngress extends DomainEventIngress implements
 					$redirectTarget,
 					$this->revisionStore->getRevisionById(
 						$event->getPageRecordBefore()->getLatest()
-					)
+					),
+					$event->getEditResult(),
 				);
 
 			$this->sendEvents( $this->streamName, [ $pageChangeEvent ] );

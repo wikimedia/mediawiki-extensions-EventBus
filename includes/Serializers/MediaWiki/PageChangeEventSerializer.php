@@ -26,8 +26,11 @@ use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\Page\ProperPageIdentity;
 use MediaWiki\Revision\RevisionRecord;
+use MediaWiki\Revision\RevisionStore;
+use MediaWiki\Storage\EditResult;
 use MediaWiki\User\UserIdentity;
 use MediaWiki\WikiMap\WikiMap;
+use UnexpectedValueException;
 use Wikimedia\Assert\Assert;
 
 /**
@@ -112,12 +115,18 @@ class PageChangeEventSerializer {
 	private RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer;
 
 	/**
+	 * @var RevisionStore
+	 */
+	private RevisionStore $revisionStore;
+
+	/**
 	 * @param EventSerializer $eventSerializer
 	 * @param PageEntitySerializer $pageEntitySerializer
 	 * @param PageLinkEntitySerializer $pageLinkEntitySerializer
 	 * @param UserEntitySerializer $userEntitySerializer
 	 * @param RevisionEntitySerializer $revisionEntitySerializer
 	 * @param RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer
+	 * @param RevisionStore $revisionStore
 	 */
 	public function __construct(
 		EventSerializer $eventSerializer,
@@ -125,7 +134,8 @@ class PageChangeEventSerializer {
 		PageLinkEntitySerializer $pageLinkEntitySerializer,
 		UserEntitySerializer $userEntitySerializer,
 		RevisionEntitySerializer $revisionEntitySerializer,
-		RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer
+		RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer,
+		RevisionStore $revisionStore
 	) {
 		$this->eventSerializer = $eventSerializer;
 		$this->pageEntitySerializer = $pageEntitySerializer;
@@ -133,6 +143,7 @@ class PageChangeEventSerializer {
 		$this->userEntitySerializer = $userEntitySerializer;
 		$this->revisionEntitySerializer = $revisionEntitySerializer;
 		$this->revisionSlotsEntitySerializer = $revisionSlotsEntitySerializer;
+		$this->revisionStore = $revisionStore;
 	}
 
 	/**
@@ -322,6 +333,7 @@ class PageChangeEventSerializer {
 	 * @param RevisionRecord $currentRevision
 	 * @param PageLink|null $redirectTarget
 	 * @param RevisionRecord|null $parentRevision
+	 * @param EditResult|null $editResult
 	 * @return array
 	 */
 	public function toEditEvent(
@@ -330,7 +342,8 @@ class PageChangeEventSerializer {
 		UserIdentity $performer,
 		RevisionRecord $currentRevision,
 		?PageLink $redirectTarget = null,
-		?RevisionRecord $parentRevision = null
+		?RevisionRecord $parentRevision = null,
+		?EditResult $editResult = null
 	): array {
 		$eventAttrs = $this->toCommonAttrs(
 			'edit',
@@ -349,7 +362,66 @@ class PageChangeEventSerializer {
 			];
 		}
 
+		// If EditResult says the edit was a revert, then add revision.revert details.
+		// https://phabricator.wikimedia.org/T423583
+		if ( $editResult !== null && $editResult->isRevert() ) {
+			$revertAttrs = $this->toRevertAttrs( $editResult );
+			if ( $revertAttrs !== null ) {
+				$eventAttrs['revision']['revert'] = $revertAttrs;
+			}
+		}
+
 		return $this->toEvent( $stream, $page, $eventAttrs );
+	}
+
+	/**
+	 * Builds revision.revert attributes from EditResult
+	 * (mediawiki/page/change 1.4.0+).
+	 *
+	 * @param EditResult $editResult
+	 * @return array|null Keyed payload or null if not a revert.
+	 * @throws UnexpectedValueException If EditResult reports an unknown revert method.
+	 */
+	private function toRevertAttrs( EditResult $editResult ): ?array {
+		if ( !$editResult->isRevert() ) {
+			return null;
+		}
+
+		$revertAttrs = [];
+
+		// If revertMethod is set, then set it as a string name in revert.method.
+		$revertMethod = $editResult->getRevertMethod();
+		if ( $revertMethod !== null ) {
+			switch ( $revertMethod ) {
+				case EditResult::REVERT_ROLLBACK:
+					$revertAttrs['method'] = 'rollback';
+					break;
+				case EditResult::REVERT_UNDO:
+					$revertAttrs['method'] = 'undo';
+					break;
+				case EditResult::REVERT_MANUAL:
+					$revertAttrs['method'] = 'manual';
+					break;
+				default:
+					// This shouldn't happen.
+					throw new UnexpectedValueException( "Unexpected revert method $revertMethod." );
+			}
+		}
+
+		$revertAttrs['is_exact'] = $editResult->isExactRevert();
+
+		$originalRevId = $editResult->getOriginalRevisionId();
+		if ( is_int( $originalRevId ) ) {
+			$revertAttrs['rev_original_id'] = $originalRevId;
+			$originalRev = $this->revisionStore->getRevisionById( $originalRevId );
+			if ( $originalRev !== null ) {
+				$revertAttrs['rev_original_dt'] = $this->eventSerializer->timestampToDt(
+					$originalRev->getTimestamp()
+				);
+			}
+		}
+
+		return $revertAttrs;
 	}
 
 	/**

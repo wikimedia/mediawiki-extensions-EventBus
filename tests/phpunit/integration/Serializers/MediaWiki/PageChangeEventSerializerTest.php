@@ -13,6 +13,7 @@ use MediaWiki\Page\WikiPage;
 use MediaWiki\Revision\MutableRevisionRecord;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\Revision\RevisionStore;
+use MediaWiki\Storage\EditResult;
 use MediaWiki\Tests\MockWikiMapTrait;
 use MediaWiki\Title\Title;
 use MediaWiki\User\User;
@@ -110,6 +111,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			$this->userEntitySerializer,
 			$this->revisionEntitySerializer,
 			$this->revisionSlotsEntitySerializer,
+			$this->revisionStore,
 		);
 
 		$this->setUpHasRun = true;
@@ -307,6 +309,146 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			$this->revisionStore->getRevisionById(
 				$wikiPage0->getRevisionRecord()->getParentId()
 			)
+		);
+
+		$this->assertEventEquals( $expected, $actual );
+	}
+
+	/**
+	 * @covers ::toEditEvent
+	 */
+	public function testCreatePageChangeEditEventWithRevertMetadata() {
+		$wikiPage0 = $this->getExistingTestPage(
+			Title::makeTitle( $this->getDefaultWikitextNS(), 'MyPageRevertMeta' )
+		);
+
+		$this->editPage(
+			$wikiPage0,
+			$wikiPage0->getContent()->getText() . ' edit1',
+			'test edit summary',
+			$this->getTestUser()->getUser(),
+		);
+
+		$currentRevision = $wikiPage0->getRevisionRecord();
+		$parentRevision = $this->revisionStore->getRevisionById(
+			$currentRevision->getParentId()
+		);
+		$this->assertNotNull( $parentRevision );
+
+		$editResult = new EditResult(
+			false,
+			$parentRevision->getId(),
+			EditResult::REVERT_MANUAL,
+			$currentRevision->getId(),
+			$currentRevision->getId(),
+			true,
+			false,
+			[],
+		);
+
+		$expected = $this->createExpectedPageChangeEvent(
+			$wikiPage0,
+			$wikiPage0->getRevisionRecord()->getUser(),
+			null,
+			null,
+			null,
+			[
+				'page_change_kind' => 'edit',
+				'changelog_kind' => 'update',
+				'prior_state' => [
+					'revision' => $this->expectedRevisionInPageChangeEvent( $parentRevision ),
+				],
+				'revision' => [
+					'revert' => [
+						'is_exact' => true,
+						'method' => 'manual',
+						'rev_original_id' => $parentRevision->getId(),
+						'rev_original_dt' => EventSerializer::timestampToDt( $parentRevision->getTimestamp() ),
+					],
+				],
+			]
+		);
+
+		$actual = $this->pageChangeEventSerializer->toEditEvent(
+			self::MOCK_STREAM_NAME,
+			$wikiPage0,
+			$this->userFactory->newFromUserIdentity(
+				$wikiPage0->getRevisionRecord()->getUser()
+			),
+			$wikiPage0->getRevisionRecord(),
+			null,
+			$parentRevision,
+			$editResult,
+		);
+
+		$this->assertEventEquals( $expected, $actual );
+	}
+
+	/**
+	 * Original revision id unknown: omit rev_original_id and rev_original_dt.
+	 *
+	 * @covers ::toEditEvent
+	 */
+	public function testCreatePageChangeEditEventWithRevertMetadataWithoutOriginalRevisionId() {
+		$wikiPage0 = $this->getExistingTestPage(
+			Title::makeTitle( $this->getDefaultWikitextNS(), 'MyPageRevertMetaNoOriginal' )
+		);
+
+		$this->editPage(
+			$wikiPage0,
+			$wikiPage0->getContent()->getText() . ' edit1',
+			'test edit summary',
+			$this->getTestUser()->getUser(),
+		);
+
+		$currentRevision = $wikiPage0->getRevisionRecord();
+		$parentRevision = $this->revisionStore->getRevisionById(
+			$currentRevision->getParentId()
+		);
+		$this->assertNotNull( $parentRevision );
+
+		$editResult = new EditResult(
+			false,
+			false,
+			EditResult::REVERT_ROLLBACK,
+			$currentRevision->getId(),
+			$currentRevision->getId(),
+			false,
+			false,
+			[],
+		);
+
+		$expected = $this->createExpectedPageChangeEvent(
+			$wikiPage0,
+			$wikiPage0->getRevisionRecord()->getUser(),
+			null,
+			null,
+			null,
+			[
+				'page_change_kind' => 'edit',
+				'changelog_kind' => 'update',
+				'prior_state' => [
+					'revision' => $this->expectedRevisionInPageChangeEvent( $parentRevision ),
+				],
+				'revision' => [
+					'revert' => [
+						'is_exact' => false,
+						'method' => 'rollback',
+					],
+				],
+			]
+		);
+
+		$actual = $this->pageChangeEventSerializer->toEditEvent(
+			self::MOCK_STREAM_NAME,
+			$wikiPage0,
+			$this->userFactory->newFromUserIdentity(
+				$wikiPage0->getRevisionRecord()->getUser()
+			),
+			$wikiPage0->getRevisionRecord(),
+			null,
+			$parentRevision,
+			$editResult,
 		);
 
 		$this->assertEventEquals( $expected, $actual );
