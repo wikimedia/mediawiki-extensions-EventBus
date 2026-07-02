@@ -1,5 +1,6 @@
 <?php
 
+use MediaWiki\Extension\EventBus\GlobalEditCountLookup;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageChangeEventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
@@ -18,6 +19,7 @@ use MediaWiki\Tests\MockWikiMapTrait;
 use MediaWiki\Title\Title;
 use MediaWiki\User\User;
 use MediaWiki\User\UserFactory;
+use MediaWiki\User\UserIdentity;
 use MediaWiki\WikiMap\WikiMap;
 use Wikimedia\UUID\GlobalIdGenerator;
 
@@ -48,6 +50,10 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	 * @var UserEntitySerializer
 	 */
 	private UserEntitySerializer $userEntitySerializer;
+	/**
+	 * @var GlobalEditCountLookup
+	 */
+	private GlobalEditCountLookup $globalEditCountLookup;
 	/**
 	 * @var RevisionEntitySerializer
 	 */
@@ -101,6 +107,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		$this->pageEntitySerializer = $services->get( 'EventBus.PageEntitySerializer' );
 		$this->pageLinkEntitySerializer = $services->get( 'EventBus.PageLinkEntitySerializer' );
 		$this->userEntitySerializer = $services->get( 'EventBus.UserEntitySerializer' );
+		$this->globalEditCountLookup = $services->get( 'EventBus.GlobalEditCountLookup' );
 		$this->revisionEntitySerializer = $services->get( 'EventBus.RevisionEntitySerializer' );
 		$this->revisionSlotsEntitySerializer = $services->get( 'EventBus.RevisionSlotsEntitySerializer' );
 
@@ -109,12 +116,30 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			$this->pageEntitySerializer,
 			$this->pageLinkEntitySerializer,
 			$this->userEntitySerializer,
+			$this->globalEditCountLookup,
 			$this->revisionEntitySerializer,
 			$this->revisionSlotsEntitySerializer,
 			$this->revisionStore,
 		);
 
 		$this->setUpHasRun = true;
+	}
+
+	/**
+	 * Mirrors {@link PageChangeEventSerializer} private toUserAttrs() for expected payloads.
+	 */
+	private function expectedUserInPageChangeEvent( UserIdentity $user ): array {
+		$attrs = $this->userEntitySerializer->toArray(
+			$user,
+			PageChangeEventSerializer::USER_ENTITY_SCHEMA_VERSION
+		);
+		if ( isset( $attrs['user_central_id'] ) ) {
+			$globalEditCount = $this->globalEditCountLookup->getGlobalEditCount( $attrs['user_central_id'] );
+			if ( $globalEditCount !== null ) {
+				$attrs['edit_global_count'] = $globalEditCount;
+			}
+		}
+		return $attrs;
 	}
 
 	/**
@@ -126,10 +151,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			PageChangeEventSerializer::REVISION_ENTITY_SCHEMA_VERSION
 		);
 		if ( $revisionRecord->getUser() ) {
-			$attrs['editor'] = $this->userEntitySerializer->toArray(
-				$revisionRecord->getUser(),
-				PageChangeEventSerializer::USER_ENTITY_SCHEMA_VERSION
-			);
+			$attrs['editor'] = $this->expectedUserInPageChangeEvent( $revisionRecord->getUser() );
 		}
 		$revisionSlots = $revisionRecord->getSlots();
 		$slotsAttrs = $this->revisionSlotsEntitySerializer->toArray( $revisionSlots );
@@ -171,10 +193,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 
 		# If performer is not set, don't set performer in expected result.
 		$performerArray = $performer ?
-			[ 'performer' => $this->userEntitySerializer->toArray(
-				$performer,
-				PageChangeEventSerializer::USER_ENTITY_SCHEMA_VERSION
-			) ] :
+			[ 'performer' => $this->expectedUserInPageChangeEvent( $performer ) ] :
 			[];
 
 		return array_merge_recursive(
@@ -229,6 +248,137 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	 */
 	public function testConstruct() {
 		$this->assertInstanceOf( PageChangeEventSerializer::class, $this->pageChangeEventSerializer );
+	}
+
+	/**
+	 * Returns a UserEntitySerializer that reports $centralId as every user
+	 * entity's user_central_id, or omits the field when $centralId is null.
+	 *
+	 * Whether a real user has a central id depends on CentralAuth attachment
+	 * state, so the edit_global_count tests below mock it to stay deterministic.
+	 */
+	private function mockUserEntitySerializer( ?int $centralId ): UserEntitySerializer {
+		$mockUserEntitySerializer = $this->createMock( UserEntitySerializer::class );
+		$mockUserEntitySerializer
+			->method( 'toArray' )
+			->willReturnCallback( static function ( $userIdentity ) use ( $centralId ): array {
+				$userAttrs = [
+					'user_text' => $userIdentity->getName(),
+					'groups' => [],
+					'is_temp' => false,
+				];
+				if ( $centralId !== null ) {
+					$userAttrs['user_central_id'] = $centralId;
+				}
+				return $userAttrs;
+			} );
+
+		return $mockUserEntitySerializer;
+	}
+
+	/**
+	 * Builds a PageChangeEventSerializer with the given user entity serializer
+	 * and global edit count lookup, and returns a create event for $wikiPage.
+	 */
+	private function createEventWithGlobalEditCountLookup(
+		WikiPage $wikiPage,
+		UserEntitySerializer $userEntitySerializer,
+		GlobalEditCountLookup $globalEditCountLookup
+	): array {
+		$serializer = new PageChangeEventSerializer(
+			$this->eventSerializer,
+			$this->pageEntitySerializer,
+			$this->pageLinkEntitySerializer,
+			$userEntitySerializer,
+			$globalEditCountLookup,
+			$this->revisionEntitySerializer,
+			$this->revisionSlotsEntitySerializer,
+			$this->revisionStore,
+		);
+
+		return $serializer->toCreateEvent(
+			self::MOCK_STREAM_NAME,
+			$wikiPage,
+			$this->userFactory->newFromUserIdentity( $wikiPage->getRevisionRecord()->getUser() ),
+			$wikiPage->getRevisionRecord(),
+			null
+		);
+	}
+
+	/**
+	 * Every user entity the producer emits (performer and revision.editor) gets
+	 * edit_global_count set from the user's user_central_id.
+	 * @covers ::toCreateEvent
+	 * @covers ::toCommonAttrs
+	 * @covers ::toRevisionAttrs
+	 * @covers ::toUserAttrs
+	 */
+	public function testSetsEditGlobalCountOnUsers() {
+		$wikiPage = $this->getExistingTestPage(
+			Title::makeTitle( $this->getDefaultWikitextNS(), 'MyPageGlobalEditCountTest' )
+		);
+
+		$lookup = $this->createMock( GlobalEditCountLookup::class );
+		$lookup->method( 'getGlobalEditCount' )
+			->with( 111 )
+			->willReturn( 4242 );
+
+		$event = $this->createEventWithGlobalEditCountLookup(
+			$wikiPage,
+			$this->mockUserEntitySerializer( 111 ),
+			$lookup
+		);
+
+		$this->assertSame( 4242, $event['performer']['edit_global_count'] );
+		$this->assertSame( 4242, $event['revision']['editor']['edit_global_count'] );
+	}
+
+	/**
+	 * When the global edit count is unavailable (CentralAuth absent, or the
+	 * count not yet initialized), edit_global_count is omitted.
+	 * @covers ::toCreateEvent
+	 * @covers ::toUserAttrs
+	 */
+	public function testOmitsEditGlobalCountWhenLookupReturnsNull() {
+		$wikiPage = $this->getExistingTestPage(
+			Title::makeTitle( $this->getDefaultWikitextNS(), 'MyPageNullGlobalEditCountTest' )
+		);
+
+		$lookup = $this->createMock( GlobalEditCountLookup::class );
+		$lookup->method( 'getGlobalEditCount' )->willReturn( null );
+
+		$event = $this->createEventWithGlobalEditCountLookup(
+			$wikiPage,
+			$this->mockUserEntitySerializer( 111 ),
+			$lookup
+		);
+
+		$this->assertArrayNotHasKey( 'edit_global_count', $event['performer'] );
+		$this->assertArrayNotHasKey( 'edit_global_count', $event['revision']['editor'] );
+	}
+
+	/**
+	 * A user with no central account has no user_central_id, so there is nothing
+	 * to look the global edit count up by.
+	 * @covers ::toCreateEvent
+	 * @covers ::toUserAttrs
+	 */
+	public function testSkipsLookupWhenNoUserCentralId() {
+		$wikiPage = $this->getExistingTestPage(
+			Title::makeTitle( $this->getDefaultWikitextNS(), 'MyPageNoCentralIdTest' )
+		);
+
+		$lookup = $this->createMock( GlobalEditCountLookup::class );
+		$lookup->expects( $this->never() )->method( 'getGlobalEditCount' );
+
+		$event = $this->createEventWithGlobalEditCountLookup(
+			$wikiPage,
+			$this->mockUserEntitySerializer( null ),
+			$lookup
+		);
+
+		$this->assertArrayNotHasKey( 'edit_global_count', $event['performer'] );
+		$this->assertArrayNotHasKey( 'edit_global_count', $event['revision']['editor'] );
 	}
 
 	/**

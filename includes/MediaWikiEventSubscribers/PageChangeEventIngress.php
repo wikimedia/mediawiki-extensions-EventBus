@@ -29,6 +29,7 @@ use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\DomainEvent\DomainEventIngress;
 use MediaWiki\Extension\EventBus\Entity\PageLink;
 use MediaWiki\Extension\EventBus\EventBusFactory;
+use MediaWiki\Extension\EventBus\GlobalEditCountLookup;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageChangeEventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
@@ -115,6 +116,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 		PageEntitySerializer $pageEntitySerializer,
 		PageLinkEntitySerializer $pageLinkEntitySerializer,
 		UserEntitySerializer $userEntitySerializer,
+		GlobalEditCountLookup $globalEditCountLookup,
 		RevisionEntitySerializer $revisionEntitySerializer,
 		RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer,
 		RevisionStore $revisionStore,
@@ -134,6 +136,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 			$pageEntitySerializer,
 			$pageLinkEntitySerializer,
 			$userEntitySerializer,
+			$globalEditCountLookup,
 			$revisionEntitySerializer,
 			$revisionSlotsEntitySerializer,
 			$revisionStore,

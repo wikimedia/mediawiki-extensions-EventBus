@@ -1,8 +1,10 @@
 <?php
 
 use MediaWiki\Config\ServiceOptions;
+use MediaWiki\Extension\CentralAuth\CentralAuthServices;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\EventFactory;
+use MediaWiki\Extension\EventBus\GlobalEditCountLookup;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageLinkEntitySerializer;
@@ -95,6 +97,27 @@ return [
 			$services->getUserRegistrationLookup(),
 			$services->getUserIdentityUtils(),
 			$services->getUserEditTracker(),
+		);
+	},
+
+	// NOTE: This is a private service, internal to the EventBus event producers
+	// (the *ChangeEventSerializers via the Ingress/Hooks). Unlike the entity
+	// serializers above, it is NOT part of EventBus's reusable public API and
+	// should not be used from outside this extension. It is expected to move to
+	// WikimediaEvents together with the producer code. See
+	// https://phabricator.wikimedia.org/T432050
+	'EventBus.GlobalEditCountLookup' => static function (
+		MediaWikiServices $services
+	): GlobalEditCountLookup {
+		// CentralAuth is an optional dependency. When absent, the lookup always
+		// returns null and edit_global_count is omitted from events.
+		$centralAuthLoaded = ExtensionRegistry::getInstance()->isLoaded( 'CentralAuth' );
+		$centralAuthEditCounter = $centralAuthLoaded ? CentralAuthServices::getEditCounter( $services ) : null;
+		$centralAuthUserHelper = $centralAuthLoaded ? CentralAuthServices::getUserHelper( $services ) : null;
+
+		return new GlobalEditCountLookup(
+			$centralAuthEditCounter,
+			$centralAuthUserHelper,
 		);
 	},
 

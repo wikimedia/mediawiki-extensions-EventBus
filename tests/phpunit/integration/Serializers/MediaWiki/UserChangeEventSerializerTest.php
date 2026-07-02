@@ -1,5 +1,6 @@
 <?php
 
+use MediaWiki\Extension\EventBus\GlobalEditCountLookup;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserChangeEventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
@@ -24,6 +25,7 @@ class UserChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 
 	private EventSerializer $eventSerializer;
 	private UserEntitySerializer $userEntitySerializer;
+	private GlobalEditCountLookup $globalEditCountLookup;
 	private TitleFactory $titleFactory;
 	private UserChangeEventSerializer $serializer;
 	private UserFactory $userFactory;
@@ -41,11 +43,13 @@ class UserChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		$this->userFactory = $services->getUserFactory();
 		// Exercise ServiceWiring.php like PageChangeEventSerializerTest does.
 		$this->userEntitySerializer = $services->get( 'EventBus.UserEntitySerializer' );
+		$this->globalEditCountLookup = $services->get( 'EventBus.GlobalEditCountLookup' );
 		$this->titleFactory = $services->getTitleFactory();
 
 		$this->serializer = new UserChangeEventSerializer(
 			$this->eventSerializer,
 			$this->userEntitySerializer,
+			$this->globalEditCountLookup,
 			$this->titleFactory,
 			$services->getUserIdentityUtils()
 		);
@@ -80,6 +84,124 @@ class UserChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 
 		$this->assertArrayHasKey( 'performer', $event );
 		$this->assertSame( $performer->getName(), $event['performer']['user_text'] );
+	}
+
+	/**
+	 * Returns a UserEntitySerializer that reports $centralIdsByUserName as each
+	 * user entity's user_central_id, omitting the field for names not listed.
+	 *
+	 * Whether a real user has a central id depends on CentralAuth attachment
+	 * state, so the edit_global_count tests below mock it to stay deterministic.
+	 */
+	private function mockUserEntitySerializer( array $centralIdsByUserName ): UserEntitySerializer {
+		$mockUserEntitySerializer = $this->createMock( UserEntitySerializer::class );
+		$mockUserEntitySerializer
+			->method( 'toArray' )
+			->willReturnCallback( static function ( $userIdentity ) use ( $centralIdsByUserName ): array {
+				$userAttrs = [
+					'user_text' => $userIdentity->getName(),
+					'groups' => [],
+					'is_temp' => false,
+				];
+				if ( isset( $centralIdsByUserName[$userIdentity->getName()] ) ) {
+					$userAttrs['user_central_id'] = $centralIdsByUserName[$userIdentity->getName()];
+				}
+				return $userAttrs;
+			} );
+		$mockUserEntitySerializer
+			->method( 'getFirstRegistrationTimestamp' )
+			->willReturn( null );
+
+		return $mockUserEntitySerializer;
+	}
+
+	/**
+	 * Both the user and performer entities get edit_global_count set from their
+	 * own user_central_id.
+	 * @covers ::toCreateEvent
+	 * @covers ::toCommonAttrs
+	 * @covers ::toUserAttrs
+	 */
+	public function testSetsEditGlobalCountOnUsers(): void {
+		$user = $this->getTestUser()->getUser();
+		$performer = $this->getTestSysop()->getUser();
+
+		$lookup = $this->createMock( GlobalEditCountLookup::class );
+		$lookup->method( 'getGlobalEditCount' )->willReturnMap( [
+			[ 111, 4242 ],
+			[ 222, 1234 ],
+		] );
+
+		$serializer = new UserChangeEventSerializer(
+			$this->eventSerializer,
+			$this->mockUserEntitySerializer( [
+				$user->getName() => 111,
+				$performer->getName() => 222,
+			] ),
+			$lookup,
+			$this->titleFactory,
+			$this->getServiceContainer()->getUserIdentityUtils()
+		);
+
+		$event = $serializer->toCreateEvent( self::MOCK_STREAM_NAME, '20250101000000', $user, $performer, false );
+
+		$this->assertSame( 4242, $event['user']['edit_global_count'] );
+		$this->assertSame( 1234, $event['performer']['edit_global_count'] );
+	}
+
+	/**
+	 * When the global edit count is unavailable (CentralAuth absent, or the
+	 * count not yet initialized), edit_global_count is omitted.
+	 * @covers ::toCreateEvent
+	 * @covers ::toUserAttrs
+	 */
+	public function testOmitsEditGlobalCountWhenLookupReturnsNull(): void {
+		$user = $this->getTestUser()->getUser();
+		$performer = $this->getTestSysop()->getUser();
+
+		$lookup = $this->createMock( GlobalEditCountLookup::class );
+		$lookup->method( 'getGlobalEditCount' )->willReturn( null );
+
+		$serializer = new UserChangeEventSerializer(
+			$this->eventSerializer,
+			$this->mockUserEntitySerializer( [
+				$user->getName() => 111,
+				$performer->getName() => 222,
+			] ),
+			$lookup,
+			$this->titleFactory,
+			$this->getServiceContainer()->getUserIdentityUtils()
+		);
+
+		$event = $serializer->toCreateEvent( self::MOCK_STREAM_NAME, '20250101000000', $user, $performer, false );
+
+		$this->assertArrayNotHasKey( 'edit_global_count', $event['user'] );
+		$this->assertArrayNotHasKey( 'edit_global_count', $event['performer'] );
+	}
+
+	/**
+	 * A user with no central account has no user_central_id, so there is nothing
+	 * to look the global edit count up by.
+	 * @covers ::toCreateEvent
+	 * @covers ::toUserAttrs
+	 */
+	public function testSkipsLookupWhenNoUserCentralId(): void {
+		$user = $this->getTestUser()->getUser();
+
+		$lookup = $this->createMock( GlobalEditCountLookup::class );
+		$lookup->expects( $this->never() )->method( 'getGlobalEditCount' );
+
+		$serializer = new UserChangeEventSerializer(
+			$this->eventSerializer,
+			$this->mockUserEntitySerializer( [] ),
+			$lookup,
+			$this->titleFactory,
+			$this->getServiceContainer()->getUserIdentityUtils()
+		);
+
+		$event = $serializer->toCreateEvent( self::MOCK_STREAM_NAME, '20250101000000', $user, null, false );
+
+		$this->assertArrayNotHasKey( 'edit_global_count', $event['user'] );
 	}
 
 	/**
@@ -195,9 +317,9 @@ class UserChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 
 	/**
 	 * UserChangeEventSerializer is expected to serialize user entities at
-	 * USER_ENTITY_SCHEMA_VERSION, which is currently 1.2.0.
-	 * The 1.2.0 user entity schema adds a wiki_id field, so we should see it
-	 * in event['user'] (and event['performer'] when present).
+	 * USER_ENTITY_SCHEMA_VERSION, which is currently 1.3.0. edit_global_count is
+	 * not a user entity fragment field; this serializer sets it explicitly via
+	 * GlobalEditCountLookup.
 	 *
 	 * @covers ::toCommonAttrs
 	 */
@@ -209,7 +331,7 @@ class UserChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	 * @covers ::toCreateEvent
 	 * @covers ::toCommonAttrs
 	 */
-	public function testToCreateEventSerializesUserAtVersion_1_2_0(): void {
+	public function testToCreateEventSerializesUserWithWikiId(): void {
 		$user = $this->getTestUser()->getUser();
 		$performer = $this->getTestSysop()->getUser();
 		$expectedWikiId = WikiMap::getCurrentWikiId();
@@ -218,7 +340,7 @@ class UserChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			self::MOCK_STREAM_NAME, '20250101000000', $user, $performer, false
 		);
 
-		// The user entity is serialized at version 1.2.0, which includes wiki_id.
+		// The user entity is serialized at USER_ENTITY_SCHEMA_VERSION, which includes wiki_id.
 		$this->assertArrayHasKey( 'wiki_id', $event['user'] );
 		$this->assertSame( $expectedWikiId, $event['user']['wiki_id'] );
 		$this->assertArrayHasKey( 'wiki_id', $event['performer'] );
@@ -229,7 +351,7 @@ class UserChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	 * @covers ::toRenameEvent
 	 * @covers ::toCommonAttrs
 	 */
-	public function testToRenameEventSerializesUserAtVersion_1_2_0(): void {
+	public function testToRenameEventSerializesUserWithWikiId(): void {
 		$user = $this->getTestUser()->getUser();
 		$performer = $this->getTestSysop()->getUser();
 		$expectedWikiId = WikiMap::getCurrentWikiId();
@@ -254,7 +376,7 @@ class UserChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	 * @covers ::toGroupsChangedEvent
 	 * @covers ::toCommonAttrs
 	 */
-	public function testToGroupsChangedEventSerializesUserAtVersion_1_2_0(): void {
+	public function testToGroupsChangedEventSerializesUserWithWikiId(): void {
 		$user = $this->getTestUser()->getUser();
 		$performer = $this->getTestSysop()->getUser();
 		$expectedWikiId = WikiMap::getCurrentWikiId();
@@ -311,6 +433,7 @@ class UserChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		$serializer = new UserChangeEventSerializer(
 			$this->eventSerializer,
 			$mockUserEntitySerializer,
+			new GlobalEditCountLookup(),
 			$this->titleFactory,
 			$this->getServiceContainer()->getUserIdentityUtils()
 		);
@@ -379,6 +502,7 @@ class UserChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		$serializer = new UserChangeEventSerializer(
 			$this->eventSerializer,
 			$mockUserEntitySerializer,
+			new GlobalEditCountLookup(),
 			$this->titleFactory,
 			$this->getServiceContainer()->getUserIdentityUtils()
 		);

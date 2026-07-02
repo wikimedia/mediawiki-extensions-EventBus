@@ -9,6 +9,7 @@ use MediaWiki\Content\IContentHandlerFactory;
 use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\Extension\EventBus\EventBusFactory;
+use MediaWiki\Extension\EventBus\GlobalEditCountLookup;
 use MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
@@ -267,6 +268,9 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			$deps['userIdentityUtils'],
 			$deps['userEditTracker'],
 		);
+		// Without CentralAuth services the lookup always returns null, so
+		// edit_global_count is omitted.
+		$globalEditCountLookup = new GlobalEditCountLookup();
 		$revisionSlotsEntitySerializer = new RevisionSlotsEntitySerializer(
 			$deps['contentHandlerFactory'],
 		);
@@ -279,6 +283,7 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			$pageEntitySerializer,
 			$pageLinkEntitySerializer,
 			$userEntitySerializer,
+			$globalEditCountLookup,
 			$revisionEntitySerializer,
 			$revisionSlotsEntitySerializer,
 			$deps['revisionStore'],

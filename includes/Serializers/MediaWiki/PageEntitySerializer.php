@@ -31,6 +31,10 @@ use MediaWiki\Title\TitleFormatter;
 
 /**
  * Converts a WikiPage to an array matching the fragment/mediawiki/state/entity/page schema
+ *
+ * Scope: this serializer resolves only fields available from MediaWiki core
+ * services and broadly useful to any consumer of the page entity fragment.
+ * Fields that require an optional extension are intentionally not set here.
  */
 class PageEntitySerializer {
 	/**

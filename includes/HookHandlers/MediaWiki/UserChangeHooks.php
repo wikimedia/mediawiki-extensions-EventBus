@@ -27,6 +27,7 @@ use MediaWiki\Auth\Hook\LocalUserCreatedHook;
 use MediaWiki\Context\RequestContext;
 use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Extension\EventBus\EventBusFactory;
+use MediaWiki\Extension\EventBus\GlobalEditCountLookup;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserChangeEventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
@@ -67,6 +68,7 @@ class UserChangeHooks implements
 		StreamNameMapper $streamNameMapper,
 		EventSerializer $eventSerializer,
 		UserEntitySerializer $userEntitySerializer,
+		GlobalEditCountLookup $globalEditCountLookup,
 		UserFactory $userFactory,
 		UserGroupManagerFactory $userGroupManagerFactory,
 		TitleFactory $titleFactory,
@@ -83,6 +85,7 @@ class UserChangeHooks implements
 		$this->userChangeEventSerializer = new UserChangeEventSerializer(
 			$eventSerializer,
 			$userEntitySerializer,
+			$globalEditCountLookup,
 			$titleFactory,
 			$userIdentityUtils,
 		);

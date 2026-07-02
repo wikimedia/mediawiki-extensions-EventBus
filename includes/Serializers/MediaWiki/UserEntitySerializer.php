@@ -22,6 +22,7 @@
 namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
 use LogicException;
+use MediaWiki\DAO\WikiAwareEntity;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\User\CentralId\CentralIdLookup;
 use MediaWiki\User\Registration\UserRegistrationLookup;
@@ -41,6 +42,9 @@ use Wikimedia\Rdbms\IDBAccessObject;
  * fields is_bot and is_system are omitted because MediaWiki has no
  * first-class cross-wiki service for either (they depend on the local
  * PermissionManager and AuthManager respectively).
+ *
+ * Scope: this serializer resolves only fields available from MediaWiki core
+ * services and broadly useful to any consumer of the user entity fragment.
  *
  * @newable - used by WikimediaEvents
  */
@@ -93,8 +97,6 @@ class UserEntitySerializer {
 		UserIdentity $userIdentity,
 		string $schemaVersion = self::SCHEMA_VERSION_EARLIEST,
 	): array {
-		$isLocal = ( $userIdentity->getWikiId() === UserIdentity::LOCAL );
-
 		// Always use the wiki-aware UserGroupManager - this gives correct
 		// effective groups whether the user is local or foreign.
 		$userGroupManager = $this->userGroupManagerFactory
@@ -106,12 +108,12 @@ class UserEntitySerializer {
 			'is_temp' => $this->userIdentityUtils->isTemp( $userIdentity ),
 		];
 
-		// wiki_id is the only field gated on schema version >= 1.2.0.
+		// wiki_id is gated on schema version >= 1.2.0.
 		if ( $this->isFieldInVersion( 'wiki_id', $schemaVersion ) ) {
 			$userAttrs['wiki_id'] = $userIdentity->getWikiId() ?: WikiMap::getCurrentWikiId();
 		}
 
-		// first_edit_dt is the only field gated on schema version >= 1.3.0.
+		// first_edit_dt is gated on schema version >= 1.3.0.
 		if ( $this->isFieldInVersion( 'first_edit_dt', $schemaVersion ) && $userIdentity->isRegistered() ) {
 			$firstEditTimestamp = $this->userEditTracker->getFirstEditTimestamp( $userIdentity );
 			if ( $firstEditTimestamp !== false ) {
@@ -147,31 +149,21 @@ class UserEntitySerializer {
 				EventSerializer::timestampToDt( $registrationTimestamp );
 		}
 
-		if ( $isLocal ) {
+		// user_central_id is the user's global (cross-wiki) id, resolved via the
+		// wiki-aware CentralIdLookup path. Omitted when the user has no central
+		// account (getUserCentralId() returns null rather than 0).
+		$userCentralId = $this->getUserCentralId( $userIdentity );
+		if ( $userCentralId !== null ) {
+			$userAttrs['user_central_id'] = $userCentralId;
+		}
+
+		if ( $this->userIdentityIsLocal( $userIdentity ) ) {
 			// Local wiki user only fields.
 			// Coerce to User so we can call methods that
 			// depend on the local PermissionManager and AuthManager.
 			$user = $this->userFactory->newFromUserIdentity( $userIdentity );
 			$userAttrs['is_bot'] = $user->isRegistered() && $user->isBot();
 			$userAttrs['is_system'] = $user->isSystemUser();
-
-			// NOTE: centralIdFromLocalUser() returns 0 if the user's central id can't be obtained.
-			$centralUserId = $this->centralIdLookup->centralIdFromLocalUser( $userIdentity );
-			if ( $centralUserId ) {
-				$userAttrs['user_central_id'] = $centralUserId;
-			}
-		} else {
-			// Foreign user: look up the central id via the wiki-aware path.
-			$name = $userIdentity->getName();
-			$nameToId = $this->centralIdLookup->lookupAttachedUserNames(
-				[ $name => 0 ],
-				CentralIdLookup::AUDIENCE_PUBLIC,
-				IDBAccessObject::READ_NORMAL,
-				$userIdentity->getWikiId()
-			);
-			if ( !empty( $nameToId[$name] ) ) {
-				$userAttrs['user_central_id'] = $nameToId[$name];
-			}
 		}
 
 		return $userAttrs;
@@ -199,6 +191,42 @@ class UserEntitySerializer {
 	 */
 	public function getFirstRegistrationTimestamp( UserIdentity $user ): ?string {
 		return $this->userRegistrationLookup->getFirstRegistration( $user );
+	}
+
+	/**
+	 * Returns true if the UserIdentity is for a local user. False otherwise.
+	 * @param UserIdentity $userIdentity
+	 * @return bool
+	 */
+	private function userIdentityIsLocal( UserIdentity $userIdentity ): bool {
+		return $userIdentity->getWikiId() === WikiAwareEntity::LOCAL;
+	}
+
+	/**
+	 * Resolves the user's global central id, or null if they have no central account.
+	 *
+	 * Works for both local and foreign users.
+	 *
+	 * @param UserIdentity $userIdentity
+	 * @return int|null Central user id, or null if none.
+	 */
+	private function getUserCentralId( UserIdentity $userIdentity ): ?int {
+		if ( $this->userIdentityIsLocal( $userIdentity ) ) {
+			// centralIdFromLocalUser() returns 0 if the user's central id can't be obtained.
+			$centralId = $this->centralIdLookup->centralIdFromLocalUser( $userIdentity );
+		} else {
+			// Foreign user: look up the central id via the wiki-aware path.
+			$name = $userIdentity->getName();
+			$nameToId = $this->centralIdLookup->lookupAttachedUserNames(
+				[ $name => 0 ],
+				CentralIdLookup::AUDIENCE_PUBLIC,
+				IDBAccessObject::READ_NORMAL,
+				$userIdentity->getWikiId()
+			);
+			$centralId = (int)( $nameToId[$name] ?? 0 );
+		}
+
+		return $centralId ?: null;
 	}
 
 	private function isFieldInVersion( string $field, string $schemaVersion ): bool {

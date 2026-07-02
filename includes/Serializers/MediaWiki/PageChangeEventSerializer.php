@@ -22,6 +22,7 @@
 namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
 use MediaWiki\Extension\EventBus\Entity\PageLink;
+use MediaWiki\Extension\EventBus\GlobalEditCountLookup;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\Page\ProperPageIdentity;
@@ -43,7 +44,7 @@ class PageChangeEventSerializer {
 	 * All page change events will have their $schema URI set to this.
 	 * https://phabricator.wikimedia.org/T308017
 	 */
-	public const PAGE_CHANGE_SCHEMA_URI = '/mediawiki/page/change/1.9.0';
+	public const PAGE_CHANGE_SCHEMA_URI = '/mediawiki/page/change/1.10.0';
 
 	/**
 	 * The schema version of the user entity used when serializing users.
@@ -105,6 +106,11 @@ class PageChangeEventSerializer {
 	private UserEntitySerializer $userEntitySerializer;
 
 	/**
+	 * @var GlobalEditCountLookup
+	 */
+	private GlobalEditCountLookup $globalEditCountLookup;
+
+	/**
 	 * @var RevisionEntitySerializer
 	 */
 	private RevisionEntitySerializer $revisionEntitySerializer;
@@ -124,6 +130,7 @@ class PageChangeEventSerializer {
 	 * @param PageEntitySerializer $pageEntitySerializer
 	 * @param PageLinkEntitySerializer $pageLinkEntitySerializer
 	 * @param UserEntitySerializer $userEntitySerializer
+	 * @param GlobalEditCountLookup $globalEditCountLookup
 	 * @param RevisionEntitySerializer $revisionEntitySerializer
 	 * @param RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer
 	 * @param RevisionStore $revisionStore
@@ -133,6 +140,7 @@ class PageChangeEventSerializer {
 		PageEntitySerializer $pageEntitySerializer,
 		PageLinkEntitySerializer $pageLinkEntitySerializer,
 		UserEntitySerializer $userEntitySerializer,
+		GlobalEditCountLookup $globalEditCountLookup,
 		RevisionEntitySerializer $revisionEntitySerializer,
 		RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer,
 		RevisionStore $revisionStore
@@ -141,6 +149,7 @@ class PageChangeEventSerializer {
 		$this->pageEntitySerializer = $pageEntitySerializer;
 		$this->pageLinkEntitySerializer = $pageLinkEntitySerializer;
 		$this->userEntitySerializer = $userEntitySerializer;
+		$this->globalEditCountLookup = $globalEditCountLookup;
 		$this->revisionEntitySerializer = $revisionEntitySerializer;
 		$this->revisionSlotsEntitySerializer = $revisionSlotsEntitySerializer;
 		$this->revisionStore = $revisionStore;
@@ -244,10 +253,7 @@ class PageChangeEventSerializer {
 		}
 
 		if ( $performer !== null ) {
-			$eventAttrs['performer'] = $this->userEntitySerializer->toArray(
-				$performer,
-				self::USER_ENTITY_SCHEMA_VERSION
-			);
+			$eventAttrs['performer'] = $this->toUserAttrs( $performer );
 		}
 
 		if ( $comment !== null ) {
@@ -259,6 +265,29 @@ class PageChangeEventSerializer {
 		}
 
 		return $eventAttrs;
+	}
+
+	/**
+	 * DRY helper to serialize a user entity for page_change events.
+	 *
+	 * edit_global_count is set here rather than by UserEntitySerializer because
+	 * it is a field of the page_change schema, not of the reusable user entity
+	 * fragment: resolving it needs the optional CentralAuth extension.
+	 * See https://phabricator.wikimedia.org/T432050
+	 */
+	private function toUserAttrs( UserIdentity $user ): array {
+		$userAttrs = $this->userEntitySerializer->toArray( $user, self::USER_ENTITY_SCHEMA_VERSION );
+
+		if ( isset( $userAttrs['user_central_id'] ) ) {
+			$globalEditCount = $this->globalEditCountLookup->getGlobalEditCount(
+				$userAttrs['user_central_id']
+			);
+			if ( $globalEditCount !== null ) {
+				$userAttrs['edit_global_count'] = $globalEditCount;
+			}
+		}
+
+		return $userAttrs;
 	}
 
 	/**
@@ -275,10 +304,7 @@ class PageChangeEventSerializer {
 
 		// Add revision.editor
 		if ( $revisionRecord->getUser() ) {
-			$revisionAttrs['editor'] = $this->userEntitySerializer->toArray(
-				$revisionRecord->getUser(),
-				self::USER_ENTITY_SCHEMA_VERSION
-			);
+			$revisionAttrs['editor'] = $this->toUserAttrs( $revisionRecord->getUser() );
 		}
 
 		// Add revision.content_slots as long as slots are not empty.

@@ -23,6 +23,7 @@ declare( strict_types=1 );
 
 namespace MediaWiki\Extension\EventBus\Serializers\MediaWiki;
 
+use MediaWiki\Extension\EventBus\GlobalEditCountLookup;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Title\TitleFactory;
 use MediaWiki\User\User;
@@ -38,7 +39,7 @@ class UserChangeEventSerializer {
 	/**
 	 * All user_change events will have their $schema URI set to this.
 	 */
-	public const USER_CHANGE_SCHEMA_URI = '/development/mediawiki_user_change/1.2.0';
+	public const USER_CHANGE_SCHEMA_URI = '/development/mediawiki_user_change/1.3.0';
 
 	/**
 	 * The schema version of the user entity used when serializing user entities.
@@ -65,6 +66,10 @@ class UserChangeEventSerializer {
 	 */
 	private UserEntitySerializer $userEntitySerializer;
 	/**
+	 * @var GlobalEditCountLookup
+	 */
+	private GlobalEditCountLookup $globalEditCountLookup;
+	/**
 	 * @var TitleFactory
 	 */
 	private TitleFactory $titleFactory;
@@ -76,11 +81,13 @@ class UserChangeEventSerializer {
 	public function __construct(
 		EventSerializer $eventSerializer,
 		UserEntitySerializer $userEntitySerializer,
+		GlobalEditCountLookup $globalEditCountLookup,
 		TitleFactory $titleFactory,
 		UserIdentityUtils $userIdentityUtils,
 	) {
 		$this->eventSerializer = $eventSerializer;
 		$this->userEntitySerializer = $userEntitySerializer;
+		$this->globalEditCountLookup = $globalEditCountLookup;
 		$this->titleFactory = $titleFactory;
 		$this->userIdentityUtils = $userIdentityUtils;
 	}
@@ -261,11 +268,15 @@ class UserChangeEventSerializer {
 			'wiki_id' => WikiMap::getCurrentWikiId(),
 			'user_change_kind' => $user_change_kind,
 			'dt' => $dt,
-			'user' => $this->userEntitySerializer->toArray( $user, self::USER_ENTITY_SCHEMA_VERSION ),
+			'user' => $this->toUserAttrs( $user ),
 		];
 
-		// TODO: until first_registration_dt is moved into the user entity fragment,
-		//       and into UserEntitySerializer, set it explicitly here.
+		// TODO: first_registration_dt comes from MediaWiki core
+		//       (UserRegistrationLookup, already used by UserEntitySerializer),
+		//       so unlike edit_global_count it needs no extension. It is set here
+		//       for now, but could be moved into the user entity fragment and
+		//       UserEntitySerializer (like first_edit_dt).
+		//       See https://phabricator.wikimedia.org/T424767
 		$eventAttrs['user']['first_registration_dt'] = EventSerializer::timestampToDt(
 			$this->userEntitySerializer->getFirstRegistrationTimestamp( $user )
 		);
@@ -275,13 +286,33 @@ class UserChangeEventSerializer {
 		}
 
 		if ( $performer !== null ) {
-			$eventAttrs['performer'] = $this->userEntitySerializer->toArray(
-				$performer,
-				self::USER_ENTITY_SCHEMA_VERSION,
-			);
+			$eventAttrs['performer'] = $this->toUserAttrs( $performer );
 		}
 
 		return $eventAttrs;
+	}
+
+	/**
+	 * DRY helper to serialize a user entity for user_change events.
+	 *
+	 * edit_global_count is set here rather than by UserEntitySerializer because
+	 * it is a field of the user_change schema, not of the reusable user entity
+	 * fragment: resolving it needs the optional CentralAuth extension.
+	 * See https://phabricator.wikimedia.org/T432050
+	 */
+	private function toUserAttrs( UserIdentity $user ): array {
+		$userAttrs = $this->userEntitySerializer->toArray( $user, self::USER_ENTITY_SCHEMA_VERSION );
+
+		if ( isset( $userAttrs['user_central_id'] ) ) {
+			$globalEditCount = $this->globalEditCountLookup->getGlobalEditCount(
+				$userAttrs['user_central_id']
+			);
+			if ( $globalEditCount !== null ) {
+				$userAttrs['edit_global_count'] = $globalEditCount;
+			}
+		}
+
+		return $userAttrs;
 	}
 
 	/**
