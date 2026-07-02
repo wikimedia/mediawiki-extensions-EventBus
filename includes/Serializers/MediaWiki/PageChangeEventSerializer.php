@@ -43,7 +43,7 @@ class PageChangeEventSerializer {
 	 * All page change events will have their $schema URI set to this.
 	 * https://phabricator.wikimedia.org/T308017
 	 */
-	public const PAGE_CHANGE_SCHEMA_URI = '/mediawiki/page/change/1.8.0';
+	public const PAGE_CHANGE_SCHEMA_URI = '/mediawiki/page/change/1.9.0';
 
 	/**
 	 * The schema version of the user entity used when serializing users.
@@ -375,8 +375,8 @@ class PageChangeEventSerializer {
 	}
 
 	/**
-	 * Builds revision.revert attributes from EditResult
-	 * (mediawiki/page/change 1.4.0+).
+	 * Builds revision.revert attributes from EditResult.
+	 * revision.revert was added in mediawiki/page/change 1.4.0.
 	 *
 	 * @param EditResult $editResult
 	 * @return array|null Keyed payload or null if not a revert.
@@ -419,6 +419,18 @@ class PageChangeEventSerializer {
 					$originalRev->getTimestamp()
 				);
 			}
+		}
+
+		// EditResult has the oldest and newest revision ids that were reverted
+		// by this revert. These might be useful for calcuting the
+		// full range of reverted revisions later.
+		$oldestRevertedRevId = $editResult->getOldestRevertedRevisionId();
+		if ( $oldestRevertedRevId !== null ) {
+			$revertAttrs['rev_reverted_oldest_id'] = $oldestRevertedRevId;
+		}
+		$newestRevertedRevId = $editResult->getNewestRevertedRevisionId();
+		if ( $newestRevertedRevId !== null ) {
+			$revertAttrs['rev_reverted_newest_id'] = $newestRevertedRevId;
 		}
 
 		return $revertAttrs;

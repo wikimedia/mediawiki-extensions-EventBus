@@ -364,6 +364,8 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 						'method' => 'manual',
 						'rev_original_id' => $parentRevision->getId(),
 						'rev_original_dt' => EventSerializer::timestampToDt( $parentRevision->getTimestamp() ),
+						'rev_reverted_oldest_id' => $currentRevision->getId(),
+						'rev_reverted_newest_id' => $currentRevision->getId(),
 					],
 				],
 			]
@@ -434,6 +436,8 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 					'revert' => [
 						'is_exact' => false,
 						'method' => 'rollback',
+						'rev_reverted_oldest_id' => $currentRevision->getId(),
+						'rev_reverted_newest_id' => $currentRevision->getId(),
 					],
 				],
 			]
