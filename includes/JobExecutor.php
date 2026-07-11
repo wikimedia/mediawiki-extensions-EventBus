@@ -164,7 +164,6 @@ class JobExecutor {
 		$jobDuration = microtime( true ) - $startTime;
 		self::stats()->getTiming( 'jobexecutor_exec_runtime_seconds' )
 				->setLabel( 'type', $job->getType() )
-				->copyToStatsdAt( "jobexecutor.{$job->getType()}.exec" )
 				->observeSeconds( $jobDuration );
 		$this->logger()->info( 'Finished job execution',
 			[
