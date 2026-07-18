@@ -172,53 +172,53 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 	 * callable( self, array $result ): void that runs the per-case assertions.
 	 * null schemaVersion means call toArray() with no version argument (tests the default).
 	 */
-	public function provideToArrayVersionGatedFields(): array {
+	public static function provideToArrayVersionGatedFields(): array {
 		return [
 			'default registered: wiki_id absent' => [
 				null, false,
-				function ( array $result ) {
-					$this->assertArrayNotHasKey( 'wiki_id', $result );
+				static function ( array $result ) {
+					self::assertArrayNotHasKey( 'wiki_id', $result );
 				},
 			],
 			'1.1.0 registered: wiki_id absent' => [
 				'1.1.0', false,
-				function ( array $result ) {
-					$this->assertArrayNotHasKey( 'wiki_id', $result );
+				static function ( array $result ) {
+					self::assertArrayNotHasKey( 'wiki_id', $result );
 				},
 			],
 			'1.2.0 registered: wiki_id present' => [
 				'1.2.0', false,
-				function ( array $result ) {
-					$this->assertArrayHasKey( 'wiki_id', $result );
-					$this->assertSame( WikiMap::getCurrentWikiId(), $result['wiki_id'] );
-					$this->assertIsString( $result['wiki_id'] );
-					$this->assertNotEmpty( $result['wiki_id'] );
+				static function ( array $result ) {
+					self::assertArrayHasKey( 'wiki_id', $result );
+					self::assertSame( WikiMap::getCurrentWikiId(), $result['wiki_id'] );
+					self::assertIsString( $result['wiki_id'] );
+					self::assertNotEmpty( $result['wiki_id'] );
 				},
 			],
 			'1.2.0 anon: wiki_id present' => [
 				'1.2.0', true,
-				function ( array $result ) {
-					$this->assertArrayHasKey( 'wiki_id', $result );
-					$this->assertSame( WikiMap::getCurrentWikiId(), $result['wiki_id'] );
+				static function ( array $result ) {
+					self::assertArrayHasKey( 'wiki_id', $result );
+					self::assertSame( WikiMap::getCurrentWikiId(), $result['wiki_id'] );
 				},
 			],
 			'1.1.0 registered: first_edit_dt absent' => [
 				'1.1.0', false,
-				function ( array $result ) {
-					$this->assertArrayNotHasKey( 'first_edit_dt', $result );
+				static function ( array $result ) {
+					self::assertArrayNotHasKey( 'first_edit_dt', $result );
 				},
 			],
 			'1.2.0 registered: first_edit_dt absent' => [
 				'1.2.0', false,
-				function ( array $result ) {
-					$this->assertArrayNotHasKey( 'first_edit_dt', $result );
+				static function ( array $result ) {
+					self::assertArrayNotHasKey( 'first_edit_dt', $result );
 				},
 			],
 			'1.3.0 registered: first_edit_dt present with correct value' => [
 				'1.3.0', false,
-				function ( array $result ) {
-					$this->assertArrayHasKey( 'first_edit_dt', $result );
-					$this->assertSame(
+				static function ( array $result ) {
+					self::assertArrayHasKey( 'first_edit_dt', $result );
+					self::assertSame(
 						EventSerializer::timestampToDt( self::MOCK_FIRST_EDIT_TIMESTAMP ),
 						$result['first_edit_dt']
 					);
@@ -226,8 +226,8 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 			],
 			'1.3.0 anon: first_edit_dt absent' => [
 				'1.3.0', true,
-				function ( array $result ) {
-					$this->assertArrayNotHasKey( 'first_edit_dt', $result );
+				static function ( array $result ) {
+					self::assertArrayNotHasKey( 'first_edit_dt', $result );
 				},
 			],
 		];
