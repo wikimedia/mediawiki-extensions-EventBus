@@ -2,6 +2,7 @@
 namespace MediaWiki\Extension\EventBus\Tests\Unit;
 
 use MediaWiki\Block\DatabaseBlock;
+use MediaWiki\ChangeTags\ChangeTagsStore;
 use MediaWiki\CommentFormatter\CommentFormatter;
 use MediaWiki\DAO\WikiAwareEntity;
 use MediaWiki\Deferred\DeferredUpdates;
@@ -35,6 +36,7 @@ class EventBusHooksTest extends MediaWikiUnitTestCase {
 	private RevisionLookup $revisionLookup;
 	private CommentFormatter $commentFormatter;
 	private TitleFactory $titleFactory;
+	private ChangeTagsStore $changeTagsStore;
 
 	private EventBus $eventBus;
 	private EventFactory $eventFactory;
@@ -48,6 +50,12 @@ class EventBusHooksTest extends MediaWikiUnitTestCase {
 		$this->revisionLookup = $this->createMock( RevisionLookup::class );
 		$this->commentFormatter = $this->createMock( CommentFormatter::class );
 		$this->titleFactory = $this->createMock( TitleFactory::class );
+		$this->changeTagsStore = $this->createMock( ChangeTagsStore::class );
+		$this->changeTagsStore->method( 'filterViewableTagsForPerformer' )
+			->willReturnCallback( static fn ( array $tags ) => array_values( array_filter(
+				$tags,
+				static fn ( string $tag ) => !str_starts_with( $tag, 'mw-private-' )
+			) ) );
 
 		$this->eventBus = $this->createMock( EventBus::class );
 		$this->eventFactory = $this->createMock( EventFactory::class );
@@ -59,7 +67,8 @@ class EventBusHooksTest extends MediaWikiUnitTestCase {
 			$this->eventBusFactory,
 			$this->revisionLookup,
 			$this->commentFormatter,
-			$this->titleFactory
+			$this->titleFactory,
+			$this->changeTagsStore
 		);
 	}
 
@@ -678,6 +687,40 @@ class EventBusHooksTest extends MediaWikiUnitTestCase {
 		$this->revisionLookup->method( 'getRevisionById' )
 			->with( $revisionId )
 			->willReturn( null );
+
+		$this->eventBusFactory->expects( $this->never() )
+			->method( 'getInstanceForStream' );
+
+		$this->eventFactory->expects( $this->never() )
+			->method( 'createRevisionTagsChangeEvent' );
+
+		$this->eventBus->expects( $this->never() )
+			->method( 'send' );
+
+		$this->hooks->onChangeTagsAfterUpdateTags(
+			$addedTags,
+			$removedTags,
+			$prevTags,
+			null,
+			$revisionId,
+			null,
+			null,
+			null,
+			$performer
+		);
+
+		DeferredUpdates::doUpdates();
+	}
+
+	public function testChangeTagsAfterUpdateTagsShouldNotSendEventForRestrictedTagsOnly(): void {
+		$prevTags = [ 'tag1', 'mw-private-other' ];
+		$addedTags = [ 'mw-private-personal-info' ];
+		$removedTags = [ 'mw-private-other' ];
+		$revisionId = 2;
+		$performer = $this->createMock( User::class );
+
+		$this->revisionLookup->expects( $this->never() )
+			->method( 'getRevisionById' );
 
 		$this->eventBusFactory->expects( $this->never() )
 			->method( 'getInstanceForStream' );

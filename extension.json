@@ -122,7 +122,8 @@
 				"EventBus.EventBusFactory",
 				"RevisionLookup",
 				"CommentFormatter",
-				"TitleFactory"
+				"TitleFactory",
+				"ChangeTagsStore"
 			]
 		}
 	},

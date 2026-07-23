@@ -62,7 +62,8 @@ return [
 			$services->getUserFactory(),
 			$services->getContentHandlerFactory(),
 			LoggerFactory::getInstance( 'EventBus' ),
-			Telemetry::getInstance()
+			Telemetry::getInstance(),
+			$services->getChangeTagsStore()
 		);
 	},
 

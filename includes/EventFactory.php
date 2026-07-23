@@ -4,6 +4,7 @@ namespace MediaWiki\Extension\EventBus;
 
 use MediaWiki\Block\DatabaseBlock;
 use MediaWiki\Block\Restriction\Restriction;
+use MediaWiki\ChangeTags\ChangeTagsStore;
 use MediaWiki\CommentFormatter\CommentFormatter;
 use MediaWiki\Config\ServiceOptions;
 use MediaWiki\Content\IContentHandlerFactory;
@@ -83,6 +84,8 @@ class EventFactory {
 
 	private Telemetry $telemetry;
 
+	private ChangeTagsStore $changeTagsStore;
+
 	/**
 	 * @param ServiceOptions $serviceOptions
 	 * @param string $dbDomain
@@ -96,6 +99,7 @@ class EventFactory {
 	 * @param IContentHandlerFactory $contentHandlerFactory
 	 * @param LoggerInterface $logger
 	 * @param Telemetry $telemetry
+	 * @param ChangeTagsStore $changeTagsStore
 	 */
 	public function __construct(
 		ServiceOptions $serviceOptions,
@@ -109,7 +113,8 @@ class EventFactory {
 		UserFactory $userFactory,
 		IContentHandlerFactory $contentHandlerFactory,
 		LoggerInterface $logger,
-		Telemetry $telemetry
+		Telemetry $telemetry,
+		ChangeTagsStore $changeTagsStore
 	) {
 		$serviceOptions->assertRequiredOptions( self::CONSTRUCTOR_OPTIONS );
 		$this->options = $serviceOptions;
@@ -124,6 +129,7 @@ class EventFactory {
 		$this->contentHandlerFactory = $contentHandlerFactory;
 		$this->logger = $logger;
 		$this->telemetry = $telemetry;
+		$this->changeTagsStore = $changeTagsStore;
 	}
 
 	/**
@@ -737,6 +743,9 @@ class EventFactory {
 		?UserIdentity $user
 	) {
 		$attrs = $this->createRevisionRecordAttrs( $revisionRecord, $user );
+
+		$prevTags = $this->changeTagsStore->filterViewableTagsForPerformer( $prevTags, null );
+		$addedTags = $this->changeTagsStore->filterViewableTagsForPerformer( $addedTags, null );
 
 		$newTags = array_values(
 			array_unique( array_diff( array_merge( $prevTags, $addedTags ), $removedTags ) )

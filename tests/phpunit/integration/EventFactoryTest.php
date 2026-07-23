@@ -391,6 +391,22 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 			[ 'existing_tag_1' ],
 			new UserIdentityValue( 1, 'Test_User' ),
 		];
+		yield 'Restricted tags are stripped from added and prior tags' => [
+			[ 'existing_tag_1', 'mw-private-personal-info' ],
+			[ 'added_tag_1', 'mw-private-foo' ],
+			[],
+			[ 'existing_tag_1', 'added_tag_1' ],
+			new UserIdentityValue( 1, 'Test_User' ),
+			[ 'existing_tag_1' ],
+		];
+		yield 'Removing a restricted tag does not expose it in prior tags' => [
+			[ 'existing_tag_1', 'mw-private-personal-info' ],
+			[],
+			[ 'mw-private-personal-info' ],
+			[ 'existing_tag_1' ],
+			new UserIdentityValue( 1, 'Test_User' ),
+			[ 'existing_tag_1' ],
+		];
 	}
 
 	/**
@@ -401,7 +417,8 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		array $addedTags,
 		array $removedTags,
 		array $expectedTags,
-		?UserIdentity $user
+		?UserIdentity $user,
+		?array $expectedPriorTags = null
 	) {
 		$eventFactory = $this->getServiceContainer()->get( 'EventBus.EventFactory' );
 		$revisionRecord = $this->createMutableRevisionFromArray();
@@ -411,7 +428,9 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		$this->assertIsArray( $event, 'Returned event should be of type array' );
 		$this->assertRevisionProperties( $event );
 		$this->assertNotNull( $event['prior_state'], "'prior_state' null" );
-		$this->assertArrayEquals( $prevTags, $event['prior_state']['tags'], "'prior_state' incorrect value" );
+		$this->assertArrayEquals(
+			$expectedPriorTags ?? $prevTags, $event['prior_state']['tags'], "'prior_state' incorrect value"
+		);
 		$this->assertArrayEquals( $expectedTags, $event['tags'], "'tags' incorrect values" );
 		$this->assertArrayHasKey( 'performer', $event, "'performer' missing" );
 	}

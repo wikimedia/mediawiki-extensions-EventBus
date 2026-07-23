@@ -25,6 +25,7 @@
 namespace MediaWiki\Extension\EventBus;
 
 use MediaWiki\Block\DatabaseBlock;
+use MediaWiki\ChangeTags\ChangeTagsStore;
 use MediaWiki\ChangeTags\Hook\ChangeTagsAfterUpdateTagsHook;
 use MediaWiki\CommentFormatter\CommentFormatter;
 use MediaWiki\Context\RequestContext;
@@ -78,17 +79,20 @@ class EventBusHooks implements
 	private RevisionLookup $revisionLookup;
 	private CommentFormatter $commentFormatter;
 	private TitleFactory $titleFactory;
+	private ChangeTagsStore $changeTagsStore;
 
 	public function __construct(
 		EventBusFactory $eventBusFactory,
 		RevisionLookup $revisionLookup,
 		CommentFormatter $commentFormatter,
-		TitleFactory $titleFactory
+		TitleFactory $titleFactory,
+		ChangeTagsStore $changeTagsStore
 	) {
 		$this->eventBusFactory = $eventBusFactory;
 		$this->revisionLookup = $revisionLookup;
 		$this->commentFormatter = $commentFormatter;
 		$this->titleFactory = $titleFactory;
+		$this->changeTagsStore = $changeTagsStore;
 	}
 
 	/**
@@ -597,6 +601,15 @@ class EventBusHooks implements
 	) {
 		if ( $rev_id === null ) {
 			// We're only interested for revision (edits) tags for now.
+			return;
+		}
+
+		// This stream is public. A change that only touches restricted (mw-private-)
+		// tags is invisible to unprivileged consumers, and emitting an event for it
+		// would itself reveal that the revision was privately tagged (T432948).
+		$publicAddedTags = $this->changeTagsStore->filterViewableTagsForPerformer( $addedTags, null );
+		$publicRemovedTags = $this->changeTagsStore->filterViewableTagsForPerformer( $removedTags, null );
+		if ( $publicAddedTags === [] && $publicRemovedTags === [] ) {
 			return;
 		}
 
