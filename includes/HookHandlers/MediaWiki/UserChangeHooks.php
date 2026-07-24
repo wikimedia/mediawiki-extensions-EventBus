@@ -107,10 +107,23 @@ class UserChangeHooks implements
 		// LocalUserCreated has no $performer argument; the initiating account is the main request user.
 		// MediaWiki does not expose the main RequestContext as a DI service (see T218555 / RequestContext).
 		$performer = RequestContext::getMain()->getUser();
-		// Only set performer if they are a real named logged in user.
-		// During auto-creation the session user may not be safe to load yet (T401400).
-		if ( !$performer->isSafeToLoad() || !$performer->isNamed() ) {
-			$performer = null;
+		// Special:Log records the newly created user as the performer for both self
+		// account creation and autocreation, so we do the same (T423952). A named,
+		// safe-to-load performer - an admin creating the account via
+		// Special:CreateAccount, or the user that triggered their own (auto)creation -
+		// is kept as-is. Otherwise the newly created user is the performer.
+		// Check isSafeToLoad() before isNamed(): isNamed() triggers a user load, and
+		// during autocreation the session context user may not be safe to load yet
+		// (T401400).
+		if ( !$performer->isSafeToLoad() ) {
+			// We can't read the context user. During autocreation the created user is
+			// the performer (consistent with Special:Log); otherwise the performer is
+			// unknown, so leave it null.
+			$performer = $autocreated ? $user : null;
+		} elseif ( !$performer->isNamed() ) {
+			// Anonymous / temp context: there is no separate performer, so the newly
+			// created user is the performer.
+			$performer = $user;
 		}
 
 		// Local user account registration timestamp should be the event timestamp.

@@ -121,7 +121,7 @@ class UserChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		}
 	}
 
-	public function testLocalUserCreatedOmitsPerformerWhenAnonymous(): void {
+	public function testLocalUserCreatedSetsPerformerToCreatedUserWhenAnonymous(): void {
 		// Flush any pending events in the queue
 		$this->runDeferredUpdates();
 
@@ -141,7 +141,11 @@ class UserChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 				Assert::assertSame( 'insert', $event['changelog_kind'] );
 				Assert::assertSame( $createdUser->getName(), $event['user']['user_text'] );
 
-				Assert::assertArrayNotHasKey( 'performer', $event );
+				// On self account creation the context user is anonymous, so the
+				// created user is recorded as the performer (T423952).
+				Assert::assertArrayHasKey( 'performer', $event );
+				Assert::assertSame( $createdUser->getName(), $event['performer']['user_text'] );
+				Assert::assertSame( $createdUser->getId(), $event['performer']['user_id'] );
 			};
 
 			$eventBusFactory = $this->mockEventBusFactory(
@@ -154,6 +158,95 @@ class UserChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 			/** @var HookContainer $hookContainer */
 			$hookContainer = $this->getServiceContainer()->getHookContainer();
 			$hookContainer->run( 'LocalUserCreated', [ $createdUser, false ] );
+
+			$this->runDeferredUpdates();
+		} finally {
+			RequestContext::getMain()->setUser( $oldUser );
+		}
+	}
+
+	public function testLocalUserCreatedKeepsNamedPerformerOnAutocreate(): void {
+		// Flush any pending events in the queue
+		$this->runDeferredUpdates();
+
+		$createdUser = $this->getTestUser()->getUser();
+		// A named, safe-to-load request context user is kept as the performer even on
+		// autocreation; we only substitute the created user when the context user is
+		// anonymous (T423952).
+		$contextUser = $this->getTestSysop()->getUser();
+
+		$oldUser = RequestContext::getMain()->getUser();
+		RequestContext::getMain()->setUser( $contextUser );
+
+		try {
+			$sendCallback = function ( array $events ) use ( $contextUser ) {
+				Assert::assertCount( 1, $events );
+				$event = $events[0];
+
+				self::assertIsValidUserChangeSchemaAndWiki( $event );
+				Assert::assertSame( 'create', $event['user_change_kind'] );
+				Assert::assertTrue( $event['is_autocreate'] );
+
+				// The named request context user is kept as the performer on
+				// autocreation (T423952).
+				Assert::assertArrayHasKey( 'performer', $event );
+				Assert::assertSame( $contextUser->getName(), $event['performer']['user_text'] );
+				Assert::assertSame( $contextUser->getId(), $event['performer']['user_id'] );
+			};
+
+			$eventBusFactory = $this->mockEventBusFactory(
+				$sendCallback,
+				1,
+				UserChangeHooks::USER_CHANGE_STREAM_NAME_DEFAULT
+			);
+			$this->setService( 'EventBus.EventBusFactory', $eventBusFactory );
+
+			/** @var HookContainer $hookContainer */
+			$hookContainer = $this->getServiceContainer()->getHookContainer();
+			$hookContainer->run( 'LocalUserCreated', [ $createdUser, true ] );
+
+			$this->runDeferredUpdates();
+		} finally {
+			RequestContext::getMain()->setUser( $oldUser );
+		}
+	}
+
+	public function testLocalUserCreatedSetsPerformerToCreatedUserOnAutocreateWhenAnonymous(): void {
+		// Flush any pending events in the queue
+		$this->runDeferredUpdates();
+
+		$createdUser = $this->getTestUser()->getUser();
+		// Autocreation with an anonymous context user (no named performer available):
+		// the created user is recorded as the performer (T423952).
+		$anonymousPerformer = $this->getServiceContainer()->getUserFactory()->newAnonymous( '1.2.3.4' );
+
+		$oldUser = RequestContext::getMain()->getUser();
+		RequestContext::getMain()->setUser( $anonymousPerformer );
+
+		try {
+			$sendCallback = function ( array $events ) use ( $createdUser ) {
+				Assert::assertCount( 1, $events );
+				$event = $events[0];
+
+				self::assertIsValidUserChangeSchemaAndWiki( $event );
+				Assert::assertSame( 'create', $event['user_change_kind'] );
+				Assert::assertTrue( $event['is_autocreate'] );
+
+				Assert::assertArrayHasKey( 'performer', $event );
+				Assert::assertSame( $createdUser->getName(), $event['performer']['user_text'] );
+				Assert::assertSame( $createdUser->getId(), $event['performer']['user_id'] );
+			};
+
+			$eventBusFactory = $this->mockEventBusFactory(
+				$sendCallback,
+				1,
+				UserChangeHooks::USER_CHANGE_STREAM_NAME_DEFAULT
+			);
+			$this->setService( 'EventBus.EventBusFactory', $eventBusFactory );
+
+			/** @var HookContainer $hookContainer */
+			$hookContainer = $this->getServiceContainer()->getHookContainer();
+			$hookContainer->run( 'LocalUserCreated', [ $createdUser, true ] );
 
 			$this->runDeferredUpdates();
 		} finally {
