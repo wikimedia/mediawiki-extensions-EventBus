@@ -5,6 +5,8 @@ use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Extension\EventBus\Adapters\Monolog\EventBusMonologHandler;
 use MediaWiki\Extension\EventBus\EventBus;
 use MediaWiki\Extension\EventBus\EventBusFactory;
+use MediaWiki\Logger\LoggerFactory;
+use MediaWiki\Logger\Monolog\ContextProcessor;
 use MediaWikiIntegrationTestCase;
 use Monolog\Logger;
 use Psr\Log\LoggerInterface;
@@ -45,6 +47,30 @@ class EventBusMonologHandlerIntegrationTest extends MediaWikiIntegrationTestCase
 
 		$this->logger->info( 'Test log', [ 'foo' => 'bar' ] );
 		$this->logger->warning( 'Test log', [ 'baz' => 'quux' ] );
+
+		DeferredUpdates::doUpdates();
+	}
+
+	public function testShouldStripGlobalLoggingContextFromEvents(): void {
+		$scope = DeferredUpdates::preventOpportunisticUpdates();
+
+		$contextScope = LoggerFactory::getContext()->addScoped( [
+			'context.oauth_consumer_id' => '562',
+			'context.oauth_consumer_name' => 'InternetArchiveBot AUTH v2',
+		] );
+
+		$this->logger->pushProcessor( new ContextProcessor() );
+
+		$eventBus = $this->createMock( EventBus::class );
+		$eventBus->expects( $this->once() )
+			->method( 'send' )
+			->with( [ [ 'foo' => 'bar' ] ] );
+
+		$this->eventBusFactory->method( 'getInstance' )
+			->with( self::TEST_EVENT_SERVICE_NAME )
+			->willReturn( $eventBus );
+
+		$this->logger->info( 'Test log', [ 'foo' => 'bar' ] );
 
 		DeferredUpdates::doUpdates();
 	}
