@@ -48,8 +48,14 @@ class EventBusMonologHandler extends AbstractProcessingHandler {
 	 * Assumes that $record['context'] contains the event to send via EventBus.
 	 */
 	protected function write( array|LogRecord $record ): void {
-		// Use the log record context as formatted as the event data.
-		$event = $record['context'];
+		// Use the log record context as formatted as the event data
+		// but skip fields from the global diagnostic context (T433457)
+		$event = [];
+		foreach ( $record['context'] as $key => $value ) {
+			if ( !str_starts_with( $key, 'context.' ) ) {
+				$event[ $key ] = $value;
+			}
+		}
 
 		// wfDebugLog() adds a field called 'private' to the context
 		// that does not belong in the event. Delete the 'private' field here and
