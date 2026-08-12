@@ -18,7 +18,7 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotsEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Extension\EventBus\StreamNameMapper;
-use MediaWiki\Extension\EventBus\WikibaseItemIdLookup;
+use MediaWiki\Extension\EventBus\WikibaseItemLookup;
 use MediaWiki\HookContainer\HookContainer;
 use MediaWiki\MainConfigNames;
 use MediaWiki\Page\Event\PageDeletedEvent;
@@ -274,8 +274,9 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 		// Without CentralAuth services the lookup always returns null, so
 		// edit_global_count is omitted.
 		$globalEditCountLookup = new GlobalEditCountLookup();
-		// Likewise, without Wikibase Client wikibase_item_id is omitted.
-		$wikibaseItemIdLookup = new WikibaseItemIdLookup( $deps['titleFactory'] );
+		// Likewise, without Wikibase Client wikibase_item_id, wikibase_wiki_id
+		// and wikibase_concept_uri are omitted.
+		$wikibaseItemLookup = new WikibaseItemLookup( $deps['titleFactory'] );
 		$revisionSlotsEntitySerializer = new RevisionSlotsEntitySerializer(
 			$deps['contentHandlerFactory'],
 		);
@@ -289,7 +290,7 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			$pageLinkEntitySerializer,
 			$userEntitySerializer,
 			$globalEditCountLookup,
-			$wikibaseItemIdLookup,
+			$wikibaseItemLookup,
 			$revisionEntitySerializer,
 			$revisionSlotsEntitySerializer,
 			$deps['revisionStore'],

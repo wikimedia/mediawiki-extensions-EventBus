@@ -38,7 +38,7 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotsEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Extension\EventBus\StreamNameMapper;
-use MediaWiki\Extension\EventBus\WikibaseItemIdLookup;
+use MediaWiki\Extension\EventBus\WikibaseItemLookup;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\Page\Event\PageCreatedEvent;
 use MediaWiki\Page\Event\PageCreatedListener;
@@ -118,7 +118,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 		PageLinkEntitySerializer $pageLinkEntitySerializer,
 		UserEntitySerializer $userEntitySerializer,
 		GlobalEditCountLookup $globalEditCountLookup,
-		WikibaseItemIdLookup $wikibaseItemIdLookup,
+		WikibaseItemLookup $wikibaseItemLookup,
 		RevisionEntitySerializer $revisionEntitySerializer,
 		RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer,
 		RevisionStore $revisionStore,
@@ -139,7 +139,7 @@ class PageChangeEventIngress extends DomainEventIngress implements
 			$pageLinkEntitySerializer,
 			$userEntitySerializer,
 			$globalEditCountLookup,
-			$wikibaseItemIdLookup,
+			$wikibaseItemLookup,
 			$revisionEntitySerializer,
 			$revisionSlotsEntitySerializer,
 			$revisionStore,

@@ -9,7 +9,7 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageLinkEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotsEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
-use MediaWiki\Extension\EventBus\WikibaseItemIdLookup;
+use MediaWiki\Extension\EventBus\WikibaseItemLookup;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\Page\PageIdentityValue;
 use MediaWiki\Page\WikiPage;
@@ -57,9 +57,9 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	 */
 	private GlobalEditCountLookup $globalEditCountLookup;
 	/**
-	 * @var WikibaseItemIdLookup
+	 * @var WikibaseItemLookup
 	 */
-	private WikibaseItemIdLookup $wikibaseItemIdLookup;
+	private WikibaseItemLookup $wikibaseItemLookup;
 	/**
 	 * @var RevisionEntitySerializer
 	 */
@@ -114,7 +114,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		$this->pageLinkEntitySerializer = $services->get( 'EventBus.PageLinkEntitySerializer' );
 		$this->userEntitySerializer = $services->get( 'EventBus.UserEntitySerializer' );
 		$this->globalEditCountLookup = $services->get( 'EventBus.GlobalEditCountLookup' );
-		$this->wikibaseItemIdLookup = $services->get( 'EventBus.WikibaseItemIdLookup' );
+		$this->wikibaseItemLookup = $services->get( 'EventBus.WikibaseItemLookup' );
 		$this->revisionEntitySerializer = $services->get( 'EventBus.RevisionEntitySerializer' );
 		$this->revisionSlotsEntitySerializer = $services->get( 'EventBus.RevisionSlotsEntitySerializer' );
 
@@ -124,7 +124,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			$this->pageLinkEntitySerializer,
 			$this->userEntitySerializer,
 			$this->globalEditCountLookup,
-			$this->wikibaseItemIdLookup,
+			$this->wikibaseItemLookup,
 			$this->revisionEntitySerializer,
 			$this->revisionSlotsEntitySerializer,
 			$this->revisionStore,
@@ -158,9 +158,17 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			$wikiPage,
 			PageChangeEventSerializer::PAGE_ENTITY_SCHEMA_VERSION
 		);
-		$wikibaseItemId = $this->wikibaseItemIdLookup->getWikibaseItemIdForPage( $wikiPage );
+		$wikibaseItemId = $this->wikibaseItemLookup->getWikibaseItemIdForPage( $wikiPage );
 		if ( $wikibaseItemId !== null ) {
 			$attrs['wikibase_item_id'] = $wikibaseItemId;
+		}
+		$wikibaseWikiId = $this->wikibaseItemLookup->getWikibaseWikiIdForPage( $wikiPage );
+		if ( $wikibaseWikiId !== null ) {
+			$attrs['wikibase_wiki_id'] = $wikibaseWikiId;
+		}
+		$wikibaseConceptUri = $this->wikibaseItemLookup->getWikibaseConceptUriForPage( $wikiPage );
+		if ( $wikibaseConceptUri !== null ) {
+			$attrs['wikibase_concept_uri'] = $wikibaseConceptUri;
 		}
 		return $attrs;
 	}
@@ -311,7 +319,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			$this->pageLinkEntitySerializer,
 			$userEntitySerializer,
 			$globalEditCountLookup,
-			$this->wikibaseItemIdLookup,
+			$this->wikibaseItemLookup,
 			$this->revisionEntitySerializer,
 			$this->revisionSlotsEntitySerializer,
 			$this->revisionStore,
@@ -859,16 +867,28 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	}
 
 	/**
-	 * Builds a PageChangeEventSerializer whose WikibaseItemIdLookup reports
-	 * $itemId for the page and $linkItemId for a redirect target link.
+	 * Builds a PageChangeEventSerializer whose WikibaseItemLookup reports
+	 * $itemId hosted by $wikiId for the page, and $linkItemId hosted by
+	 * $linkWikiId for a redirect target link. Concept URIs are derived from the
+	 * item ids, as the real lookup does.
 	 */
-	private function newSerializerWithWikibaseItemIds(
+	private function newSerializerWithWikibaseIds(
 		?string $itemId,
-		?string $linkItemId = null
+		?string $wikiId = null,
+		?string $linkItemId = null,
+		?string $linkWikiId = null
 	): PageChangeEventSerializer {
-		$lookup = $this->createMock( WikibaseItemIdLookup::class );
+		$conceptUri = static fn ( ?string $id ): ?string => $id === null
+			? null
+			: 'http://www.wikidata.org/entity/' . $id;
+
+		$lookup = $this->createMock( WikibaseItemLookup::class );
 		$lookup->method( 'getWikibaseItemIdForPage' )->willReturn( $itemId );
+		$lookup->method( 'getWikibaseWikiIdForPage' )->willReturn( $wikiId );
+		$lookup->method( 'getWikibaseConceptUriForPage' )->willReturn( $conceptUri( $itemId ) );
 		$lookup->method( 'getWikibaseItemIdForLinkTarget' )->willReturn( $linkItemId );
+		$lookup->method( 'getWikibaseWikiIdForLinkTarget' )->willReturn( $linkWikiId );
+		$lookup->method( 'getWikibaseConceptUriForLinkTarget' )->willReturn( $conceptUri( $linkItemId ) );
 
 		return new PageChangeEventSerializer(
 			$this->eventSerializer,
@@ -884,7 +904,8 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	}
 
 	/**
-	 * page.wikibase_item_id is set from the Wikibase item linked to the page.
+	 * page.wikibase_item_id, page.wikibase_wiki_id and page.wikibase_concept_uri
+	 * are set from the Wikibase item linked to the page.
 	 *
 	 * An edit event is used here since that is the steady-state case in which
 	 * wikibase_item_id is expected to be set. On page create events the
@@ -908,7 +929,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			$this->getTestUser()->getUser(),
 		);
 
-		$actual = $this->newSerializerWithWikibaseItemIds( 'Q42' )->toEditEvent(
+		$actual = $this->newSerializerWithWikibaseIds( 'Q42', 'wikidatawiki' )->toEditEvent(
 			self::MOCK_STREAM_NAME,
 			$wikiPage0,
 			$this->userFactory->newFromUserIdentity(
@@ -922,11 +943,43 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		);
 
 		$this->assertSame( 'Q42', $actual['page']['wikibase_item_id'] );
+		$this->assertSame( 'wikidatawiki', $actual['page']['wikibase_wiki_id'] );
+		$this->assertSame(
+			'http://www.wikidata.org/entity/Q42',
+			$actual['page']['wikibase_concept_uri']
+		);
+	}
+
+	/**
+	 * When the Wikibase repository hosting the item is unknown, wikibase_wiki_id
+	 * is omitted but wikibase_item_id is still set.
+	 *
+	 * @covers ::toCreateEvent
+	 * @covers ::toPageAttrs
+	 */
+	public function testOmitsWikibaseWikiIdWhenUnknown() {
+		$wikiPage = $this->getExistingTestPage(
+			Title::makeTitle( $this->getDefaultWikitextNS(), 'MyPageWithUnknownWikibaseWiki' )
+		);
+
+		$actual = $this->newSerializerWithWikibaseIds( 'Q42', null )->toCreateEvent(
+			self::MOCK_STREAM_NAME,
+			$wikiPage,
+			$this->userFactory->newFromUserIdentity(
+				$wikiPage->getRevisionRecord()->getUser()
+			),
+			$wikiPage->getRevisionRecord(),
+			null
+		);
+
+		$this->assertSame( 'Q42', $actual['page']['wikibase_item_id'] );
+		$this->assertArrayNotHasKey( 'wikibase_wiki_id', $actual['page'] );
 	}
 
 	/**
 	 * When the page has no linked Wikibase item (or Wikibase Client is not
-	 * loaded), wikibase_item_id is omitted.
+	 * loaded), wikibase_item_id, wikibase_wiki_id and wikibase_concept_uri are
+	 * omitted.
 	 *
 	 * @covers ::toCreateEvent
 	 * @covers ::toPageAttrs
@@ -936,7 +989,7 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			Title::makeTitle( $this->getDefaultWikitextNS(), 'MyPageWithoutWikibaseItem' )
 		);
 
-		$actual = $this->newSerializerWithWikibaseItemIds( null )->toCreateEvent(
+		$actual = $this->newSerializerWithWikibaseIds( null )->toCreateEvent(
 			self::MOCK_STREAM_NAME,
 			$wikiPage,
 			$this->userFactory->newFromUserIdentity(
@@ -947,11 +1000,14 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		);
 
 		$this->assertArrayNotHasKey( 'wikibase_item_id', $actual['page'] );
+		$this->assertArrayNotHasKey( 'wikibase_wiki_id', $actual['page'] );
+		$this->assertArrayNotHasKey( 'wikibase_concept_uri', $actual['page'] );
 	}
 
 	/**
 	 * A redirect target's own Wikibase item is set at
-	 * page.redirect_page_link.wikibase_item_id.
+	 * page.redirect_page_link.wikibase_item_id / wikibase_wiki_id /
+	 * wikibase_concept_uri.
 	 *
 	 * @covers ::toCreateEvent
 	 * @covers ::toCommonAttrs
@@ -965,7 +1021,9 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 			Title::makeTitle( $this->getDefaultWikitextNS(), 'MyRedirectTarget' )
 		);
 
-		$actual = $this->newSerializerWithWikibaseItemIds( 'Q42', 'Q937' )->toCreateEvent(
+		$actual = $this->newSerializerWithWikibaseIds(
+			'Q42', 'wikidatawiki', 'Q937', 'wikidatawiki'
+		)->toCreateEvent(
 			self::MOCK_STREAM_NAME,
 			$wikiPage,
 			$this->userFactory->newFromUserIdentity(
@@ -976,7 +1034,13 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 		);
 
 		$this->assertSame( 'Q42', $actual['page']['wikibase_item_id'] );
+		$this->assertSame( 'wikidatawiki', $actual['page']['wikibase_wiki_id'] );
 		$this->assertSame( 'Q937', $actual['page']['redirect_page_link']['wikibase_item_id'] );
+		$this->assertSame( 'wikidatawiki', $actual['page']['redirect_page_link']['wikibase_wiki_id'] );
+		$this->assertSame(
+			'http://www.wikidata.org/entity/Q937',
+			$actual['page']['redirect_page_link']['wikibase_concept_uri']
+		);
 	}
 
 	/**

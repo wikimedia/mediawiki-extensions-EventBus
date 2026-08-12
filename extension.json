@@ -61,7 +61,7 @@
 				"EventBus.PageLinkEntitySerializer",
 				"EventBus.UserEntitySerializer",
 				"EventBus.GlobalEditCountLookup",
-				"EventBus.WikibaseItemIdLookup",
+				"EventBus.WikibaseItemLookup",
 				"EventBus.RevisionEntitySerializer",
 				"EventBus.RevisionSlotsEntitySerializer",
 				"RevisionStore",

@@ -12,7 +12,7 @@ use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\RevisionSlotsEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\UserEntitySerializer;
 use MediaWiki\Extension\EventBus\StreamNameMapper;
-use MediaWiki\Extension\EventBus\WikibaseItemIdLookup;
+use MediaWiki\Extension\EventBus\WikibaseItemLookup;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
@@ -124,18 +124,34 @@ return [
 
 	// NOTE: Private service, internal to the EventBus event producers, for the
 	// same reasons as EventBus.GlobalEditCountLookup above.
-	'EventBus.WikibaseItemIdLookup' => static function (
+	'EventBus.WikibaseItemLookup' => static function (
 		MediaWikiServices $services
-	): WikibaseItemIdLookup {
+	): WikibaseItemLookup {
 		// Wikibase Client is an optional dependency. When absent, the lookup
-		// always returns null and wikibase_item_id is omitted from events.
-		$entityIdLookup = ExtensionRegistry::getInstance()->isLoaded( 'WikibaseClient' )
-			? $services->get( 'WikibaseClient.EntityIdLookup' )
-			: null;
+		// always returns null and wikibase_item_id, wikibase_wiki_id and
+		// wikibase_concept_uri are omitted from events.
+		//
+		// EntitySourceDefinitions maps an entity id to the Wikibase repository
+		// hosting it, which is not necessarily the wiki's own repository.
+		// (commonswiki hosts mediainfo entities itself, but uses items on
+		// wikidatawiki)
+		//
+		// RepoLinker builds the item's concept URI, e.g.
+		// https://www.wikidata.org/entity/Q937.
+		$entityIdLookup = null;
+		$entitySourceDefinitions = null;
+		$repoLinker = null;
+		if ( ExtensionRegistry::getInstance()->isLoaded( 'WikibaseClient' ) ) {
+			$entityIdLookup = $services->get( 'WikibaseClient.EntityIdLookup' );
+			$entitySourceDefinitions = $services->get( 'WikibaseClient.EntitySourceDefinitions' );
+			$repoLinker = $services->get( 'WikibaseClient.RepoLinker' );
+		}
 
-		return new WikibaseItemIdLookup(
+		return new WikibaseItemLookup(
 			$services->getTitleFactory(),
 			$entityIdLookup,
+			$entitySourceDefinitions,
+			$repoLinker,
 		);
 	},
 
