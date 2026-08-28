@@ -29,18 +29,10 @@ use Wikimedia\UUID\GlobalIdGenerator;
  * for producing to WMF's Event Platform, usually via EventGate.
  */
 class EventSerializer {
-	/**
-	 * @var GlobalIdGenerator
-	 */
-	private GlobalIdGenerator $globalIdGenerator;
 
-	/**
-	 * @param GlobalIdGenerator $globalIdGenerator
-	 */
 	public function __construct(
-		GlobalIdGenerator $globalIdGenerator,
+		private readonly GlobalIdGenerator $globalIdGenerator,
 	) {
-		$this->globalIdGenerator = $globalIdGenerator;
 	}
 
 	/**

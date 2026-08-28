@@ -57,39 +57,13 @@ class UserChangeEventSerializer {
 		'groups_change' => 'update',
 	];
 
-	/**
-	 * @var EventSerializer
-	 */
-	private EventSerializer $eventSerializer;
-	/**
-	 * @var UserEntitySerializer
-	 */
-	private UserEntitySerializer $userEntitySerializer;
-	/**
-	 * @var GlobalEditCountLookup
-	 */
-	private GlobalEditCountLookup $globalEditCountLookup;
-	/**
-	 * @var TitleFactory
-	 */
-	private TitleFactory $titleFactory;
-	/**
-	 * @var UserIdentityUtils
-	 */
-	private UserIdentityUtils $userIdentityUtils;
-
 	public function __construct(
-		EventSerializer $eventSerializer,
-		UserEntitySerializer $userEntitySerializer,
-		GlobalEditCountLookup $globalEditCountLookup,
-		TitleFactory $titleFactory,
-		UserIdentityUtils $userIdentityUtils,
+		private readonly EventSerializer $eventSerializer,
+		private readonly UserEntitySerializer $userEntitySerializer,
+		private readonly GlobalEditCountLookup $globalEditCountLookup,
+		private readonly TitleFactory $titleFactory,
+		private readonly UserIdentityUtils $userIdentityUtils,
 	) {
-		$this->eventSerializer = $eventSerializer;
-		$this->userEntitySerializer = $userEntitySerializer;
-		$this->globalEditCountLookup = $globalEditCountLookup;
-		$this->titleFactory = $titleFactory;
-		$this->userIdentityUtils = $userIdentityUtils;
 	}
 
 	/**

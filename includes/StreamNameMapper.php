@@ -24,18 +24,12 @@ class StreamNameMapper {
 	public const STREAM_NAMES_MAP_CONFIG_KEY = 'EventBusStreamNamesMap';
 
 	/**
-	 * Map from the default stream name to it's alias. Unlisted streams will
-	 * use the default stream name.
-	 * @var array<string, string>
-	 */
-	private array $streamNamesMap;
-
-	/**
 	 * @param array<string, string> $streamNamesMap Map from the default stream
-	 *  name to it's alias.
+	 *  name to it's alias. Unlisted streams will use the default stream name.
 	 */
-	public function __construct( array $streamNamesMap ) {
-		$this->streamNamesMap = $streamNamesMap;
+	public function __construct(
+		private readonly array $streamNamesMap,
+	) {
 	}
 
 	/**

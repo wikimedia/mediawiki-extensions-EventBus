@@ -75,24 +75,13 @@ class EventBusHooks implements
 	RevisionRecordInsertedHook
 {
 
-	private EventBusFactory $eventBusFactory;
-	private RevisionLookup $revisionLookup;
-	private CommentFormatter $commentFormatter;
-	private TitleFactory $titleFactory;
-	private ChangeTagsStore $changeTagsStore;
-
 	public function __construct(
-		EventBusFactory $eventBusFactory,
-		RevisionLookup $revisionLookup,
-		CommentFormatter $commentFormatter,
-		TitleFactory $titleFactory,
-		ChangeTagsStore $changeTagsStore
+		private readonly EventBusFactory $eventBusFactory,
+		private readonly RevisionLookup $revisionLookup,
+		private readonly CommentFormatter $commentFormatter,
+		private readonly TitleFactory $titleFactory,
+		private readonly ChangeTagsStore $changeTagsStore,
 	) {
-		$this->eventBusFactory = $eventBusFactory;
-		$this->revisionLookup = $revisionLookup;
-		$this->commentFormatter = $commentFormatter;
-		$this->titleFactory = $titleFactory;
-		$this->changeTagsStore = $changeTagsStore;
 	}
 
 	/**

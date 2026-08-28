@@ -55,31 +55,16 @@ class PageEntitySerializer {
 	];
 
 	/**
-	 * @var TitleFormatter
-	 */
-	private TitleFormatter $titleFormatter;
-	/**
-	 * @var Config
-	 */
-	private Config $mainConfig;
-
-	/**
 	 * Namespace IDs that count as content namespaces for {@see pageWithContentNamespaceFlag}.
 	 *
 	 * @var array
 	 */
 	private array $contentNamespaces;
 
-	/**
-	 * @param Config $mainConfig
-	 * @param TitleFormatter $titleFormatter
-	 */
 	public function __construct(
-		Config $mainConfig,
-		TitleFormatter $titleFormatter
+		private readonly Config $mainConfig,
+		private readonly TitleFormatter $titleFormatter,
 	) {
-		$this->mainConfig = $mainConfig;
-		$this->titleFormatter = $titleFormatter;
 		$this->contentNamespaces =
 			$mainConfig->get( MainConfigNames::ContentNamespaces )
 			?? [ NS_MAIN ];

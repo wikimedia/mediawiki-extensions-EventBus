@@ -24,24 +24,19 @@ class EventBusMonologHandler extends AbstractProcessingHandler {
 	private EventBusFactory $eventBusFactory;
 
 	/**
-	 * The name of the event service to use.
-	 * @var string
-	 */
-	private string $eventServiceName;
-
-	/**
-	 * EventBusHandler constructor.
-	 *
 	 * @param string $eventServiceName the name of the event service to use
 	 * @param int|string $level The minimum logging level at which this handler will be triggered
 	 * @param bool $bubble Whether the messages that are handled can bubble up the stack or not
 	 */
-	public function __construct( $eventServiceName, $level = LogLevel::DEBUG, $bubble = true ) {
+	public function __construct(
+		private readonly string $eventServiceName,
+		$level = LogLevel::DEBUG,
+		$bubble = true,
+	) {
 		parent::__construct( $level, $bubble );
 
 		$this->eventBusFactory = MediaWikiServices::getInstance()
 			->get( 'EventBus.EventBusFactory' );
-		$this->eventServiceName = $eventServiceName;
 	}
 
 	/**

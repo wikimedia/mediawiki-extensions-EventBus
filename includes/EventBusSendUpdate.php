@@ -16,8 +16,6 @@ use Wikimedia\Assert\Assert;
  */
 class EventBusSendUpdate implements DeferrableUpdate, MergeableUpdate {
 
-	private EventBusFactory $eventBusFactory;
-
 	/**
 	 * Associative array of event lists keyed by event service name.
 	 * @var array[]
@@ -32,7 +30,7 @@ class EventBusSendUpdate implements DeferrableUpdate, MergeableUpdate {
 	 * @param array $events List of events to send
 	 */
 	public function __construct(
-		EventBusFactory $eventBusFactory,
+		private readonly EventBusFactory $eventBusFactory,
 		string $eventServiceName,
 		array $events
 	) {
@@ -43,7 +41,6 @@ class EventBusSendUpdate implements DeferrableUpdate, MergeableUpdate {
 		);
 
 		$this->eventsByService[$eventServiceName] = $events;
-		$this->eventBusFactory = $eventBusFactory;
 	}
 
 	/**

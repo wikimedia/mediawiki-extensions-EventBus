@@ -36,18 +36,9 @@ class RevisionSlotsEntitySerializer {
 	 */
 	private const SCHEMA_VERSION_EARLIEST = '2.0.1';
 
-	/**
-	 * @var IContentHandlerFactory
-	 */
-	private IContentHandlerFactory $contentHandlerFactory;
-
-	/**
-	 * @param IContentHandlerFactory $contentHandlerFactory
-	 */
 	public function __construct(
-		IContentHandlerFactory $contentHandlerFactory
+		private readonly IContentHandlerFactory $contentHandlerFactory,
 	) {
-		$this->contentHandlerFactory = $contentHandlerFactory;
 	}
 
 	/**

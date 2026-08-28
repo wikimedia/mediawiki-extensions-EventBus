@@ -86,82 +86,17 @@ class PageChangeEventSerializer {
 		'undelete' => 'insert',
 	];
 
-	/**
-	 * @var EventSerializer
-	 */
-	private EventSerializer $eventSerializer;
-
-	/**
-	 * @var PageEntitySerializer
-	 */
-	private PageEntitySerializer $pageEntitySerializer;
-
-	/**
-	 * @var PageLinkEntitySerializer
-	 */
-	private PageLinkEntitySerializer $pageLinkEntitySerializer;
-
-	/**
-	 * @var UserEntitySerializer
-	 */
-	private UserEntitySerializer $userEntitySerializer;
-
-	/**
-	 * @var GlobalEditCountLookup
-	 */
-	private GlobalEditCountLookup $globalEditCountLookup;
-
-	/**
-	 * @var WikibaseItemLookup
-	 */
-	private WikibaseItemLookup $wikibaseItemLookup;
-
-	/**
-	 * @var RevisionEntitySerializer
-	 */
-	private RevisionEntitySerializer $revisionEntitySerializer;
-
-	/**
-	 * @var RevisionSlotsEntitySerializer
-	 */
-	private RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer;
-
-	/**
-	 * @var RevisionStore
-	 */
-	private RevisionStore $revisionStore;
-
-	/**
-	 * @param EventSerializer $eventSerializer
-	 * @param PageEntitySerializer $pageEntitySerializer
-	 * @param PageLinkEntitySerializer $pageLinkEntitySerializer
-	 * @param UserEntitySerializer $userEntitySerializer
-	 * @param GlobalEditCountLookup $globalEditCountLookup
-	 * @param WikibaseItemLookup $wikibaseItemLookup
-	 * @param RevisionEntitySerializer $revisionEntitySerializer
-	 * @param RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer
-	 * @param RevisionStore $revisionStore
-	 */
 	public function __construct(
-		EventSerializer $eventSerializer,
-		PageEntitySerializer $pageEntitySerializer,
-		PageLinkEntitySerializer $pageLinkEntitySerializer,
-		UserEntitySerializer $userEntitySerializer,
-		GlobalEditCountLookup $globalEditCountLookup,
-		WikibaseItemLookup $wikibaseItemLookup,
-		RevisionEntitySerializer $revisionEntitySerializer,
-		RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer,
-		RevisionStore $revisionStore
+		private readonly EventSerializer $eventSerializer,
+		private readonly PageEntitySerializer $pageEntitySerializer,
+		private readonly PageLinkEntitySerializer $pageLinkEntitySerializer,
+		private readonly UserEntitySerializer $userEntitySerializer,
+		private readonly GlobalEditCountLookup $globalEditCountLookup,
+		private readonly WikibaseItemLookup $wikibaseItemLookup,
+		private readonly RevisionEntitySerializer $revisionEntitySerializer,
+		private readonly RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer,
+		private readonly RevisionStore $revisionStore
 	) {
-		$this->eventSerializer = $eventSerializer;
-		$this->pageEntitySerializer = $pageEntitySerializer;
-		$this->pageLinkEntitySerializer = $pageLinkEntitySerializer;
-		$this->userEntitySerializer = $userEntitySerializer;
-		$this->globalEditCountLookup = $globalEditCountLookup;
-		$this->wikibaseItemLookup = $wikibaseItemLookup;
-		$this->revisionEntitySerializer = $revisionEntitySerializer;
-		$this->revisionSlotsEntitySerializer = $revisionSlotsEntitySerializer;
-		$this->revisionStore = $revisionStore;
 	}
 
 	/**

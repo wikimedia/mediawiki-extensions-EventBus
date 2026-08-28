@@ -86,11 +86,6 @@ class EventBusFactory {
 	private string $eventServiceDefault;
 
 	/**
-	 * @var StreamConfigs|null
-	 */
-	private ?StreamConfigs $streamConfigs;
-
-	/**
 	 * @var string|mixed
 	 */
 	private string $enableEventBus;
@@ -100,44 +95,15 @@ class EventBusFactory {
 	 */
 	private int $maxBatchByteSize;
 
-	/**
-	 * @var EventFactory
-	 */
-	private EventFactory $eventFactory;
-
-	/**
-	 * @var MultiHttpClient
-	 */
-	private MultiHttpClient $http;
-
-	/**
-	 * @var LoggerInterface
-	 */
-	private LoggerInterface $logger;
-
-	/** @var ?StatsFactory wf:Stats factory instance */
-	private ?StatsFactory $statsFactory;
-
-	/**
-	 * @var array
-	 */
 	private array $eventBusInstances = [];
 
-	/**
-	 * @param ServiceOptions $options
-	 * @param StreamConfigs|null $streamConfigs
-	 * @param EventFactory $eventFactory
-	 * @param MultiHttpClient $http
-	 * @param LoggerInterface $logger
-	 * @param StatsFactory|null $statsFactory
-	 */
 	public function __construct(
 		ServiceOptions $options,
-		?StreamConfigs $streamConfigs,
-		EventFactory $eventFactory,
-		MultiHttpClient $http,
-		LoggerInterface $logger,
-		?StatsFactory $statsFactory = null
+		private readonly ?StreamConfigs $streamConfigs,
+		private readonly EventFactory $eventFactory,
+		private readonly MultiHttpClient $http,
+		private readonly LoggerInterface $logger,
+		private readonly ?StatsFactory $statsFactory = null,
 	) {
 		$options->assertRequiredOptions( self::CONSTRUCTOR_OPTIONS );
 
@@ -145,12 +111,6 @@ class EventBusFactory {
 		$this->eventServiceDefault = $options->get( 'EventServiceDefault' );
 		$this->enableEventBus = $options->get( 'EnableEventBus' );
 		$this->maxBatchByteSize = $options->get( 'EventBusMaxBatchByteSize' );
-
-		$this->streamConfigs = $streamConfigs;
-		$this->eventFactory = $eventFactory;
-		$this->http = $http;
-		$this->logger = $logger;
-		$this->statsFactory = $statsFactory;
 
 		// Save a 'disabled' non producing EventBus instance that sets
 		// the allowed event type to TYPE_NONE. No

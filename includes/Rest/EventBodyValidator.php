@@ -15,23 +15,10 @@ use Psr\Log\LoggerInterface;
  */
 class EventBodyValidator {
 
-	/**
-	 * @var string
-	 */
-	private $secretKey;
-
-	/**
-	 * @var LoggerInterface
-	 */
-	private $logger;
-
-	/**
-	 * @param string $secretKey
-	 * @param LoggerInterface $logger
-	 */
-	public function __construct( $secretKey, LoggerInterface $logger ) {
-		$this->secretKey = $secretKey;
-		$this->logger = $logger;
+	public function __construct(
+		private readonly string $secretKey,
+		private readonly LoggerInterface $logger,
+	) {
 	}
 
 	public function validateEvent( array $event ): Job {

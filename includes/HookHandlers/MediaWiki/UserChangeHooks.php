@@ -57,30 +57,22 @@ class UserChangeHooks implements
 	public const USER_CHANGE_STREAM_NAME_DEFAULT = 'mediawiki.user_change.v1';
 
 	private string $streamName;
-	private EventBusFactory $eventBusFactory;
-	private UserEntitySerializer $userEntitySerializer;
 	private UserChangeEventSerializer $userChangeEventSerializer;
-	private UserFactory $userFactory;
-	private UserGroupManagerFactory $userGroupManagerFactory;
 
 	public function __construct(
-		EventBusFactory $eventBusFactory,
+		private readonly EventBusFactory $eventBusFactory,
 		StreamNameMapper $streamNameMapper,
 		EventSerializer $eventSerializer,
-		UserEntitySerializer $userEntitySerializer,
+		private readonly UserEntitySerializer $userEntitySerializer,
 		GlobalEditCountLookup $globalEditCountLookup,
-		UserFactory $userFactory,
-		UserGroupManagerFactory $userGroupManagerFactory,
+		private readonly UserFactory $userFactory,
+		private readonly UserGroupManagerFactory $userGroupManagerFactory,
 		TitleFactory $titleFactory,
 		UserIdentityUtils $userIdentityUtils,
 	) {
 		$this->streamName = $streamNameMapper->resolve(
 			self::USER_CHANGE_STREAM_NAME_DEFAULT
 		);
-
-		$this->eventBusFactory = $eventBusFactory;
-
-		$this->userEntitySerializer = $userEntitySerializer;
 
 		$this->userChangeEventSerializer = new UserChangeEventSerializer(
 			$eventSerializer,
@@ -89,9 +81,6 @@ class UserChangeHooks implements
 			$titleFactory,
 			$userIdentityUtils,
 		);
-
-		$this->userFactory = $userFactory;
-		$this->userGroupManagerFactory = $userGroupManagerFactory;
 	}
 
 	/**

@@ -85,32 +85,11 @@ class EventBus {
 	/** @var LoggerInterface instance for all EventBus instances */
 	private static $logger;
 
-	/** @var MultiHttpClient */
-	private $http;
-
-	/** @var string EventServiceUrl for this EventBus instance */
-	private $url;
-
 	/** @var int HTTP request timeout for this EventBus instance */
 	private $timeout;
 
 	/** @var int which event types are allowed to be sent (TYPE_NONE|TYPE_EVENT|TYPE_JOB|TYPE_PURGE|TYPE_ALL) */
 	private $allowedEventTypes;
-
-	/** @var EventFactory|null event creator */
-	private $eventFactory;
-
-	/** @var int Maximum byte size of a batch */
-	private $maxBatchByteSize;
-
-	/** @var bool Whether to forward the X-Client-IP header, if present */
-	private $forwardXClientIP;
-
-	/** @var string intake event service name */
-	private string $eventServiceName;
-
-	/** @var ?StatsFactory wf:Stats factory instance */
-	private ?StatsFactory $statsFactory;
 
 	/**
 	 * @param MultiHttpClient $http
@@ -128,24 +107,17 @@ class EventBus {
 	 * @param ?StatsFactory|null $statsFactory wf:Stats factory instance
 	 */
 	public function __construct(
-		MultiHttpClient $http,
+		private readonly MultiHttpClient $http,
 		$enableEventBus,
-		EventFactory $eventFactory,
-		string $url,
-		int $maxBatchByteSize,
+		private readonly EventFactory $eventFactory,
+		private readonly string $url,
+		private readonly int $maxBatchByteSize,
 		?int $timeout = null,
-		bool $forwardXClientIP = false,
-		string $eventServiceName = EventBusFactory::EVENT_SERVICE_DISABLED_NAME,
-		?StatsFactory $statsFactory = null
+		private readonly bool $forwardXClientIP = false,
+		private readonly string $eventServiceName = EventBusFactory::EVENT_SERVICE_DISABLED_NAME,
+		private readonly ?StatsFactory $statsFactory = null,
 	) {
-		$this->http = $http;
-		$this->url = $url;
-		$this->maxBatchByteSize = $maxBatchByteSize;
 		$this->timeout = $timeout ?: self::DEFAULT_REQUEST_TIMEOUT;
-		$this->eventFactory = $eventFactory;
-		$this->forwardXClientIP = $forwardXClientIP;
-		$this->eventServiceName = $eventServiceName;
-		$this->statsFactory = $statsFactory;
 
 		if ( is_int( $enableEventBus ) ) {
 			Assert::precondition(
@@ -698,9 +670,8 @@ class EventBus {
 
 	/**
 	 * Returns the EventFactory associated with this instance of EventBus
-	 * @return EventFactory|null
 	 */
-	public function getFactory() {
+	public function getFactory(): EventFactory {
 		return $this->eventFactory;
 	}
 

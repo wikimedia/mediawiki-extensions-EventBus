@@ -38,10 +38,9 @@ class PageLinkEntitySerializer {
 	 */
 	private const SCHEMA_VERSION_EARLIEST = '1.0.0';
 
-	private TitleFormatter $titleFormatter;
-
-	public function __construct( TitleFormatter $titleFormatter ) {
-		$this->titleFormatter = $titleFormatter;
+	public function __construct(
+		private readonly TitleFormatter $titleFormatter,
+	) {
 	}
 
 	/**

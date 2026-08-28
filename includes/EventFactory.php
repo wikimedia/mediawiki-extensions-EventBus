@@ -45,92 +45,27 @@ class EventFactory {
 		MainConfigNames::SecretKey
 	];
 
-	/** @var ServiceOptions */
-	private $options;
-
-	/** @var Language */
-	private $contentLanguage;
-
-	/** @var TitleFormatter */
-	private $titleFormatter;
-
-	/** @var RevisionStore */
-	private $revisionStore;
-
-	/** @var UserGroupManager */
-	private $userGroupManager;
-
-	/** @var UserEditTracker */
-	private $userEditTracker;
-
-	/** @var UserFactory */
-	private $userFactory;
-
-	/** @var string */
-	private $dbDomain;
-
-	/** @var WikiPageFactory */
-	private $wikiPageFactory;
-
 	/**
 	 * @var CommentFormatter|null Will be null unless set by caller with setCommentFormatter().
 	 */
 	private ?CommentFormatter $commentFormatter = null;
 
-	/** @var IContentHandlerFactory */
-	private $contentHandlerFactory;
-
-	/** @var LoggerInterface */
-	private $logger;
-
-	private Telemetry $telemetry;
-
-	private ChangeTagsStore $changeTagsStore;
-
-	/**
-	 * @param ServiceOptions $serviceOptions
-	 * @param string $dbDomain
-	 * @param Language $contentLanguage
-	 * @param RevisionStore $revisionStore
-	 * @param TitleFormatter $titleFormatter
-	 * @param UserGroupManager $userGroupManager
-	 * @param UserEditTracker $userEditTracker
-	 * @param WikiPageFactory $wikiPageFactory
-	 * @param UserFactory $userFactory
-	 * @param IContentHandlerFactory $contentHandlerFactory
-	 * @param LoggerInterface $logger
-	 * @param Telemetry $telemetry
-	 * @param ChangeTagsStore $changeTagsStore
-	 */
 	public function __construct(
-		ServiceOptions $serviceOptions,
-		string $dbDomain,
-		Language $contentLanguage,
-		RevisionStore $revisionStore,
-		TitleFormatter $titleFormatter,
-		UserGroupManager $userGroupManager,
-		UserEditTracker $userEditTracker,
-		WikiPageFactory $wikiPageFactory,
-		UserFactory $userFactory,
-		IContentHandlerFactory $contentHandlerFactory,
-		LoggerInterface $logger,
-		Telemetry $telemetry,
-		ChangeTagsStore $changeTagsStore
+		private readonly ServiceOptions $options,
+		private readonly string $dbDomain,
+		private readonly Language $contentLanguage,
+		private readonly RevisionStore $revisionStore,
+		private readonly TitleFormatter $titleFormatter,
+		private readonly UserGroupManager $userGroupManager,
+		private readonly UserEditTracker $userEditTracker,
+		private readonly WikiPageFactory $wikiPageFactory,
+		private readonly UserFactory $userFactory,
+		private readonly IContentHandlerFactory $contentHandlerFactory,
+		private readonly LoggerInterface $logger,
+		private readonly Telemetry $telemetry,
+		private readonly ChangeTagsStore $changeTagsStore,
 	) {
-		$serviceOptions->assertRequiredOptions( self::CONSTRUCTOR_OPTIONS );
-		$this->options = $serviceOptions;
-		$this->dbDomain = $dbDomain;
-		$this->contentLanguage = $contentLanguage;
-		$this->titleFormatter = $titleFormatter;
-		$this->revisionStore = $revisionStore;
-		$this->userGroupManager = $userGroupManager;
-		$this->userEditTracker = $userEditTracker;
-		$this->wikiPageFactory = $wikiPageFactory;
-		$this->userFactory = $userFactory;
-		$this->contentHandlerFactory = $contentHandlerFactory;
-		$this->logger = $logger;
-		$this->telemetry = $telemetry;
-		$this->changeTagsStore = $changeTagsStore;
+		$options->assertRequiredOptions( self::CONSTRUCTOR_OPTIONS );
 	}
 
 	/**

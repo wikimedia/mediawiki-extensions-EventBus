@@ -30,10 +30,10 @@ use MediaWiki\User\User;
 use UnexpectedValueException;
 
 class CampaignChangeHooks implements CentralNoticeCampaignChangeHook {
-	private StreamNameMapper $streamNameMapper;
 
-	public function __construct( StreamNameMapper $streamNameMapper ) {
-		$this->streamNameMapper = $streamNameMapper;
+	public function __construct(
+		private readonly StreamNameMapper $streamNameMapper,
+	) {
 	}
 
 	/**

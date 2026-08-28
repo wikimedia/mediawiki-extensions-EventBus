@@ -37,29 +37,11 @@ class RunSingleJobHandler extends Handler {
 	 */
 	private $logger;
 
-	/**
-	 * @var Config
-	 */
-	private $config;
-
-	/**
-	 * @var JobRunner
-	 */
-	private $jobRunner;
-
-	/**
-	 * @var ReadOnlyMode
-	 */
-	private $readOnly;
-
 	public function __construct(
-		ReadOnlyMode $readOnlyMode,
-		Config $config,
-		JobRunner $jobRunner
+		private readonly ReadOnlyMode $readOnly,
+		private readonly Config $config,
+		private readonly JobRunner $jobRunner,
 	) {
-		$this->readOnly = $readOnlyMode;
-		$this->config = $config;
-		$this->jobRunner = $jobRunner;
 		$this->logger = LoggerFactory::getInstance( 'RunSingleJobHandler' );
 	}
 

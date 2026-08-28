@@ -79,38 +79,11 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	 */
 	private string $streamName;
 
-	/**
-	 * @var LoggerInterface
-	 */
 	private LoggerInterface $logger;
-
-	/**
-	 * @var EventBusFactory
-	 */
-	private EventBusFactory $eventBusFactory;
-
-	/**
-	 * @var PageChangeEventSerializer
-	 */
 	private PageChangeEventSerializer $pageChangeEventSerializer;
 
-	/**
-	 * @var RevisionStore
-	 */
-	private RevisionStore $revisionStore;
-
-	/**
-	 * @var RedirectLookup
-	 */
-	private RedirectLookup $redirectLookup;
-
-	/**
-	 * @var PageLookup
-	 */
-	private PageLookup $pageLookup;
-
 	public function __construct(
-		EventBusFactory $eventBusFactory,
+		private readonly EventBusFactory $eventBusFactory,
 		StreamNameMapper $streamNameMapper,
 		EventSerializer $eventSerializer,
 		PageEntitySerializer $pageEntitySerializer,
@@ -120,17 +93,15 @@ class PageChangeEventIngress extends DomainEventIngress implements
 		WikibaseItemLookup $wikibaseItemLookup,
 		RevisionEntitySerializer $revisionEntitySerializer,
 		RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer,
-		RevisionStore $revisionStore,
-		RedirectLookup $redirectLookup,
-		PageLookup $pageLookup,
+		private readonly RevisionStore $revisionStore,
+		private readonly RedirectLookup $redirectLookup,
+		private readonly PageLookup $pageLookup,
 	) {
 		$this->logger = LoggerFactory::getInstance( 'EventBus.PageChangeEventIngress' );
 
 		$this->streamName = $streamNameMapper->resolve(
 			self::PAGE_CHANGE_STREAM_NAME_DEFAULT
 		);
-
-		$this->eventBusFactory = $eventBusFactory;
 
 		$this->pageChangeEventSerializer = new PageChangeEventSerializer(
 			$eventSerializer,
@@ -143,10 +114,6 @@ class PageChangeEventIngress extends DomainEventIngress implements
 			$revisionSlotsEntitySerializer,
 			$revisionStore,
 		);
-
-		$this->revisionStore = $revisionStore;
-		$this->redirectLookup = $redirectLookup;
-		$this->pageLookup = $pageLookup;
 	}
 
 	/**
