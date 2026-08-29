@@ -53,7 +53,6 @@ use MediaWiki\Page\Event\PageMovedListener;
 use MediaWiki\Page\PageLookup;
 use MediaWiki\Page\PageReference;
 use MediaWiki\Page\RedirectLookup;
-use MediaWiki\Page\WikiPage;
 use MediaWiki\Revision\RevisionStore;
 use MediaWiki\Storage\PageUpdateCauses;
 use Psr\Log\LoggerInterface;
@@ -168,22 +167,15 @@ class PageChangeEventIngress extends DomainEventIngress implements
 	public static function lookupRedirectTarget(
 		PageReference $page, PageLookup $pageLookup, RedirectLookup $redirectLookup
 	): ?PageLink {
-		if ( $page instanceof WikiPage ) {
-			// RedirectLookup doesn't support reading from the primary db, but we
-			// need the value from the new edit. Fetch directly through WikiPage which
-			// was updated with the new value as part of saving the new revision.
-			$redirectLinkTarget = $page->getRedirectTarget();
-		} else {
-			$redirectSourcePageReference =
-				$pageLookup->getPageByReference(
-					$page,
-					\Wikimedia\Rdbms\IDBAccessObject::READ_LATEST
-				);
+		$redirectSourcePageReference =
+			$pageLookup->getPageByReference(
+				$page,
+				\Wikimedia\Rdbms\IDBAccessObject::READ_LATEST
+			);
 
-			$redirectLinkTarget =
-				$redirectSourcePageReference != null && $redirectSourcePageReference->isRedirect()
-					? $redirectLookup->getRedirectTarget( $redirectSourcePageReference ) : null;
-		}
+		$redirectLinkTarget =
+			$redirectSourcePageReference != null && $redirectSourcePageReference->isRedirect()
+				? $redirectLookup->getRedirectTarget( $redirectSourcePageReference ) : null;
 
 		if ( $redirectLinkTarget != null ) {
 			if ( !$redirectLinkTarget->isExternal() ) {
