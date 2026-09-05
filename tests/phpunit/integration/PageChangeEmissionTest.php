@@ -10,7 +10,6 @@ use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\EventFactory;
 use MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageChangeEventSerializer;
-use MediaWiki\MediaWikiServices;
 use MediaWiki\Page\ProperPageIdentity;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\RevisionDelete\RevisionDeleter;
@@ -334,7 +333,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 		);
 		$this->setService( 'EventBus.EventBusFactory', $eventBusFactory );
 
-		MediaWikiServices::getInstance()
+		$this->getServiceContainer()
 			->getUndeletePageFactory()
 			->newUndeletePage( $page, $this->getTestUser()->getAuthority() )
 			->undeleteUnsafe( "Undelete page" );
@@ -401,7 +400,7 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 
 		Assert::assertTrue( $moveFrom->isMovable() );
 
-		MediaWikiServices::getInstance()
+		$this->getServiceContainer()
 			->getMovePageFactory()
 			->newMovePage( $moveFrom->toPageIdentity(), $moveTo->toPageIdentity() )
 			->move( $this->getTestUser()->getUserIdentity(), null, $createRedirect );
