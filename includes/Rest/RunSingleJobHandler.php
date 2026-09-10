@@ -23,6 +23,7 @@ use MediaWiki\Config\Config;
 use MediaWiki\JobQueue\Job;
 use MediaWiki\JobQueue\JobRunner;
 use MediaWiki\Logger\LoggerFactory;
+use MediaWiki\MainConfigNames;
 use MediaWiki\Rest\Handler;
 use MediaWiki\Rest\HttpException;
 use MediaWiki\Rest\Validator\Validator;
@@ -115,7 +116,7 @@ class RunSingleJobHandler extends Handler {
 
 	private function makeJob( array $event ): Job {
 		$validator = new EventBodyValidator(
-			$this->config->get( 'SecretKey' ),
+			$this->config->get( MainConfigNames::SecretKey ),
 			$this->logger
 		);
 		return $validator->validateEvent( $event );

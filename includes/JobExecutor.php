@@ -14,6 +14,7 @@ use MediaWiki\Exception\MWExceptionHandler;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\JobQueue\Job;
 use MediaWiki\Logger\LoggerFactory;
+use MediaWiki\MainConfigNames;
 use MediaWiki\MediaWikiServices;
 use Psr\Log\LoggerInterface;
 use Wikimedia\Stats\StatsFactory;
@@ -96,7 +97,7 @@ class JobExecutor {
 			$lbFactory->commitPrimaryChanges(
 				$fnameTrxOwner,
 				// Abort if any transaction was too big
-				$this->config()->get( 'MaxJobDBWriteDuration' )
+				$this->config()->get( MainConfigNames::MaxJobDBWriteDuration )
 			);
 
 			if ( $status === false ) {
