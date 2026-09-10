@@ -8,7 +8,6 @@ use MediaWiki\Content\WikitextContent;
 use MediaWiki\Extension\EventBus\EventFactory;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\MainConfigNames;
-use MediaWiki\Page\PageReference;
 use MediaWiki\Page\PageReferenceValue;
 use MediaWiki\Revision\MutableRevisionRecord;
 use MediaWiki\Revision\RevisionRecord;
@@ -200,8 +199,8 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 	public static function providePageLinks() {
 		yield 'Add new links' => [
 			[
-				new PageReferenceValue( NS_MAIN, 'Added_link_1', PageReference::LOCAL ),
-				new PageReferenceValue( NS_MAIN, 'Added_link_2', PageReference::LOCAL )
+				PageReferenceValue::localReference( NS_MAIN, 'Added_link_1' ),
+				PageReferenceValue::localReference( NS_MAIN, 'Added_link_2' )
 			],
 			[],
 			[],
@@ -214,8 +213,8 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		];
 		yield 'Add new links and external links' => [
 			[
-				new PageReferenceValue( NS_MAIN, 'Added_link_1', PageReference::LOCAL ),
-				new PageReferenceValue( NS_MAIN, 'Added_link_2', PageReference::LOCAL )
+				PageReferenceValue::localReference( NS_MAIN, 'Added_link_1' ),
+				PageReferenceValue::localReference( NS_MAIN, 'Added_link_2' )
 			],
 			[ 'added_ext_link_1', 'added_ext_link_2' ],
 			[],
@@ -242,8 +241,8 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 			[],
 			[],
 			[
-				new PageReferenceValue( NS_MAIN, 'Removed_link_1', PageReference::LOCAL ),
-				new PageReferenceValue( NS_MAIN, 'Removed_link_2', PageReference::LOCAL )
+				PageReferenceValue::localReference( NS_MAIN, 'Removed_link_1' ),
+				PageReferenceValue::localReference( NS_MAIN, 'Removed_link_2' )
 			],
 			[],
 			[],
@@ -267,8 +266,8 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 			[],
 			[],
 			[
-				new PageReferenceValue( NS_MAIN, 'Removed_link_1', PageReference::LOCAL ),
-				new PageReferenceValue( NS_MAIN, 'Removed_link_2', PageReference::LOCAL )
+				PageReferenceValue::localReference( NS_MAIN, 'Removed_link_1' ),
+				PageReferenceValue::localReference( NS_MAIN, 'Removed_link_2' )
 			],
 			[ 'remove_ext_link_1', 'remove_ext_link_2' ],
 			[],
@@ -281,13 +280,13 @@ class EventFactoryTest extends MediaWikiIntegrationTestCase {
 		];
 		yield 'Add/remove new links and external links' => [
 			[
-				new PageReferenceValue( NS_MAIN, 'Added_link_1? =', PageReference::LOCAL ),
-				new PageReferenceValue( NS_MAIN, 'Added_link_2', PageReference::LOCAL )
+				PageReferenceValue::localReference( NS_MAIN, 'Added_link_1? =' ),
+				PageReferenceValue::localReference( NS_MAIN, 'Added_link_2' )
 			],
 			[ 'added_ext_link_1', 'added_ext_link_2' ],
 			[
-				new PageReferenceValue( NS_MAIN, 'Removed_link_1? =', PageReference::LOCAL ),
-				new PageReferenceValue( NS_MAIN, 'Removed_link_2', PageReference::LOCAL )
+				PageReferenceValue::localReference( NS_MAIN, 'Removed_link_1? =' ),
+				PageReferenceValue::localReference( NS_MAIN, 'Removed_link_2' )
 			],
 			[ 'remove_ext_link_1', 'remove_ext_link_2' ],
 			[
