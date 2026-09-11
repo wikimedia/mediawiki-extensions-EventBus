@@ -5,6 +5,8 @@ use MediaWiki\Extension\CentralAuth\CentralAuthServices;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\EventFactory;
 use MediaWiki\Extension\EventBus\GlobalEditCountLookup;
+use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsConfig;
+use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsFetcher;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageLinkEntitySerializer;
@@ -163,5 +165,25 @@ return [
 
 	'EventBus.RevisionEntitySerializer' => static function ( MediaWikiServices $services ): RevisionEntitySerializer {
 		return new RevisionEntitySerializer();
+	},
+
+	'EventBus.LinkedArtifactsConfig' => static function (
+		MediaWikiServices $services
+	): LinkedArtifactsConfig {
+		return new LinkedArtifactsConfig(
+			$services->getMainConfig()->get( 'EventBusLinkedArtifacts' )
+		);
+	},
+
+	'EventBus.LinkedArtifactsFetcher' => static function (
+		MediaWikiServices $services
+	): LinkedArtifactsFetcher {
+		return new LinkedArtifactsFetcher(
+			$services->get( 'EventBus.LinkedArtifactsConfig' ),
+			$services->getHttpRequestFactory()->createMultiClient( [
+				'telemetry' => $services->getTracer()
+			] ),
+			LoggerFactory::getInstance( 'EventBus.LinkedArtifacts' )
+		);
 	},
 ];

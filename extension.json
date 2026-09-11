@@ -43,6 +43,13 @@
 		},
 		"EventBusStreamNamesMap": {
 			"value": {}
+		},
+		"EventBusLinkedArtifacts": {
+			"value": {
+				"enabled": false,
+				"baseUrl": "https://linked-artifacts.discovery.wmnet:30443",
+				"artifacts": {}
+			}
 		}
 	},
 	"MessagesDirs": {
@@ -74,6 +81,17 @@
 				"PageMoved",
 				"PageCreated",
 				"PageHistoryVisibilityChanged"
+			]
+		},
+		{
+			"class": "MediaWiki\\Extension\\EventBus\\LinkedArtifacts\\LinkedArtifactsPrecomputeIngress",
+			"services": [
+				"JobQueueGroup",
+				"EventBus.LinkedArtifactsConfig",
+				"EventBus.LinkedArtifactsFetcher"
+			],
+			"events": [
+				"PageLatestRevisionChanged"
 			]
 		}
 	],
@@ -157,5 +175,15 @@
 	"ServiceWiringFiles": [
 		"ServiceWiring.php"
 	],
-	"manifest_version": 2
+	"manifest_version": 2,
+	"JobClasses": {
+		"linkedArtifactPrecompute": {
+			"needsPage": false,
+			"class": "MediaWiki\\Extension\\EventBus\\LinkedArtifacts\\Job\\LinkedArtifactPrecomputeJob",
+			"services": [
+				"EventBus.LinkedArtifactsFetcher",
+				"EventBus.LinkedArtifactsConfig"
+			]
+		}
+	}
 }
