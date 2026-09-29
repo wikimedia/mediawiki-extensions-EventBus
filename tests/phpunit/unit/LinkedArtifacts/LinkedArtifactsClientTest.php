@@ -182,11 +182,20 @@ class LinkedArtifactsClientTest extends MediaWikiUnitTestCase {
 	public function testNotFoundLogsAWarningRatherThanAnError(): void {
 		// An artifact LAC has nothing for is an expected outcome, not a failure.
 		$logger = $this->createMock( LoggerInterface::class );
-		$logger->expects( $this->once() )->method( 'warning' );
+		// The problem detail tells why LAC has nothing, e.g. an artifact without a LAC cache.
+		$logger->expects( $this->once() )
+			->method( 'warning' )
+			->with(
+				$this->anything(),
+				$this->callback( static fn ( array $context ): bool =>
+					$context['problem_detail'] === 'my-artifact not among the configured caches'
+				)
+			);
 		$logger->expects( $this->never() )->method( 'error' );
 
+		$body = '{"status":404,"title":"Not Found","detail":"my-artifact not among the configured caches"}';
 		$response = $this->newClient(
-			[ 'code' => 404, 'headers' => [ 'content-type' => 'application/problem+json' ], 'body' => '{}' ],
+			[ 'code' => 404, 'headers' => [ 'content-type' => 'application/problem+json' ], 'body' => $body ],
 			null,
 			$logger
 		)->fetch( self::URI, 5000, LinkedArtifactsClient::CACHE_CONTROL_NO_CACHE );

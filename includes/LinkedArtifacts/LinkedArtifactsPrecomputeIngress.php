@@ -26,8 +26,10 @@ use MediaWiki\DomainEvent\DomainEventIngress;
 use MediaWiki\Extension\EventBus\LinkedArtifacts\Job\LinkedArtifactPrecomputeJob;
 use MediaWiki\JobQueue\JobQueueGroup;
 use MediaWiki\JobQueue\JobSpecification;
+use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\Page\Event\PageLatestRevisionChangedEvent;
 use MediaWiki\Page\Event\PageLatestRevisionChangedListener;
+use Psr\Log\LoggerInterface;
 
 /**
  * Reacts to MediaWiki DomainEvents by enqueuing jobs that precompute the Linked Artifacts
@@ -35,99 +37,111 @@ use MediaWiki\Page\Event\PageLatestRevisionChangedListener;
  *
  * Currently, only PageLatestRevisionChanged is handled.
  *
- * Supporting another event type means adding a listener method. Supporting another entity
- * kind means adding a branch in the listener that
- * knows how to construct the correct LAC URI for the entity.
+ * To support another event type,  add a listener method for that event.
+ * To support another entity kind, add a branch in the listener(s) that
+ * know how to construct the correct LinkedArtifactPrecomputeJob params for the entity kind.
  */
 class LinkedArtifactsPrecomputeIngress
 	extends DomainEventIngress
 	implements PageLatestRevisionChangedListener
 {
 
-	private JobQueueGroup $jobQueueGroup;
-	private LinkedArtifactsConfig $config;
-	private LinkedArtifactsClient $client;
+	private readonly LoggerInterface $logger;
 
 	public function __construct(
-		JobQueueGroup $jobQueueGroup,
-		LinkedArtifactsConfig $config,
-		LinkedArtifactsClient $client
+		private readonly JobQueueGroup $jobQueueGroup,
+		private readonly LinkedArtifactsConfig $config
 	) {
-		$this->jobQueueGroup = $jobQueueGroup;
-		$this->config = $config;
-		$this->client = $client;
+		$this->logger = LoggerFactory::getInstance( 'EventBus.LinkedArtifacts' );
 	}
 
 	// NOTE: PageLatestRevisionChanged is emitted for every new latest revision,
 	// including page creations (which additionally emit PageCreated), so subscribing to both
 	// would enqueue two precomputes for one edit.
-
 	public function handlePageLatestRevisionChangedEvent(
 		PageLatestRevisionChangedEvent $event
 	): void {
+		// Stop now if LinkedArtifacts MW integration is fully disabled on this wiki.
 		if ( !$this->config->isEnabled() ) {
 			return;
 		}
 
-		// A new latest revision ID means a new LAC cache key, so it needs precomputing
-		// even when the content is unchanged (e.g. dummy revisions created by protection changes).
-		// Null edits mint no revision, but core flags them as reconciliation
-		// requests: the supported way to ask for derived data to be recomputed.
+		// Skip enqueue precompute jobs unless there is a new latest revision id created,
+		// or if this is an explicit reconciliation request (e.g. a 'Null Edit').
 		if ( !$event->changedLatestRevisionId() && !$event->isReconciliationRequest() ) {
 			return;
 		}
-		// TODO: We will probably need to pass reconciliationRequest
-		//       or DomainEvent type etc. info to the PrecomputeJob
-		//       so it can decide what kind of
-		//       LACPrecomputed DomainEvents to emit.
 
 		$page = $event->getPageRecordAfter();
-		// Resolve the page's identity once: the same values key the LAC path and the page
-		// sampling hash, which have to agree. resolveWikiId() gives a real wiki_id, since
-		// a local page's getWikiId() is false.
 		$wikiId = $this->config->resolveWikiId( $page->getWikiId() );
-		// TODO: $pageId should === $page->getId().  Do we need to be careful here?
+
 		$pageId = $event->getPageId();
+		if ( $pageId !== $page->getId() ) {
+			// This should probably never happen, but just in case: log it.
+			// We will still continue on below using the DomainEvent's pageId.
+			$this->logger->warning(
+				'PageLatestRevisionChanged event page ID {event_page_id} is not the ID of its page record, ' .
+					'{page_record_id}',
+				[
+					'event_page_id' => $pageId,
+					'page_record_id' => $page->getId(),
+					'wiki_id' => $wikiId,
+				]
+			);
+		}
+
 		$revisionId = $event->getLatestRevisionAfter()->getId();
+
+		// This 'trigger info' will be passed through the job to be used in DomainEvent(s)
+		// emitted after the artifact is returned (computed) from LAC.  It can be used
+		// to determine the 'provenence' of the artifact, e.g. what cause the artifact to be computed.
+		$trigger = [
+			// Use the event TYPE constant. getEventType() returns a deprecated alias.
+			'event_type' => PageLatestRevisionChangedEvent::TYPE,
+			'cause' => $event->getCause(),
+			'is_reconciliation_request' => $event->isReconciliationRequest(),
+		];
 
 		$artifactsForEvent = $this->config->getArtifactsToPrecomputeForEvent(
 			PageLatestRevisionChangedEvent::TYPE
 		);
 
+		// Iterate through each artifact configured to be precomputed for this event,
+		// and generate LinkedArtifactPrecomputeJob params for them.
 		foreach ( $artifactsForEvent as $artifactName ) {
-			// Resolve the LAC artifact URI path for this artifact's entity,
-			// if this event can supply that entity's identifiers.
-			$artifactUri = null;
-
 			// entity kind,  e.g. revision, page, etc.
 			$entityKind = $this->config->getEntityKind( $artifactName );
 
+			// Job params that identify this artifact's entity,
+			// if this event can supply that entity's identifiers.
+			$entityKeyParams = null;
+
 			// If we need to support more entityKinds, add them here.
 			switch ( $entityKind ) {
-				case LinkedArtifactsClient::REVISION_ENTITY_KIND:
-					// If this page should be precomputed
-					if ( $this->client->coversPage(
+				case LinkedArtifactsConfig::REVISION_ENTITY_KIND:
+					// If this page should be precomputed.
+					// NOTE: Redirects are precomputed too, including the redirects that page moves make.
+					// We have not decided yet if they should be excluded.
+					if ( $this->config->appliesToPage(
 						$artifactName,
 						$wikiId,
 						$pageId,
 						$page->getNamespace(),
 					) ) {
-						// Get the artifact URI for this revision entity linked artifact.
-						$artifactUri = $this->client->getRevisionArtifactUri(
-							$artifactName,
-							$wikiId,
-							$pageId,
-							$revisionId,
-						);
+						$entityKeyParams = [
+							LinkedArtifactPrecomputeJob::WIKI_ID_PARAM => $wikiId,
+							LinkedArtifactPrecomputeJob::PAGE_ID_PARAM => $pageId,
+							LinkedArtifactPrecomputeJob::REVISION_ID_PARAM => $revisionId,
+						];
 					}
 					break;
 			}
 
-			// If no $artifactUri, then either:
+			// If no $entityParams, then either:
 			// - This event could not handle this entity kind in the switch statement above, or
 			// - The artifact's configuration does not cover this specific entity
 			//   (e.g. this page or this revision).
-			if ( $artifactUri === null ) {
+			if ( $entityKeyParams === null ) {
 				continue;
 			}
 
@@ -135,10 +149,22 @@ class LinkedArtifactsPrecomputeIngress
 				new JobSpecification(
 					LinkedArtifactPrecomputeJob::JOB_NAME,
 					[
-						LinkedArtifactPrecomputeJob::ARTIFACT_URI_PARAM => $artifactUri,
 						LinkedArtifactPrecomputeJob::ARTIFACT_NAME_PARAM => $artifactName,
-					],
-					[ 'removeDuplicates' => true ]
+						LinkedArtifactPrecomputeJob::ENTITY_KIND_PARAM => $entityKind,
+						LinkedArtifactPrecomputeJob::TRIGGER_PARAM => $trigger,
+					] + $entityKeyParams,
+					[
+						'removeDuplicates' => true,
+						// NOTE: we explicitly choose not to ignore TRIGGER_PARAM for
+						// job deduplication.  While duplicate jobs with different TRIGGER_PARAM
+						// will cause the same LAC lambda to recompute multiple times, we still
+						// need the job to run. The job also is responsible for emitting DomainEvents,
+						// e.g. RevisionLinkedArtifactPrecomputedEvent, and we should emit those
+						// for e.g. both 'reconciliation requests' and regular event triggers.
+						//
+						// A possible future improvement: request LAC with no-cache only for reconciliation requests.
+						// We probably only need to force recompute and recache for reconciliation requests.
+					]
 				)
 			);
 		}

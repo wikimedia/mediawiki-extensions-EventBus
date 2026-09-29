@@ -56,25 +56,13 @@ class LinkedArtifactsClient {
 
 	private const CACHE_CONTROL_DIRECTIVES = [ self::CACHE_CONTROL_NO_CACHE, self::CACHE_CONTROL_ONLY_IF_CACHED ];
 
-	/**
-	 * The `entity_kind` value in $wgEventBusLinkedArtifacts served by the revision methods.
-	 */
-	public const REVISION_ENTITY_KIND = 'revision';
-
 	private const REVISION_URI_FORMAT = '/revisions/v1/%s/%s/%s/%s';
 
-	private LinkedArtifactsConfig $config;
-	private MultiHttpClient $http;
-	private LoggerInterface $logger;
-
 	public function __construct(
-		LinkedArtifactsConfig $config,
-		MultiHttpClient $http,
-		LoggerInterface $logger
+		private readonly LinkedArtifactsConfig $config,
+		private readonly MultiHttpClient $http,
+		private readonly LoggerInterface $logger
 	) {
-		$this->config = $config;
-		$this->http = $http;
-		$this->logger = $logger;
 	}
 
 	/**
@@ -202,12 +190,11 @@ class LinkedArtifactsClient {
 
 		$httpResponse = $responses[0]['response'];
 		$statusCode = (int)$httpResponse['code'];
-		$contentType = ( $httpResponse['headers'] ?? [] )['content-type'] ?? null;
 		$body = (string)( $httpResponse['body'] ?? '' );
 
 		// The body is passed through as-is: on a failure it is LAC's RFC7807 problem
 		// object, which is worth having when debugging.
-		$response = new LinkedArtifactResponse( $statusCode, $contentType, $body );
+		$response = new LinkedArtifactResponse( $statusCode, $httpResponse['headers'] ?? [], $body );
 
 		// An only-if-cached miss is an expected response. The caller decides what to do with it.
 		$isExpectedMiss = $cacheControl === self::CACHE_CONTROL_ONLY_IF_CACHED && $response->isNotCached();
@@ -215,18 +202,37 @@ class LinkedArtifactsClient {
 			$context = [
 				'url' => $url,
 				'status_code' => $statusCode,
+				'problem_detail' => self::problemDetail( $body ),
 			];
 
 			if ( $response->isNotFound() ) {
-				$this->logger->warning( 'No Linked Artifact at {url}', $context );
+				$this->logger->warning( 'No Linked Artifact at {url}: {problem_detail}', $context );
 			} else {
 				$this->logger->error(
-					'Failed requesting Linked Artifact at {url}',
+					'Failed requesting Linked Artifact at {url}: {problem_detail}',
 					$context + [ 'error' => $httpResponse['error'] ?? null ]
 				);
 			}
 		}
 
 		return $response;
+	}
+
+	/**
+	 * The `detail` of an RFC7807 problem response body from LAC. If the body is not a
+	 * problem object, the start of the body.
+	 *
+	 * @param string $body
+	 * @return string
+	 */
+	private static function problemDetail( string $body ): string {
+		// NOTE: decodeJsonBody returns null if the $body is not a JSON object.
+		$problem = LinkedArtifactResponse::decodeJsonBody( $body ) ?? [];
+		if ( is_string( $problem['detail'] ?? null ) ) {
+			return $problem['detail'];
+		}
+		// If the $body was not JSON with a 'detail' field,
+		// return the first 500 chars of the body as the problem detail.
+		return mb_substr( $body, 0, 500 );
 	}
 }

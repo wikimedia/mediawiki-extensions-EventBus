@@ -87,8 +87,7 @@
 			"class": "MediaWiki\\Extension\\EventBus\\LinkedArtifacts\\LinkedArtifactsPrecomputeIngress",
 			"services": [
 				"JobQueueGroup",
-				"EventBus.LinkedArtifactsConfig",
-				"EventBus.LinkedArtifactsClient"
+				"EventBus.LinkedArtifactsConfig"
 			],
 			"events": [
 				"PageLatestRevisionChanged"
@@ -182,7 +181,7 @@
 			"needsPage": false,
 			"class": "MediaWiki\\Extension\\EventBus\\LinkedArtifacts\\Job\\LinkedArtifactPrecomputeJob",
 			"services": [
-				"EventBus.LinkedArtifactsClient",
+				"EventBus.LinkedArtifactsPrecompute",
 				"EventBus.LinkedArtifactsConfig"
 			]
 		}

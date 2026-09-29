@@ -16,30 +16,65 @@ calls a **lambda** function, then stores the result.
 
 For the available artifacts, see the [LAC HTTP API docs](https://gitlab.wikimedia.org/repos/sre/hoarde/-/blob/main/API.md).
 
+See also https://wikitech.wikimedia.org/wiki/Prep_Pantry/Architectures
+
 ## What this code does
+
+NOTE: As of 2026-09, only revision entity linked artifacts are supported.
+      As more entity types are needed, they will be added.
+      Docs below only mention support for revision entity linked artifacts.
 
 A lambda function can be slow, and the LAC stores an artifact only once a client asks for it. So
 the first reader after an edit would wait for the computation. To avoid that, MediaWiki
 asks the LAC for the artifact immediately after its entity changes (e.g. an edit).
 We are calling this event triggered request a **precompute**.
 
-1. A user edits a page; MediaWiki emits `PageLatestRevisionChanged`.
+1. A user edits a page; MediaWiki emits `PageLatestRevisionChanged` DomainEvent.
 2. `LinkedArtifactsPrecomputeIngress` receives it. For each configured artifact that this
    event should trigger, a `linkedArtifactPrecompute` job is enqueued.
-3. `LinkedArtifactPrecomputeJob` runs and calls `LinkedArtifactsClient::fetch()`,
+3. `LinkedArtifactPrecomputeJob` runs and calls `LinkedArtifactsPrecompute`,
    which GETs the artifact from LAC with `Cache-Control: no-cache`, causing LAC to consult the lambda and store the result.
+4. On success, `LinkedArtifactsPrecompute` dispatches a `RevisionLinkedArtifactPrecomputed`
+   DomainEvent that carries the artifact content.
 
 ## The classes
 
-| Class | Responsibility |
-| --- | --- |
+| Class | Responsibility                                                          |
+| --- |-------------------------------------------------------------------------|
 | `LinkedArtifactsConfig` | Interface for parsed and validated `$wgEventBusLinkedArtifacts` config. |
-| `LinkedArtifactsPrecomputeIngress` | Maps DomainEvents to precompute jobs |
-| `LinkedArtifactPrecomputeJob` | Force-refreshes one artifact URI |
+| `LinkedArtifactsPrecomputeIngress` | Maps input DomainEvents to precompute jobs                              |
+| `LinkedArtifactPrecomputeJob` | Runs one precompute from its job params                                 |
+| `LinkedArtifactsPrecompute` | Force-refreshes one artifact and dispatches the precomputed DomainEvent |
+| `RevisionLinkedArtifactPrecomputedEvent` | DomainEvent dispatched after a revision artifact is precomputed         |
 | `LinkedArtifactsClient` | Client for the LAC HTTP API: locates and fetches artifacts. Callers should use this. |
-| `LinkedArtifactResponse` | Represents a response from LAC, with the response body. |
+| `LinkedArtifactResponse` | Represents a response from LAC, with the response body.                 |
 
-The precompute job carries the **LAC artifact URI path**. The URI path is the LAC cache key.
+The precompute job carries the artifact name, the entity kind and the entity identifiers
+(`wiki_id`, `page_id`, `revision_id`). It also carries what triggered the precompute. The
+trigger is part of job deduplication, because the precomputed DomainEvent carries it.
+
+NOTE: Singular class names represent or work with a single artifact,
+      e.g. LinkedArtifactResponse, RevisionLinkedArtifactPrecomputeEvent, etc.
+      Plural class names work with the LinkedArtifactsCache system, which is explicitly
+      named 'Linked Artifacts Cache' -- 'Artifacts' plural.
+
+## Subscribing to precomputed artifacts
+
+Register a `DomainEventIngress` for `RevisionLinkedArtifactPrecomputed` and implement
+`RevisionLinkedArtifactPrecomputedListener`. The event is dispatched for every revision
+artifact, so filter on `getArtifactName()`.
+
+```json
+"DomainEventIngresses": [
+	{
+		"class": "MyExtension\\MyArtifactIngress",
+		"events": [ "RevisionLinkedArtifactPrecomputed" ]
+	}
+]
+```
+
+The event fires only for precomputes that MediaWiki triggers. It does not fire when LAC
+computes an artifact on a read miss, or for pages outside the artifact's `page.*` coverage.
 
 ## Reading a Revision linked artifact
 

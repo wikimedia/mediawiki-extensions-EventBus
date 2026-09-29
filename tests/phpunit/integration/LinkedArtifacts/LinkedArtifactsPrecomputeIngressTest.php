@@ -50,14 +50,16 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiIntegrationTestCase 
 		// The page is local, so its getWikiId() is false and the ingress must have resolved
 		// it. Asserted here rather than in the unit test: WikiMap reads $wgDBname, which
 		// MediaWikiUnitTestCase unsets.
+		$this->assertSame( WikiMap::getCurrentWikiId(), $params[LinkedArtifactPrecomputeJob::WIKI_ID_PARAM] );
+		$this->assertSame( $revision->getPageId(), $params[LinkedArtifactPrecomputeJob::PAGE_ID_PARAM] );
+		$this->assertSame( $revision->getId(), $params[LinkedArtifactPrecomputeJob::REVISION_ID_PARAM] );
 		$this->assertSame(
-			sprintf(
-				'/revisions/v1/my-artifact/%s/%d/%d',
-				rawurlencode( WikiMap::getCurrentWikiId() ),
-				$revision->getPageId(),
-				$revision->getId()
-			),
-			$params[LinkedArtifactPrecomputeJob::ARTIFACT_URI_PARAM]
+			[
+				'event_type' => PageLatestRevisionChangedEvent::TYPE,
+				'cause' => 'edit',
+				'is_reconciliation_request' => false,
+			],
+			$params[LinkedArtifactPrecomputeJob::TRIGGER_PARAM]
 		);
 	}
 }

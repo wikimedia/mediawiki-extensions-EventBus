@@ -22,6 +22,9 @@ declare( strict_types=1 );
 
 namespace MediaWiki\Extension\EventBus\LinkedArtifacts;
 
+use Wikimedia\Timestamp\ConvertibleTimestamp;
+use Wikimedia\Timestamp\TimestampException;
+
 /**
  * Response from a LAC artifact fetch.
  *
@@ -29,14 +32,20 @@ namespace MediaWiki\Extension\EventBus\LinkedArtifacts;
  */
 class LinkedArtifactResponse {
 
-	private int $statusCode;
-	private ?string $contentType;
-	private string $body;
+	/** @var array<string,string> Lower case header names. */
+	private readonly array $headers;
 
-	public function __construct( int $statusCode, ?string $contentType, string $body = '', ) {
-		$this->statusCode = $statusCode;
-		$this->contentType = $contentType;
-		$this->body = $body;
+	/**
+	 * @param int $statusCode
+	 * @param array<string,string> $headers Response headers, as MultiHttpClient returns them.
+	 * @param string $body
+	 */
+	public function __construct(
+		private readonly int $statusCode,
+		array $headers = [],
+		private readonly string $body = ''
+	) {
+		$this->headers = array_change_key_case( $headers, CASE_LOWER );
 	}
 
 	/**
@@ -48,11 +57,39 @@ class LinkedArtifactResponse {
 	}
 
 	/**
+	 * A header from the LAC response.
+	 *
+	 * @param string $name Case-insensitive.
+	 * @return string|null Null if the response does not have the header.
+	 */
+	public function getHeader( string $name ): ?string {
+		return $this->headers[strtolower( $name )] ?? null;
+	}
+
+	/**
 	 * Content-Type header from LAC response.
 	 * @return string|null
 	 */
 	public function getContentType(): ?string {
-		return $this->contentType;
+		return $this->getHeader( 'content-type' );
+	}
+
+	/**
+	 * Last-Modified header from LAC response: when LAC stored the artifact, i.e. when
+	 * its lambda computed it.
+	 *
+	 * @return ConvertibleTimestamp|null Null if the header is absent or not a valid date.
+	 */
+	public function getLastModified(): ?ConvertibleTimestamp {
+		$lastModified = $this->getHeader( 'last-modified' );
+		if ( $lastModified === null ) {
+			return null;
+		}
+		try {
+			return new ConvertibleTimestamp( $lastModified );
+		} catch ( TimestampException ) {
+			return null;
+		}
 	}
 
 	/**
@@ -63,8 +100,13 @@ class LinkedArtifactResponse {
 		return $this->body;
 	}
 
-	public function isSuccess(): bool {
-		return $this->statusCode >= 200 && $this->statusCode < 300;
+	/**
+	 * The body decoded from JSON.
+	 *
+	 * @return array|null The decoded JSON object or array, or null if the body is not one.
+	 */
+	public function getJsonBody(): ?array {
+		return self::decodeJsonBody( $this->body );
 	}
 
 	/**
@@ -92,7 +134,21 @@ class LinkedArtifactResponse {
 	}
 
 	private function isProblem(): bool {
-		return $this->contentType !== null &&
-			str_starts_with( $this->contentType, 'application/problem+json' );
+		return str_starts_with( $this->getContentType() ?? '', 'application/problem+json' );
+	}
+
+	public function isSuccess(): bool {
+		return $this->statusCode >= 200 && $this->statusCode < 300;
+	}
+
+	/**
+	 * Decode a LAC response body as JSON.
+	 *
+	 * @param string $body
+	 * @return array|null The decoded JSON object or array, or null if the body is not one.
+	 */
+	public static function decodeJsonBody( string $body ): ?array {
+		$decoded = json_decode( $body, true );
+		return is_array( $decoded ) ? $decoded : null;
 	}
 }

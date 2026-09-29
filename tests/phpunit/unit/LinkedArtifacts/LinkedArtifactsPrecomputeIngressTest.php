@@ -3,7 +3,6 @@
 namespace MediaWiki\Extension\EventBus\Tests\Unit\LinkedArtifacts;
 
 use MediaWiki\Extension\EventBus\LinkedArtifacts\Job\LinkedArtifactPrecomputeJob;
-use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsClient;
 use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsConfig;
 use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsPrecomputeIngress;
 use MediaWiki\JobQueue\JobQueueGroup;
@@ -13,8 +12,6 @@ use MediaWiki\Page\ExistingPageRecord;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWikiUnitTestCase;
 use PHPUnit\Framework\Assert;
-use Psr\Log\LoggerInterface;
-use Wikimedia\Http\MultiHttpClient;
 
 /**
  * @covers \MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsPrecomputeIngress
@@ -39,15 +36,7 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiUnitTestCase {
 			'artifacts' => $artifacts ?? self::DEFAULT_ARTIFACTS,
 		] );
 
-		return new LinkedArtifactsPrecomputeIngress(
-			$jobQueueGroup,
-			$config,
-			new LinkedArtifactsClient(
-				$config,
-				$this->createMock( MultiHttpClient::class ),
-				$this->createMock( LoggerInterface::class )
-			)
-		);
+		return new LinkedArtifactsPrecomputeIngress( $jobQueueGroup, $config );
 	}
 
 	/**
@@ -65,11 +54,13 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiUnitTestCase {
 
 		$pageRecord = $this->createMock( ExistingPageRecord::class );
 		$pageRecord->method( 'getWikiId' )->willReturn( 'enwiki' );
+		$pageRecord->method( 'getId' )->willReturn( 42 );
 		$pageRecord->method( 'getNamespace' )->willReturn( $namespace );
 
 		$event = $this->createMock( PageLatestRevisionChangedEvent::class );
 		$event->method( 'changedLatestRevisionId' )->willReturn( $changedLatestRevisionId );
 		$event->method( 'isReconciliationRequest' )->willReturn( $isReconciliationRequest );
+		$event->method( 'getCause' )->willReturn( 'edit' );
 		$event->method( 'getPageId' )->willReturn( 42 );
 		$event->method( 'getLatestRevisionAfter' )->willReturn( $revision );
 		$event->method( 'getPageRecordAfter' )->willReturn( $pageRecord );
@@ -89,19 +80,29 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiUnitTestCase {
 		$ingress->handlePageLatestRevisionChangedEvent( $this->newRevisionChangedEvent() );
 	}
 
-	public function testPushesOneJobCarryingTheLacPathPerSubscribedArtifact(): void {
+	public function testPushesOneJobCarryingTheRevisionIdsPerSubscribedArtifact(): void {
 		$jobQueueGroup = $this->createMock( JobQueueGroup::class );
 		$jobQueueGroup->expects( $this->once() )
 			->method( 'lazyPush' )
 			->willReturnCallback( static function ( JobSpecification $spec ) {
 				Assert::assertSame( LinkedArtifactPrecomputeJob::JOB_NAME, $spec->getType() );
-				Assert::assertSame(
-					'/revisions/v1/my-artifact/enwiki/42/99',
-					$spec->getParams()[LinkedArtifactPrecomputeJob::ARTIFACT_URI_PARAM]
-				);
-				Assert::assertSame(
-					'my-artifact',
-					$spec->getParams()[LinkedArtifactPrecomputeJob::ARTIFACT_NAME_PARAM]
+				$params = $spec->getParams();
+				// Added by JobSpecification.
+				unset( $params['requestId'] );
+				Assert::assertEquals(
+					[
+						LinkedArtifactPrecomputeJob::ARTIFACT_NAME_PARAM => 'my-artifact',
+						LinkedArtifactPrecomputeJob::ENTITY_KIND_PARAM => 'revision',
+						LinkedArtifactPrecomputeJob::WIKI_ID_PARAM => 'enwiki',
+						LinkedArtifactPrecomputeJob::PAGE_ID_PARAM => 42,
+						LinkedArtifactPrecomputeJob::REVISION_ID_PARAM => 99,
+						LinkedArtifactPrecomputeJob::TRIGGER_PARAM => [
+							'event_type' => PageLatestRevisionChangedEvent::TYPE,
+							'cause' => 'edit',
+							'is_reconciliation_request' => false,
+						],
+					],
+					$params
 				);
 			} );
 
@@ -124,7 +125,13 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiUnitTestCase {
 	public function testNullEditPushesAsAReconciliationRequest(): void {
 		// Null edits mint no revision, but are the supported way to force recomputation.
 		$jobQueueGroup = $this->createMock( JobQueueGroup::class );
-		$jobQueueGroup->expects( $this->once() )->method( 'lazyPush' );
+		$jobQueueGroup->expects( $this->once() )
+			->method( 'lazyPush' )
+			->willReturnCallback( static function ( JobSpecification $spec ) {
+				Assert::assertTrue(
+					$spec->getParams()[LinkedArtifactPrecomputeJob::TRIGGER_PARAM]['is_reconciliation_request']
+				);
+			} );
 
 		$ingress = $this->newIngress( $jobQueueGroup );
 		$ingress->handlePageLatestRevisionChangedEvent(
@@ -148,20 +155,6 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiUnitTestCase {
 					'enabled' => false,
 					'events' => [ PageLatestRevisionChangedEvent::TYPE ],
 				],
-			],
-		] );
-
-		$ingress->handlePageLatestRevisionChangedEvent( $this->newRevisionChangedEvent() );
-	}
-
-	public function testSkipsAnArtifactWhoseEntityKindHasNoBranch(): void {
-		// The listener dispatches per entity kind, and only `revision` has a branch so
-		// far. A user-keyed artifact is not unaddressable in principle — a page event does
-		// carry a performer — it just has nothing here to handle it yet.
-		$ingress = $this->newIngress( $this->newNeverPushingJobQueueGroup(), true, [
-			'user-artifact' => [
-				'entity_kind' => 'user',
-				'precompute' => [ 'events' => [ PageLatestRevisionChangedEvent::TYPE ] ],
 			],
 		] );
 

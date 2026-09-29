@@ -7,6 +7,7 @@ use MediaWiki\Extension\EventBus\EventFactory;
 use MediaWiki\Extension\EventBus\GlobalEditCountLookup;
 use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsClient;
 use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsConfig;
+use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsPrecompute;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageLinkEntitySerializer;
@@ -186,6 +187,17 @@ return [
 				'telemetry' => $services->getTracer()
 			] ),
 			LoggerFactory::getInstance( 'EventBus.LinkedArtifacts' )
+		);
+	},
+
+	'EventBus.LinkedArtifactsPrecompute' => static function (
+		MediaWikiServices $services
+	): LinkedArtifactsPrecompute {
+		return new LinkedArtifactsPrecompute(
+			$services->get( 'EventBus.LinkedArtifactsClient' ),
+			$services->get( 'EventBus.LinkedArtifactsConfig' ),
+			$services->getDomainEventDispatcher(),
+			$services->getConnectionProvider()
 		);
 	},
 ];

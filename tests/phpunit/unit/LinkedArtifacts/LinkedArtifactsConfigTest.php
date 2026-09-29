@@ -202,10 +202,10 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 
 	public function testGetEntityKindReturnsConfiguredEntityKind(): void {
 		$config = self::newConfig( [
-			'user-artifact' => [ 'entity_kind' => 'user', 'precompute' => [ 'events' => [ 'SomeOtherEvent' ] ] ],
+			'revision-artifact' => [ 'entity_kind' => 'revision' ],
 		] );
 
-		$this->assertSame( 'user', $config->getEntityKind( 'user-artifact' ) );
+		$this->assertSame( 'revision', $config->getEntityKind( 'revision-artifact' ) );
 	}
 
 	/**
@@ -232,9 +232,9 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 	}
 
 	/**
-	 * @dataProvider provideArtifactsMissingAnEntityKind
+	 * @dataProvider provideArtifactsWithoutAValidEntityKind
 	 */
-	public function testAnArtifactWithoutAnEntityKindThrows( array $artifactConfig ): void {
+	public function testAnArtifactWithoutAValidEntityKindThrows( array $artifactConfig ): void {
 		// Required: there is no default, and an artifact whose entity kind no listener handles
 		// is silently never precomputed, so a missing one must fail loudly at construction.
 		$this->expectException( InvalidArgumentException::class );
@@ -244,11 +244,13 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 		] );
 	}
 
-	public static function provideArtifactsMissingAnEntityKind(): array {
+	public static function provideArtifactsWithoutAValidEntityKind(): array {
 		return [
 			'absent' => [ [] ],
 			'empty' => [ [ 'entity_kind' => '' ] ],
 			'not a string' => [ [ 'entity_kind' => 7 ] ],
+			// No code handles this entity kind, so the artifact would never be precomputed.
+			'unknown' => [ [ 'entity_kind' => 'user' ] ],
 		];
 	}
 }

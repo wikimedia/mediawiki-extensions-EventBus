@@ -43,7 +43,7 @@ use Wikimedia\Assert\Assert;
  *   // per artifact configuration. Keys are the artifact name in LAC.
  *   'artifacts' => [
  *
- *     'exampleArtifact' => [
+ *     'example_artifact' => [
  *       // Type of entity the artifact is linked (keyed) by.
  *       // This is used to construct the correct LAC URL.
  *       'entity_kind' => 'revision',
@@ -87,6 +87,17 @@ use Wikimedia\Assert\Assert;
  * @see https://gitlab.wikimedia.org/repos/sre/hoarde/-/blob/main/API.md
  */
 class LinkedArtifactsConfig {
+
+	/**
+	 * The `entity_kind` of an artifact that is linked to (keyed by) a revision.
+	 */
+	public const REVISION_ENTITY_KIND = 'revision';
+
+	/**
+	 * The `entity_kind` values that the precompute code can handle.
+	 * Add a kind here when code handles it.
+	 */
+	private const ENTITY_KINDS = [ self::REVISION_ENTITY_KIND ];
 
 	/**
 	 * Default precompute fetch timeout for artifacts that do not set their own.
@@ -165,15 +176,18 @@ class LinkedArtifactsConfig {
 		$configKey = 'artifacts.' . $artifactName;
 		Assert::parameterType( 'array', $artifactConfig, $configKey );
 
-		$page = $artifactConfig['page'] ?? [];
-		$sample = $page['sample'] ?? 1.0;
-
-		// Required: there is no sensible default entity, and an artifact whose entity no
-		// listener handles is silently never precomputed.
+		// entity_kind is required.
 		Assert::nonEmptyString( $artifactConfig['entity_kind'] ?? null, "$configKey.entity_kind" );
+		Assert::parameter(
+			in_array( $artifactConfig['entity_kind'], self::ENTITY_KINDS, true ),
+			"$configKey.entity_kind",
+			'must be one of: ' . implode( ', ', self::ENTITY_KINDS )
+		);
+
 		$precompute = $artifactConfig['precompute'] ?? [];
 		Assert::parameterType( 'array', $precompute, "$configKey.precompute" );
 
+		// If set, assert that precompute.timeout_ms is greater than 0
 		if ( isset( $precompute['timeout_ms'] ) ) {
 			Assert::parameterType( 'integer', $precompute['timeout_ms'], "$configKey.precompute.timeout_ms" );
 			Assert::parameter(
@@ -182,16 +196,28 @@ class LinkedArtifactsConfig {
 				'must be greater than 0'
 			);
 		}
+
+		// precompute.enabled defaults to true if it is not set.
 		if ( isset( $precompute['enabled'] ) ) {
 			Assert::parameterType( 'boolean', $precompute['enabled'], "$configKey.precompute.enabled" );
 		}
+
+		// If set assert, that precompute.events is an array of strings.
 		Assert::parameterElementType( 'string', $precompute['events'] ?? [], "$configKey.precompute.events" );
 
+		$page = $artifactConfig['page'] ?? [];
+		// If set, assert that page.namespaces is an array of integers.
 		Assert::parameterElementType( 'integer', $page['namespaces'] ?? [], "$configKey.page.namespaces" );
-		Assert::parameterType( 'integer|double', $sample, "$configKey.page.sample" );
-		Assert::parameter(
-			$sample >= 0.0 && $sample <= 1.0, "$configKey.page.sample", 'must be between 0.0 and 1.0'
-		);
+
+		// If set, assert that page.sample is between 0.0 and 1.0.
+		if ( isset( $page['sample'] ) ) {
+			Assert::parameterType( 'integer|double', $page['sample'], "$configKey.page.sample" );
+			Assert::parameter(
+				$page['sample'] >= 0.0 && $page['sample'] <= 1.0,
+				"$configKey.page.sample",
+				'must be between 0.0 and 1.0'
+			);
+		}
 	}
 
 	/**
@@ -202,6 +228,9 @@ class LinkedArtifactsConfig {
 		return $this->enabled;
 	}
 
+	/**
+	 * The configured Linked Artifacts Cache base URL.
+	 */
 	public function getBaseUrl(): string {
 		return $this->baseUrl;
 	}
@@ -242,9 +271,7 @@ class LinkedArtifactsConfig {
 	 * Names of the artifacts that $eventType should precompute.
 	 *
 	 * That is, those whose `precompute.events` list contains $eventType and whose
-	 * precompute is enabled. Enablement is folded in here rather than left to the caller
-	 * because there is no other reason to ask which artifacts an event subscribes to —
-	 * `precompute.events` is precompute-only config.
+	 * precompute is enabled.
 	 *
 	 * @param string $eventType
 	 * @return string[]
@@ -290,9 +317,10 @@ class LinkedArtifactsConfig {
 	/**
 	 * Whether an artifact's configured page rules cover the page,
 	 * i.e. whether the page is in an enabled namespace and within
-	 * the artifact's sample.
+	 * the artifact's page sample.
 	 *
-	 * NOTE: {@link LinkedArtifactsClient::coversPage()} should likely be called instead.
+	 * This does not check {@link isEnabled()}. Readers should call
+	 * {@link LinkedArtifactsClient::coversPage()}, which also checks it.
 	 *
 	 * @param string $artifactName
 	 * @param string|false $wikiId The page's wiki ID; false for the local wiki.
