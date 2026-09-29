@@ -19,7 +19,7 @@ class LinkedArtifactPrecomputeJobTest extends MediaWikiUnitTestCase {
 		return new LinkedArtifactsConfig( [
 			'enabled' => $enabled,
 			'artifacts' => [
-				'my-artifact' => [ 'entity' => 'revision', 'precompute' => [ 'timeoutMs' => 30000 ] ],
+				'my-artifact' => [ 'entity_kind' => 'revision', 'precompute' => [ 'timeout_ms' => 30000 ] ],
 			],
 		] );
 	}
@@ -100,7 +100,7 @@ class LinkedArtifactPrecomputeJobTest extends MediaWikiUnitTestCase {
 		$config = new LinkedArtifactsConfig( [
 			'enabled' => true,
 			'artifacts' => [
-				'my-artifact' => [ 'entity' => 'revision', 'precompute' => [ 'enabled' => false ] ],
+				'my-artifact' => [ 'entity_kind' => 'revision', 'precompute' => [ 'enabled' => false ] ],
 			],
 		] );
 

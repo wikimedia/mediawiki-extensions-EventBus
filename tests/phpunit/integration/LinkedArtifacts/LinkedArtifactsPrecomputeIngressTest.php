@@ -17,10 +17,10 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiIntegrationTestCase 
 	public function testAnEditEnqueuesAPrecomputeJobForASubscribedArtifact(): void {
 		$this->overrideConfigValue( 'EventBusLinkedArtifacts', [
 			'enabled' => true,
-			'baseUrl' => 'https://lac.example',
+			'base_url' => 'https://lac.example',
 			'artifacts' => [
 				'my-artifact' => [
-					'entity' => 'revision',
+					'entity_kind' => 'revision',
 					'precompute' => [ 'events' => [ PageLatestRevisionChangedEvent::TYPE ] ],
 				],
 			],

@@ -38,7 +38,7 @@ use Wikimedia\Assert\Assert;
  *   'enabled' => true,
  *
  *   // base service URL of LAC service.
- *   'baseUrl' => 'https://lac.example.org',
+ *   'base_url' => 'https://lac.example.org',
  *
  *   // per artifact configuration. Keys are the artifact name in LAC.
  *   'artifacts' => [
@@ -46,10 +46,10 @@ use Wikimedia\Assert\Assert;
  *     'exampleArtifact' => [
  *       // Type of entity the artifact is linked (keyed) by.
  *       // This is used to construct the correct LAC URL.
- *       'entity' => 'revision',
+ *       'entity_kind' => 'revision',
  *
  *       // Precompute settings. Everything here affects precompute only;
- *       // `entity` and `page` above also apply to readers.
+ *       // `entity_kind` and `page` above also apply to readers.
  *       'precompute' => [
  *         // Set false to stop precomputing this artifact, including any jobs
  *         // already queued for it. Defaults to true.
@@ -60,9 +60,9 @@ use Wikimedia\Assert\Assert;
  *         // handle these event types.
  *         'events' => [ 'PageLatestRevisionChanged' ],
  *
- *         // precompute fetch timeoutMs override for this artifact
+ *         // precompute fetch timeout_ms override for this artifact
  *         // in milliseconds. Defaults to 5000.
- *         'timeoutMs' => 30000,
+ *         'timeout_ms' => 30000,
  *       ],
  *
  *       // page specific settings.  Only applies to artifacts that are linked to pages,
@@ -129,11 +129,11 @@ class LinkedArtifactsConfig {
 	 */
 	public function __construct( array $config ) {
 		Assert::parameterType( 'boolean', $config['enabled'] ?? false, 'enabled' );
-		Assert::parameterType( 'string', $config['baseUrl'] ?? '', 'baseUrl' );
+		Assert::parameterType( 'string', $config['base_url'] ?? '', 'base_url' );
 		Assert::parameterType( 'array', $config['artifacts'] ?? [], 'artifacts' );
 
 		$this->enabled = $config['enabled'] ?? false;
-		$this->baseUrl = $config['baseUrl'] ?? '';
+		$this->baseUrl = $config['base_url'] ?? '';
 		$this->artifacts = $config['artifacts'] ?? [];
 
 		foreach ( $this->artifacts as $artifactName => $artifactConfig ) {
@@ -170,15 +170,15 @@ class LinkedArtifactsConfig {
 
 		// Required: there is no sensible default entity, and an artifact whose entity no
 		// listener handles is silently never precomputed.
-		Assert::nonEmptyString( $artifactConfig['entity'] ?? null, "$configKey.entity" );
+		Assert::nonEmptyString( $artifactConfig['entity_kind'] ?? null, "$configKey.entity_kind" );
 		$precompute = $artifactConfig['precompute'] ?? [];
 		Assert::parameterType( 'array', $precompute, "$configKey.precompute" );
 
-		if ( isset( $precompute['timeoutMs'] ) ) {
-			Assert::parameterType( 'integer', $precompute['timeoutMs'], "$configKey.precompute.timeoutMs" );
+		if ( isset( $precompute['timeout_ms'] ) ) {
+			Assert::parameterType( 'integer', $precompute['timeout_ms'], "$configKey.precompute.timeout_ms" );
 			Assert::parameter(
-				$precompute['timeoutMs'] > 0,
-				"$configKey.precompute.timeoutMs",
+				$precompute['timeout_ms'] > 0,
+				"$configKey.precompute.timeout_ms",
 				'must be greater than 0'
 			);
 		}
@@ -216,7 +216,7 @@ class LinkedArtifactsConfig {
 	 * @return int
 	 */
 	public function getPrecomputeTimeoutMs( string $artifactName ): int {
-		return $this->artifacts[$artifactName]['precompute']['timeoutMs']
+		return $this->artifacts[$artifactName]['precompute']['timeout_ms']
 			?? self::PRECOMPUTE_TIMEOUT_MS_DEFAULT;
 	}
 
@@ -263,14 +263,14 @@ class LinkedArtifactsConfig {
 	 * @return string
 	 * @throws InvalidArgumentException if no artifact is configured under that name
 	 */
-	public function getEntity( string $artifactName ): string {
+	public function getEntityKind( string $artifactName ): string {
 		Assert::parameter(
 			isset( $this->artifacts[$artifactName] ),
 			'artifactName',
 			"must name a configured artifact, got '$artifactName'"
 		);
 
-		return $this->artifacts[$artifactName]['entity'];
+		return $this->artifacts[$artifactName]['entity_kind'];
 	}
 
 	/**

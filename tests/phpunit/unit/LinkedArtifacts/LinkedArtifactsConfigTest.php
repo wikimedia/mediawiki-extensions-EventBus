@@ -14,14 +14,14 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 	private static function newConfig( ?array $artifacts = null ): LinkedArtifactsConfig {
 		return new LinkedArtifactsConfig( [
 			'enabled' => true,
-			'baseUrl' => 'https://lac.example/base',
+			'base_url' => 'https://lac.example/base',
 			'artifacts' => $artifacts ?? [
 				'my-artifact' => [
-					'entity' => 'revision',
+					'entity_kind' => 'revision',
 					'precompute' => [ 'events' => [ 'PageLatestRevisionChanged', 'SomeOtherEvent' ] ],
 				],
 				'other-artifact' => [
-					'entity' => 'revision',
+					'entity_kind' => 'revision',
 					'precompute' => [ 'events' => [ 'SomeOtherEvent' ] ],
 				],
 			],
@@ -58,11 +58,11 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 		// Artifacts differ in how long their lambda takes, so each may override.
 		$config = self::newConfig( [
 			'slow-artifact' => [
-				'entity' => 'revision',
-				'precompute' => [ 'events' => [ 'SomeOtherEvent' ], 'timeoutMs' => 30000 ],
+				'entity_kind' => 'revision',
+				'precompute' => [ 'events' => [ 'SomeOtherEvent' ], 'timeout_ms' => 30000 ],
 			],
 			'default-artifact' => [
-				'entity' => 'revision',
+				'entity_kind' => 'revision',
 				'precompute' => [ 'events' => [ 'SomeOtherEvent' ] ],
 			],
 		] );
@@ -123,7 +123,7 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 		$this->expectException( InvalidArgumentException::class );
 
 		self::newConfig( [
-			'bad-artifact' => [ 'entity' => 'revision', 'precompute' => [ 'timeoutMs' => $timeoutMs ] ],
+			'bad-artifact' => [ 'entity_kind' => 'revision', 'precompute' => [ 'timeout_ms' => $timeoutMs ] ],
 		] );
 	}
 
@@ -141,8 +141,8 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 		new LinkedArtifactsConfig( [
 			'artifacts' => [
 				'bad-artifact' => [
-					'entity' => 'revision',
-					'precompute' => [ 'timeoutMs' => 0 ],
+					'entity_kind' => 'revision',
+					'precompute' => [ 'timeout_ms' => 0 ],
 				],
 			],
 		] );
@@ -152,11 +152,11 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 		// The ingress relies on this filtering rather than checking each artifact itself.
 		$config = self::newConfig( [
 			'on' => [
-				'entity' => 'revision',
+				'entity_kind' => 'revision',
 				'precompute' => [ 'events' => [ 'SomeOtherEvent' ] ],
 			],
 			'off' => [
-				'entity' => 'revision',
+				'entity_kind' => 'revision',
 				'precompute' => [ 'enabled' => false, 'events' => [ 'SomeOtherEvent' ] ],
 			],
 		] );
@@ -170,8 +170,8 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 
 	public function testIsPrecomputeEnabledHonoursTheArtifactSwitch(): void {
 		$config = self::newConfig( [
-			'off' => [ 'entity' => 'revision', 'precompute' => [ 'enabled' => false ] ],
-			'on' => [ 'entity' => 'revision', 'precompute' => [ 'enabled' => true ] ],
+			'off' => [ 'entity_kind' => 'revision', 'precompute' => [ 'enabled' => false ] ],
+			'on' => [ 'entity_kind' => 'revision', 'precompute' => [ 'enabled' => true ] ],
 		] );
 
 		$this->assertFalse( $config->isPrecomputeEnabled( 'off' ) );
@@ -180,7 +180,7 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 
 	public function testIsPrecomputeEnabledIsFalseForAnUnconfiguredArtifact(): void {
 		// A queued job can outlive its artifact's config; draining it is the right answer,
-		// so this reports false rather than throwing the way getEntity() does.
+		// so this reports false rather than throwing the way getEntityKind() does.
 		$this->assertFalse( self::newConfig()->isPrecomputeEnabled( 'no-such-artifact' ) );
 	}
 
@@ -188,24 +188,24 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 		$this->expectException( InvalidArgumentException::class );
 
 		self::newConfig( [
-			'bad-artifact' => [ 'entity' => 'revision', 'precompute' => [ 'enabled' => 'yes' ] ],
+			'bad-artifact' => [ 'entity_kind' => 'revision', 'precompute' => [ 'enabled' => 'yes' ] ],
 		] );
 	}
 
-	public function testGetEntityThrowsForAnUnconfiguredArtifact(): void {
-		// Not a missing setting — `entity` is required — but a caller asking about an
+	public function testGetEntityKindThrowsForAnUnconfiguredArtifact(): void {
+		// Not a missing setting — `entity_kind` is required — but a caller asking about an
 		// artifact that does not exist.
 		$this->expectException( InvalidArgumentException::class );
 
-		self::newConfig()->getEntity( 'no-such-artifact' );
+		self::newConfig()->getEntityKind( 'no-such-artifact' );
 	}
 
-	public function testGetEntityReturnsConfiguredEntity(): void {
+	public function testGetEntityKindReturnsConfiguredEntityKind(): void {
 		$config = self::newConfig( [
-			'user-artifact' => [ 'entity' => 'user', 'precompute' => [ 'events' => [ 'SomeOtherEvent' ] ] ],
+			'user-artifact' => [ 'entity_kind' => 'user', 'precompute' => [ 'events' => [ 'SomeOtherEvent' ] ] ],
 		] );
 
-		$this->assertSame( 'user', $config->getEntity( 'user-artifact' ) );
+		$this->assertSame( 'user', $config->getEntityKind( 'user-artifact' ) );
 	}
 
 	/**
@@ -217,7 +217,7 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 		new LinkedArtifactsConfig( [
 			'artifacts' => [
 				'bad-artifact' => [
-					'entity' => 'revision',
+					'entity_kind' => 'revision',
 					'page' => [ 'sample' => $rate ],
 				],
 			],
@@ -232,10 +232,10 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 	}
 
 	/**
-	 * @dataProvider provideArtifactsMissingAnEntity
+	 * @dataProvider provideArtifactsMissingAnEntityKind
 	 */
-	public function testAnArtifactWithoutAnEntityThrows( array $artifactConfig ): void {
-		// Required: there is no default, and an artifact whose entity no listener handles
+	public function testAnArtifactWithoutAnEntityKindThrows( array $artifactConfig ): void {
+		// Required: there is no default, and an artifact whose entity kind no listener handles
 		// is silently never precomputed, so a missing one must fail loudly at construction.
 		$this->expectException( InvalidArgumentException::class );
 
@@ -244,11 +244,11 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 		] );
 	}
 
-	public static function provideArtifactsMissingAnEntity(): array {
+	public static function provideArtifactsMissingAnEntityKind(): array {
 		return [
 			'absent' => [ [] ],
-			'empty' => [ [ 'entity' => '' ] ],
-			'not a string' => [ [ 'entity' => 7 ] ],
+			'empty' => [ [ 'entity_kind' => '' ] ],
+			'not a string' => [ [ 'entity_kind' => 7 ] ],
 		];
 	}
 }

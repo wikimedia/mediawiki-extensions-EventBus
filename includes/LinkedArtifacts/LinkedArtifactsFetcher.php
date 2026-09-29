@@ -42,9 +42,9 @@ use Wikimedia\Http\MultiHttpClient;
 class LinkedArtifactsFetcher {
 
 	/**
-	 * The `entity` value in $wgEventBusLinkedArtifacts served by the revision methods.
+	 * The `entity_kind` value in $wgEventBusLinkedArtifacts served by the revision methods.
 	 */
-	public const REVISION_ENTITY = 'revision';
+	public const REVISION_ENTITY_KIND = 'revision';
 
 	private const REVISION_URI_FORMAT = '/revisions/v1/%s/%s/%s/%s';
 

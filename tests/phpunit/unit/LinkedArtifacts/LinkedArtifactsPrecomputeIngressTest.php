@@ -23,7 +23,7 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiUnitTestCase {
 
 	private const DEFAULT_ARTIFACTS = [
 		'my-artifact' => [
-			'entity' => 'revision',
+			'entity_kind' => 'revision',
 			'precompute' => [ 'events' => [ PageLatestRevisionChangedEvent::TYPE ] ],
 		],
 	];
@@ -35,7 +35,7 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiUnitTestCase {
 	): LinkedArtifactsPrecomputeIngress {
 		$config = new LinkedArtifactsConfig( [
 			'enabled' => $enabled,
-			'baseUrl' => 'https://lac.example',
+			'base_url' => 'https://lac.example',
 			'artifacts' => $artifacts ?? self::DEFAULT_ARTIFACTS,
 		] );
 
@@ -143,7 +143,7 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiUnitTestCase {
 	public function testSkipsAnArtifactWhosePrecomputeIsDisabled(): void {
 		$ingress = $this->newIngress( $this->newNeverPushingJobQueueGroup(), true, [
 			'my-artifact' => [
-				'entity' => 'revision',
+				'entity_kind' => 'revision',
 				'precompute' => [
 					'enabled' => false,
 					'events' => [ PageLatestRevisionChangedEvent::TYPE ],
@@ -154,13 +154,13 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiUnitTestCase {
 		$ingress->handlePageLatestRevisionChangedEvent( $this->newRevisionChangedEvent() );
 	}
 
-	public function testSkipsAnArtifactWhoseEntityHasNoBranch(): void {
+	public function testSkipsAnArtifactWhoseEntityKindHasNoBranch(): void {
 		// The listener dispatches per entity kind, and only `revision` has a branch so
 		// far. A user-keyed artifact is not unaddressable in principle — a page event does
 		// carry a performer — it just has nothing here to handle it yet.
 		$ingress = $this->newIngress( $this->newNeverPushingJobQueueGroup(), true, [
 			'user-artifact' => [
-				'entity' => 'user',
+				'entity_kind' => 'user',
 				'precompute' => [ 'events' => [ PageLatestRevisionChangedEvent::TYPE ] ],
 			],
 		] );
@@ -171,7 +171,7 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiUnitTestCase {
 	private static function artifactsWithPageFilter( array $page ): array {
 		return [
 			'my-artifact' => [
-				'entity' => 'revision',
+				'entity_kind' => 'revision',
 				'page' => $page,
 				'precompute' => [ 'events' => [ PageLatestRevisionChangedEvent::TYPE ] ],
 			],

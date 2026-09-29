@@ -66,18 +66,18 @@ All configuration is in `$wgEventBusLinkedArtifacts`.
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `enabled` | bool | `false` | Enable or disable LAC for this wiki. |
-| `baseUrl` | string | null | LAC service base URL |
+| `base_url` | string | null | LAC service base URL |
 | `artifacts` | array | `{}` | One entry per artifact, keyed by LAC cache name |
 
-Per artifact. `entity` and `page.*` also govern reading; everything under `precompute.*`
+Per artifact. `entity_kind` and `page.*` also govern reading; everything under `precompute.*`
 affects precompute only:
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `entity` | string | **required** | The entity the artifact is linked to (and keyed by); selects which fetcher addresses it.  As of 2026-09, only 'revision' is supported. |
+| `entity_kind` | string | **required** | The kind of entity the artifact is linked to (and keyed by); selects which fetcher addresses it.  As of 2026-09, only 'revision' is supported. |
 | `precompute.enabled` | bool | `true` | Set false to stop precomputing this artifact, draining any queued jobs |
 | `precompute.events` | string[] | `[]` | Domain event types that trigger a precompute |
-| `precompute.timeoutMs` | int | `LinkedArtifactsConfig::PRECOMPUTE_TIMEOUT_MS_DEFAULT` | Timeout for the no-cache request from the precompute job.|
+| `precompute.timeout_ms` | int | `LinkedArtifactsConfig::PRECOMPUTE_TIMEOUT_MS_DEFAULT` | Timeout for the no-cache request from the precompute job.|
 | `page.*` | array | `{}` | page related artifact configuration.  For artifacts linked to both revision and page entities. |
 | `page.namespaces` | int[] | all | Namespaces this artifact covers |
 | `page.sample` | float | `1.0` | Fraction of pages covered, `0.0`–`1.0` |
@@ -88,13 +88,13 @@ artifact covers.
 ```php
 $wgEventBusLinkedArtifacts = [
 	'enabled' => true,
-	'baseUrl' => 'https://linked-artifacts.discovery.wmnet:30443',
+	'base_url' => 'https://linked-artifacts.discovery.wmnet:30443',
 	'artifacts' => [
 		'my_revision_artifact' => [
-			'entity' => 'revision',
+			'entity_kind' => 'revision',
 			'precompute' => [
 				'events' => [ 'PageLatestRevisionChanged' ],
-				'timeoutMs' => 30000,
+				'timeout_ms' => 30000,
 			],
 			'page' => [
 				'namespaces' => [ 0 ],

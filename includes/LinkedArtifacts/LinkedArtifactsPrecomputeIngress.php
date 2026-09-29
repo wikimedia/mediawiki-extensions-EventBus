@@ -100,11 +100,11 @@ class LinkedArtifactsPrecomputeIngress
 			$artifactUri = null;
 
 			// entity kind,  e.g. revision, page, etc.
-			$entityKind = $this->config->getEntity( $artifactName );
+			$entityKind = $this->config->getEntityKind( $artifactName );
 
 			// If we need to support more entityKinds, add them here.
 			switch ( $entityKind ) {
-				case LinkedArtifactsFetcher::REVISION_ENTITY:
+				case LinkedArtifactsFetcher::REVISION_ENTITY_KIND:
 					// If this page should be precomputed
 					if ( $this->fetcher->coversPage(
 						$artifactName,

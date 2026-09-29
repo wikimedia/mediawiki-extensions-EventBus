@@ -16,7 +16,7 @@ class LinkedArtifactsFetcherTest extends MediaWikiUnitTestCase {
 
 	private const URI = '/revisions/v1/my-artifact/enwiki/42/99';
 
-	private const DEFAULT_ARTIFACTS = [ 'my-artifact' => [ 'entity' => 'revision' ] ];
+	private const DEFAULT_ARTIFACTS = [ 'my-artifact' => [ 'entity_kind' => 'revision' ] ];
 
 	/**
 	 * @param array|null $httpResponse The `response` payload runMulti should return.
@@ -48,7 +48,7 @@ class LinkedArtifactsFetcherTest extends MediaWikiUnitTestCase {
 		return new LinkedArtifactsFetcher(
 			new LinkedArtifactsConfig( [
 				'enabled' => $enabled,
-				'baseUrl' => $baseUrl,
+				'base_url' => $baseUrl,
 				'artifacts' => $artifacts ?? self::DEFAULT_ARTIFACTS,
 			] ),
 			$http,
@@ -221,10 +221,10 @@ class LinkedArtifactsFetcherTest extends MediaWikiUnitTestCase {
 	public function testCoversPageHonoursTheNamespaceAllowlist(): void {
 		$fetcher = $this->newCoverageFetcher( [
 			'ns-artifact' => [
-				'entity' => 'revision',
+				'entity_kind' => 'revision',
 				'page' => [ 'namespaces' => [ 0, 6 ] ],
 			],
-			'all-ns-artifact' => [ 'entity' => 'revision' ],
+			'all-ns-artifact' => [ 'entity_kind' => 'revision' ],
 		] );
 
 		$this->assertTrue( $fetcher->coversPage( 'ns-artifact', 'enwiki', 42, 0 ) );
@@ -236,9 +236,9 @@ class LinkedArtifactsFetcherTest extends MediaWikiUnitTestCase {
 
 	public function testCoversPageHonoursSampleRateBounds(): void {
 		$fetcher = $this->newCoverageFetcher( [
-			'all' => [ 'entity' => 'revision', 'page' => [ 'sample' => 1.0 ] ],
-			'none' => [ 'entity' => 'revision', 'page' => [ 'sample' => 0.0 ] ],
-			'default' => [ 'entity' => 'revision' ],
+			'all' => [ 'entity_kind' => 'revision', 'page' => [ 'sample' => 1.0 ] ],
+			'none' => [ 'entity_kind' => 'revision', 'page' => [ 'sample' => 0.0 ] ],
+			'default' => [ 'entity_kind' => 'revision' ],
 		] );
 
 		// A rate of 1.0 must sample in every page and 0.0 must sample out every page,
@@ -252,7 +252,7 @@ class LinkedArtifactsFetcherTest extends MediaWikiUnitTestCase {
 
 	public function testCoversPageIsDeterministic(): void {
 		$fetcher = $this->newCoverageFetcher( [
-			'half' => [ 'entity' => 'revision', 'page' => [ 'sample' => 0.5 ] ],
+			'half' => [ 'entity_kind' => 'revision', 'page' => [ 'sample' => 0.5 ] ],
 		] );
 
 		// Same (wiki_id, page_id) ⇒ same decision on repeated calls, so that a precompute
@@ -264,7 +264,7 @@ class LinkedArtifactsFetcherTest extends MediaWikiUnitTestCase {
 
 	public function testCoversPageApproximatesTheConfiguredSampleRate(): void {
 		$fetcher = $this->newCoverageFetcher( [
-			'tenth' => [ 'entity' => 'revision', 'page' => [ 'sample' => 0.1 ] ],
+			'tenth' => [ 'entity_kind' => 'revision', 'page' => [ 'sample' => 0.1 ] ],
 		] );
 
 		$sampledIn = 0;

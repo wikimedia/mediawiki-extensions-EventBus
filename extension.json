@@ -47,7 +47,7 @@
 		"EventBusLinkedArtifacts": {
 			"value": {
 				"enabled": false,
-				"baseUrl": "https://linked-artifacts.discovery.wmnet:30443",
+				"base_url": "https://linked-artifacts.discovery.wmnet:30443",
 				"artifacts": {}
 			}
 		}
