@@ -350,8 +350,8 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 		bool $isSamePageAs = true,
 		array $additionalMethods = []
 	): ExistingPageRecord {
-		$pageId = $pageId ?? $this->pageId;
-		$dbKey = $dbKey ?? $this->pageDBkey;
+		$pageId ??= $this->pageId;
+		$dbKey ??= $this->pageDBkey;
 
 		$pageRecord = $this->createMock( ExistingPageRecord::class );
 		$pageRecord->method( 'getId' )->willReturn( $pageId );

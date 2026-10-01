@@ -590,16 +590,15 @@ class PageChangeEventSerializer {
 
 		// On move, prior_state.page lists only page entity fields that differ from the current page;
 		// prior_state.revision is the revision before the move (a move creates a new revision).
-		$priorStateAttrs = [];
-
-		// Only keep fields that differ from the current page.
-		$priorStateAttrs['page'] = array_diff_assoc(
-			$this->pageEntitySerializer->toArray( $oldTitle, self::PAGE_ENTITY_SCHEMA_VERSION ),
-			$eventAttrs['page']
-		);
-
-		// add parent revision info in prior_state, since a page move creates a new revision.
-		$priorStateAttrs['revision'] = $this->toRevisionAttrs( $parentRevision );
+		$priorStateAttrs = [
+			// Only keep fields that differ from the current page.
+			'page' => array_diff_assoc(
+				$this->pageEntitySerializer->toArray( $oldTitle, self::PAGE_ENTITY_SCHEMA_VERSION ),
+				$eventAttrs['page']
+			),
+			// add parent revision info in prior_state, since a page move creates a new revision.
+			'revision' => $this->toRevisionAttrs( $parentRevision ),
+		];
 
 		$eventAttrs['prior_state'] = $priorStateAttrs;
 

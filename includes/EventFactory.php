@@ -945,24 +945,17 @@ class EventFactory {
 		};
 
 		if ( $addedLinks || $addedExternalLinks ) {
-			$addedLinks = $addedLinks === null ? [] : $addedLinks;
-			$addedExternalLinks = $addedExternalLinks === null ? [] : $addedExternalLinks;
-
-			$addedLinks = array_map(
+			$attrs['added_links'] = array_map(
 				$getLinkData,
-				array_merge( $addedLinks, $addedExternalLinks ) );
-
-			$attrs['added_links'] = $addedLinks;
+				array_merge( $addedLinks ?? [], $addedExternalLinks ?? [] )
+			);
 		}
 
 		if ( $removedLinks || $removedExternalLinks ) {
-			$removedLinks = $removedLinks === null ? [] : $removedLinks;
-			$removedExternalLinks = $removedExternalLinks === null ? [] : $removedExternalLinks;
-			$removedLinks = array_map(
+			$attrs['removed_links'] = array_map(
 				$getLinkData,
-				array_merge( $removedLinks, $removedExternalLinks ) );
-
-			$attrs['removed_links'] = $removedLinks;
+				array_merge( $removedLinks ?? [], $removedExternalLinks ?? [] )
+			);
 		}
 
 		return $this->createEvent(
