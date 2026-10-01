@@ -85,8 +85,8 @@ class RedirectTargetLookupTest extends MediaWikiUnitTestCase {
 
 		$this->assertNotNull( $redirectTarget );
 		$this->assertInstanceOf( PageLink::class, $redirectTarget );
-		$this->assertEquals( $targetPage, $redirectTarget->getPage() );
-		$this->assertEquals( $targetPage->getDBkey(), $redirectTarget->getLink()->getDBkey() );
+		$this->assertEquals( $targetPage, $redirectTarget->page );
+		$this->assertEquals( $targetPage->getDBkey(), $redirectTarget->link->getDBkey() );
 	}
 
 	/**
@@ -104,7 +104,7 @@ class RedirectTargetLookupTest extends MediaWikiUnitTestCase {
 
 		$this->assertNotNull( $redirectTarget );
 		$this->assertInstanceOf( PageLink::class, $redirectTarget );
-		$this->assertNull( $redirectTarget->getPage() );
+		$this->assertNull( $redirectTarget->page );
 	}
 
 	/**

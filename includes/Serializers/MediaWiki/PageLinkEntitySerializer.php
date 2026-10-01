@@ -53,14 +53,14 @@ class PageLinkEntitySerializer {
 		PageLink $pageLink,
 		string $schemaVersion = self::SCHEMA_VERSION_EARLIEST
 	): array {
-		$linkTarget = $pageLink->getLink();
+		$linkTarget = $pageLink->link;
 
 		$attrs = [
 			'page_title' => $this->formatLinkTarget( $linkTarget ),
 			'namespace_id' => $linkTarget->getNamespace(),
 		];
 
-		$pageIdentity = $pageLink->getPage();
+		$pageIdentity = $pageLink->page;
 		if ( $pageIdentity !== null && $pageIdentity->exists() ) {
 			$attrs['page_id'] = $pageIdentity->getId();
 			if ( $pageIdentity instanceof PageRecord ) {

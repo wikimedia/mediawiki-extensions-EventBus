@@ -32,9 +32,7 @@ class PageLinkEntitySerializerTest extends MediaWikiUnitTestCase {
 		$linkTarget->method( 'getNamespace' )->willReturn( 0 );
 		$linkTarget->method( 'getInterwiki' )->willReturn( 'OtherWiki' );
 
-		$pageLink = $this->createMock( PageLink::class );
-		$pageLink->method( 'getPage' )->willReturn( $targetPage );
-		$pageLink->method( 'getLink' )->willReturn( $linkTarget );
+		$pageLink = new PageLink( $linkTarget, $targetPage );
 
 		$expected = [
 			'page_title' => 'MyPage',

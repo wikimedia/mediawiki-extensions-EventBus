@@ -323,21 +323,21 @@ class PageChangeEventSerializer {
 		);
 
 		$wikibaseItemId = $this->wikibaseItemLookup->getWikibaseItemIdForLinkTarget(
-			$pageLink->getLink()
+			$pageLink->link
 		);
 		if ( $wikibaseItemId !== null ) {
 			$pageLinkAttrs['wikibase_item_id'] = $wikibaseItemId;
 		}
 
 		$wikibaseWikiId = $this->wikibaseItemLookup->getWikibaseWikiIdForLinkTarget(
-			$pageLink->getLink()
+			$pageLink->link
 		);
 		if ( $wikibaseWikiId !== null ) {
 			$pageLinkAttrs['wikibase_wiki_id'] = $wikibaseWikiId;
 		}
 
 		$wikibaseConceptUri = $this->wikibaseItemLookup->getWikibaseConceptUriForLinkTarget(
-			$pageLink->getLink()
+			$pageLink->link
 		);
 		if ( $wikibaseConceptUri !== null ) {
 			$pageLinkAttrs['wikibase_concept_uri'] = $wikibaseConceptUri;
