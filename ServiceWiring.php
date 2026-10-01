@@ -17,6 +17,7 @@ use MediaWiki\Extension\EventBus\StreamNameMapper;
 use MediaWiki\Extension\EventBus\WikibaseItemLookup;
 use MediaWiki\Http\Telemetry;
 use MediaWiki\Logger\LoggerFactory;
+use MediaWiki\MainConfigNames;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Registration\ExtensionRegistry;
 
@@ -52,7 +53,7 @@ return [
 				EventFactory::CONSTRUCTOR_OPTIONS,
 				$services->getMainConfig()
 			),
-			$services->getMainConfig()->get( 'DBname' ),
+			$services->getMainConfig()->get( MainConfigNames::DBname ),
 			$services->getContentLanguage(),
 			$services->getRevisionStore(),
 			$services->getTitleFormatter(),

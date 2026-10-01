@@ -158,8 +158,8 @@ class PageEntitySerializer {
 	): string {
 		$titleURL = wfUrlencode( $this->formatPageTitle( $page ) );
 		// The ArticlePath contains '$1' string where the article title should appear.
-		return $this->mainConfig->get( 'CanonicalServer' ) .
-			str_replace( '$1', $titleURL, $this->mainConfig->get( 'ArticlePath' ) );
+		return $this->mainConfig->get( MainConfigNames::CanonicalServer ) .
+			str_replace( '$1', $titleURL, $this->mainConfig->get( MainConfigNames::ArticlePath ) );
 	}
 
 	/**

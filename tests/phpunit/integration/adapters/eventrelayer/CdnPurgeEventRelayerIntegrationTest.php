@@ -16,7 +16,7 @@ class CdnPurgeEventRelayerIntegrationTest extends MediaWikiIntegrationTestCase {
 		$this->overrideConfigValues( [
 			MainConfigNames::HTCPRouting => false,
 			MainConfigNames::CdnServers => false,
-			'EventRelayerConfig' => [
+			MainConfigNames::EventRelayerConfig => [
 				'cdn-url-purges' => [
 					'class' => CdnPurgeEventRelayer::class,
 					'stream' => 'test-resource-purge'

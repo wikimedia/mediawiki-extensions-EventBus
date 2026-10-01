@@ -13,6 +13,7 @@ use MediaWiki\Http\Telemetry;
 use MediaWiki\JobQueue\IJobSpecification;
 use MediaWiki\Language\Language;
 use MediaWiki\Linker\LinkTarget;
+use MediaWiki\MainConfigNames;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Page\PageReferenceValue;
 use MediaWiki\Page\WikiPageFactory;
@@ -38,10 +39,10 @@ use Psr\Log\LoggerInterface;
 class EventFactory {
 
 	public const CONSTRUCTOR_OPTIONS = [
-		'ArticlePath',
-		'CanonicalServer',
-		'ServerName',
-		'SecretKey'
+		MainConfigNames::ArticlePath,
+		MainConfigNames::CanonicalServer,
+		MainConfigNames::ServerName,
+		MainConfigNames::SecretKey
 	];
 
 	/** @var ServiceOptions */
@@ -151,8 +152,8 @@ class EventFactory {
 		$prefixedUserURL = $this->contentLanguage->getNsText( NS_USER ) . ':' . $userName;
 		$encodedUserURL = wfUrlencode( strtr( $prefixedUserURL, ' ', '_' ) );
 		// The ArticlePath contains '$1' string where the article title should appear.
-		return $this->options->get( 'CanonicalServer' ) .
-			str_replace( '$1', $encodedUserURL, $this->options->get( 'ArticlePath' ) );
+		return $this->options->get( MainConfigNames::CanonicalServer ) .
+			str_replace( '$1', $encodedUserURL, $this->options->get( MainConfigNames::ArticlePath ) );
 	}
 
 	/**
@@ -190,8 +191,8 @@ class EventFactory {
 	private function getArticleURL( $target ) {
 		$titleURL = wfUrlencode( $this->titleFormatter->getPrefixedDBkey( $target ) );
 		// The ArticlePath contains '$1' string where the article title should appear.
-		return $this->options->get( 'CanonicalServer' ) .
-			str_replace( '$1', $titleURL, $this->options->get( 'ArticlePath' ) );
+		return $this->options->get( MainConfigNames::CanonicalServer ) .
+			str_replace( '$1', $titleURL, $this->options->get( MainConfigNames::ArticlePath ) );
 	}
 
 	/**
@@ -352,12 +353,12 @@ class EventFactory {
 		if ( $wiki !== null ) {
 			$wikiRef = WikiMap::getWiki( $wiki );
 			if ( $wikiRef === null ) {
-				$domain = $this->options->get( 'ServerName' );
+				$domain = $this->options->get( MainConfigNames::ServerName );
 			} else {
 				$domain = $wikiRef->getDisplayName();
 			}
 		} else {
-			$domain = $this->options->get( 'ServerName' );
+			$domain = $this->options->get( MainConfigNames::ServerName );
 		}
 
 		$gen = MediaWikiServices::getInstance()->getGlobalIdGenerator();
@@ -486,7 +487,7 @@ class EventFactory {
 
 		$signature = self::getEventSignature(
 			$serialized_event,
-			$this->options->get( 'SecretKey' )
+			$this->options->get( MainConfigNames::SecretKey )
 		);
 
 		$event['mediawiki_signature'] = $signature;
