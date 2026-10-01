@@ -38,8 +38,8 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	 * This method tries to reconstruct temporal ordering from semantic event
 	 * types rather than using actual timestamps.
 	 *
-	 * @param array $events
-	 * @return array
+	 * @param array[] $events
+	 * @return array[]
 	 * @throws \Exception
 	 */
 	private static function sortMoveActionsByKind( array $events ): array {

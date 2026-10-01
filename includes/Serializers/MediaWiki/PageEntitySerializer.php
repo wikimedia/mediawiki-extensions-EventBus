@@ -57,7 +57,7 @@ class PageEntitySerializer {
 	/**
 	 * Namespace IDs that count as content namespaces for {@see pageWithContentNamespaceFlag}.
 	 *
-	 * @var array
+	 * @var int[]
 	 */
 	private array $contentNamespaces;
 

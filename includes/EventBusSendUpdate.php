@@ -18,7 +18,7 @@ class EventBusSendUpdate implements DeferrableUpdate, MergeableUpdate {
 
 	/**
 	 * Associative array of event lists keyed by event service name.
-	 * @var array[]
+	 * @var array<string,array>
 	 */
 	private array $eventsByService = [];
 
@@ -27,7 +27,7 @@ class EventBusSendUpdate implements DeferrableUpdate, MergeableUpdate {
 	 *
 	 * @param EventBusFactory $eventBusFactory
 	 * @param string $eventServiceName The event service to send the events to
-	 * @param array $events List of events to send
+	 * @param array[] $events List of events to send
 	 */
 	public function __construct(
 		private readonly EventBusFactory $eventBusFactory,
@@ -49,7 +49,7 @@ class EventBusSendUpdate implements DeferrableUpdate, MergeableUpdate {
 	 *
 	 * @param EventBusFactory $eventBusFactory
 	 * @param string $streamName The event stream to send the events to
-	 * @param array $events List of events to send
+	 * @param array[] $events List of events to send
 	 * @return self
 	 */
 	public static function newForStream(

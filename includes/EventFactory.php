@@ -641,7 +641,7 @@ class EventFactory {
 	 * Create an resource change message
 	 * @param string $stream the stream to send an event to
 	 * @param LinkTarget $title
-	 * @param array $tags
+	 * @param string[] $tags
 	 * @return array
 	 */
 	public function createResourceChangeEvent(
@@ -660,9 +660,9 @@ class EventFactory {
 	/**
 	 * @param string $stream the stream to send an event to
 	 * @param RevisionRecord $revisionRecord the revision record affected by the change.
-	 * @param array $prevTags an array of previous tags
-	 * @param array $addedTags an array of added tags
-	 * @param array $removedTags an array of removed tags
+	 * @param string[] $prevTags an array of previous tags
+	 * @param string[] $addedTags an array of added tags
+	 * @param string[] $removedTags an array of removed tags
 	 * @param UserIdentity|null $user the user who made a tags change
 	 * @return array
 	 */

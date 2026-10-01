@@ -691,7 +691,7 @@ class EventBus {
 	 *        event service name.  This is a backwards compatible change, but because
 	 *        there are no other users of this extension, we can do this safely.
 	 *
-	 * @return EventBus
+	 * @return self
 	 * @throws InvalidArgumentException if EventServices or $eventServiceName is misconfigured.
 	 */
 	public static function getInstance( $eventServiceName ) {
@@ -707,7 +707,7 @@ class EventBus {
 	 * If none is found, falls back to using wgEventServiceDefault.
 	 *
 	 * @param string $stream the stream to send an event to
-	 * @return EventBus
+	 * @return self
 	 * @throws InvalidArgumentException if EventServices or $eventServiceName is misconfigured.
 	 */
 	public static function getInstanceForStream( $stream ) {

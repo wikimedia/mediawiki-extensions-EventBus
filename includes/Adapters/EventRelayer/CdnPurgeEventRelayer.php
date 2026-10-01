@@ -39,7 +39,7 @@ class CdnPurgeEventRelayer extends EventRelayer {
 
 	/**
 	 * @param string $channel
-	 * @param array $events
+	 * @param array[] $events
 	 * @return bool
 	 */
 	protected function doNotify( $channel, array $events ) {

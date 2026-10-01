@@ -364,7 +364,7 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 	 * @param string $timestamp The revision timestamp
 	 * @param string $sha1 The SHA1 hash
 	 * @param ProperPageIdentity|null $pageIdentity The page identity
-	 * @param array $additionalMethods Additional methods to mock
+	 * @param array<string,mixed> $additionalMethods Additional methods to mock
 	 * @return RevisionRecord The mocked object
 	 */
 	private function createMockRevision(
