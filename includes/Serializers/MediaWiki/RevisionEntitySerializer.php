@@ -32,11 +32,6 @@ class RevisionEntitySerializer {
 	 */
 	private const SCHEMA_VERSION_EARLIEST = '2.0.0';
 
-	/**
-	 * @param RevisionRecord $revisionRecord
-	 * @param string $schemaVersion
-	 * @return array
-	 */
 	public function toArray(
 		RevisionRecord $revisionRecord,
 		string $schemaVersion = self::SCHEMA_VERSION_EARLIEST

@@ -12,11 +12,8 @@ use MediaWiki\JobQueue\JobQueue;
 use MediaWiki\JobQueue\RunnableJob;
 
 class JobQueueEventBus extends JobQueue {
-	/**
-	 * Get the allowed queue orders for configuration validation
-	 *
-	 * @return array Subset of (random, timestamp, fifo, undefined)
-	 */
+
+	/** @inheritDoc */
 	protected function supportedOrders() {
 		return [ 'fifo' ];
 	}

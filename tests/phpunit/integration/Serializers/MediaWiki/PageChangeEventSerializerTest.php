@@ -253,10 +253,6 @@ class PageChangeEventSerializerTest extends MediaWikiIntegrationTestCase {
 	/**
 	 * DRY helper to assert two events are equal
 	 * (minus meta.dt, which is not deterministcally generated).
-	 * @param array $expected
-	 * @param arrray $actual
-	 * @param string|null $message
-	 * @return void
 	 */
 	private function assertEventEquals( array $expected, array $actual, ?string $message = null ): void {
 		// remove meta.dt from expected and actual,

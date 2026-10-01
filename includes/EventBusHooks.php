@@ -395,10 +395,6 @@ class EventBusHooks implements
 		);
 	}
 
-	/**
-	 * @param string $stream
-	 * @param RevisionRecord $revisionRecord
-	 */
 	private function sendRevisionCreateEvent(
 		string $stream,
 		RevisionRecord $revisionRecord

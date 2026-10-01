@@ -40,9 +40,6 @@ class UserEntitySerializerTest extends MediaWikiIntegrationTestCase {
 	 */
 	private array $toArrayProviders;
 
-	/**
-	 * @var UserEntitySerializer
-	 */
 	private UserEntitySerializer $userEntitySerializer;
 
 	/**

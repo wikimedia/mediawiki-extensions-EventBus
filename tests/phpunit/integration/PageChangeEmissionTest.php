@@ -587,8 +587,6 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	/**
 	 * Page move scenarios combined with multiple stream names,
 	 * to test Hooks and Domain Event serialization code paths.
-	 *
-	 * @return array
 	 */
 	public static function providePageMove(): array {
 		$streamNames = static::provideStreamName();

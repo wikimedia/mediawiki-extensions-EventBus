@@ -57,10 +57,6 @@ class RevisionSlotsEntitySerializer {
 		return $slotsAttrs;
 	}
 
-	/**
-	 * @param SlotRecord $slotRecord
-	 * @return array
-	 */
 	private function slotToArray( SlotRecord $slotRecord ): array {
 		$contentModel = $slotRecord->getModel();
 		$contentFormat = $slotRecord->getFormat();

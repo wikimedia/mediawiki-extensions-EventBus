@@ -209,10 +209,6 @@ class EventFactory {
 		return $attrs;
 	}
 
-	/**
-	 * @param RevisionSlots $slots
-	 * @return array
-	 */
 	private function createSlotRecordsAttrs( RevisionSlots $slots ): array {
 		$attrs = [];
 		foreach ( $slots->getSlots() as $slotRecord ) {

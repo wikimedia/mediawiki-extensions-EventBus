@@ -75,26 +75,12 @@ class EventBusFactory {
 	 */
 	public const EVENT_SERVICE_DISABLED_NAME = '_disabled_eventbus_';
 
-	/**
-	 * @var array|mixed
-	 */
+	/** @var array<string,array{url: string, timeout?: int, x_client_ip_forwarding_enabled?: bool}> */
 	private array $eventServiceConfig;
-
-	/**
-	 * @var string|mixed
-	 */
 	private string $eventServiceDefault;
-
-	/**
-	 * @var string|mixed
-	 */
 	private string $enableEventBus;
-
-	/**
-	 * @var int|mixed
-	 */
 	private int $maxBatchByteSize;
-
+	/** @var array<string,EventBus> */
 	private array $eventBusInstances = [];
 
 	public function __construct(

@@ -16,9 +16,6 @@ class EventSerializerTest extends MediaWikiUnitTestCase {
 	private const MOCK_EVENT_ATTRS = [ 'fieldA' => 'fieldB' ];
 	private const MOCK_REQUEST_ID = 'abcde';
 
-	/**
-	 * @var EventSerializer
-	 */
 	private EventSerializer $eventSerializer;
 	/**
 	 * We need to use setUp to have access to MediaWikiUnitTestCase methods,

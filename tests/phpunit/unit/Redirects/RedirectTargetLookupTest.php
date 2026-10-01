@@ -180,10 +180,6 @@ class RedirectTargetLookupTest extends MediaWikiUnitTestCase {
 			} );
 	}
 
-	/**
-	 * @param string $title
-	 * @return string
-	 */
 	private static function asDBKey( string $title ): string {
 		return str_replace( " ", "_", $title );
 	}

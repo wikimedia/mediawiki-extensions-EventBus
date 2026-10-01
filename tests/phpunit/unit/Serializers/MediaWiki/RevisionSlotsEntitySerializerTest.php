@@ -31,9 +31,6 @@ class RevisionSlotsEntitySerializerTest extends MediaWikiUnitTestCase {
 	 */
 	private array $toArrayProviders;
 
-	/**
-	 * @var RevisionSlotsEntitySerializer
-	 */
 	private RevisionSlotsEntitySerializer $revisionSlotsEntitySerializer;
 
 	/**

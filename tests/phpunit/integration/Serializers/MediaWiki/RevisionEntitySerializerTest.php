@@ -15,9 +15,6 @@ class RevisionEntitySerializerTest extends MediaWikiIntegrationTestCase {
 
 	private const MOCK_PAGE_TITLE = 'MyPage';
 
-	/**
-	 * @var RevisionEntitySerializer
-	 */
 	private RevisionEntitySerializer $revisionEntitySerializer;
 
 	/**
