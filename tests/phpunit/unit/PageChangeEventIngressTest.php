@@ -121,29 +121,19 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 	protected function setUp(): void {
 		parent::setUp();
 
-		// Mock $wgConf for the first path in WikiMap::getWiki
-		$mockSiteConfiguration = $this->createMock( SiteConfiguration::class );
-		$mockSiteConfiguration->method( 'loadFullData' )
-			->willReturn( null );
-		$mockSiteConfiguration->method( 'siteFromDB' )
-			->willReturn( [ 'wiki', 'unittest' ] );
-		$mockSiteConfiguration->method( 'get' )
-			->willReturnCallback( static function ( $setting ) {
-				switch ( $setting ) {
-					case 'wgCanonicalServer':
-					case 'wgServer':
-						return 'http://localhost';
-					case 'wgArticlePath':
-						return '/wiki/$1';
-					default:
-						return null;
-				}
-			} );
-
-		// Set up the global configuration to be used in static
-		// calls to WikiMap.
+		// Set up globals for static calls to WikiMap
+		global $wgCanonicalServer, $wgServer, $wgArticlePath;
+		$wgCanonicalServer = $wgServer = 'http://localhost';
+		$wgArticlePath = '/wiki/$1';
+		// TODO: $wgConf mock can be remove after https://gerrit.wikimedia.org/r/1351533
 		global $wgConf;
-		$wgConf = $mockSiteConfiguration;
+		$wgConf = new SiteConfiguration();
+		$wgConf->suffixes = [ '' ];
+		$wgConf->settings = [
+			'wgCanonicalServer' => [ 'default' => $wgCanonicalServer ],
+			'wgServer' => [ 'default' => $wgServer ],
+			'wgArticlePath' => [ 'default' => $wgArticlePath ],
+		];
 
 		$handlerSpecs = [
 			'handlerOne' => [
@@ -159,10 +149,10 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 		$this->eventBusFactory = $this->createMock( EventBusFactory::class );
 		$this->streamNameMapper = $this->createMock( StreamNameMapper::class );
 		$this->mainConfig = new HashConfig( [
-			MainConfigNames::Server => 'http://localhost',
-			MainConfigNames::CanonicalServer => 'http://localhost',
+			MainConfigNames::Server => $wgServer,
+			MainConfigNames::CanonicalServer => $wgCanonicalServer,
 			MainConfigNames::DBname => 'my_wiki-unittest_',
-			MainConfigNames::ArticlePath => '/wiki/$1',
+			MainConfigNames::ArticlePath => $wgArticlePath,
 			MainConfigNames::ContentNamespaces => [ NS_MAIN ],
 		] );
 
