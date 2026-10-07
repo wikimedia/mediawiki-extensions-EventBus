@@ -39,6 +39,19 @@ class LinkedArtifactResponseTest extends MediaWikiUnitTestCase {
 		];
 	}
 
+	public function testIsNotCachedRequiresBothA504AndAProblemBody(): void {
+		// LAC reports an only-if-cached miss as a 504 with an RFC7807 problem object.
+		// A bare 504 is something else, e.g. a proxy timeout.
+		$this->assertTrue(
+			( new LinkedArtifactResponse( 504, 'application/problem+json' ) )->isNotCached()
+		);
+		$this->assertFalse( ( new LinkedArtifactResponse( 504, 'text/plain' ) )->isNotCached() );
+		$this->assertFalse( ( new LinkedArtifactResponse( 504, null ) )->isNotCached() );
+		$this->assertFalse(
+			( new LinkedArtifactResponse( 404, 'application/problem+json' ) )->isNotCached()
+		);
+	}
+
 	public function testIsNotFoundRequiresBothA404AndAProblemBody(): void {
 		// LAC reports a missing artifact as a 404 with an RFC7807 problem object. A bare
 		// 404 is something else (a bad route, a proxy) and may be worth retrying.

@@ -71,13 +71,28 @@ class LinkedArtifactResponse {
 	 * Whether LAC reported that it has no artifact: a 404 with an RFC7807
 	 * `application/problem+json` body.
 	 *
-	 * An expected outcome rather than a failure, so callers should not retry. Note that
-	 * LAC does not distinguish "nothing is cached for this key" from "no lambda is
-	 * registered for this artifact".
+	 * For a revision artifact, LAC returns a 404 when the artifact name is not one of
+	 * its configured caches. A retry cannot fix this. A cache miss is not a 404:
+	 * without only-if-cached LAC computes the artifact, and with only-if-cached the
+	 * miss is a 504, see {@link isNotCached()}.
 	 */
 	public function isNotFound(): bool {
-		return $this->statusCode === 404 &&
-			$this->contentType !== null &&
+		return $this->statusCode === 404 && $this->isProblem();
+	}
+
+	/**
+	 * Whether LAC reported that it has no stored artifact for a request with
+	 * `Cache-Control: only-if-cached`: a 504 with an RFC7807 `application/problem+json` body.
+	 *
+	 * An expected outcome rather than a failure. LAC did not compute the artifact.
+	 * A 504 without a problem body is something else, e.g. a proxy timeout.
+	 */
+	public function isNotCached(): bool {
+		return $this->statusCode === 504 && $this->isProblem();
+	}
+
+	private function isProblem(): bool {
+		return $this->contentType !== null &&
 			str_starts_with( $this->contentType, 'application/problem+json' );
 	}
 }

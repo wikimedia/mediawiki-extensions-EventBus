@@ -26,7 +26,7 @@ We are calling this event triggered request a **precompute**.
 1. A user edits a page; MediaWiki emits `PageLatestRevisionChanged`.
 2. `LinkedArtifactsPrecomputeIngress` receives it. For each configured artifact that this
    event should trigger, a `linkedArtifactPrecompute` job is enqueued.
-3. `LinkedArtifactPrecomputeJob` runs and calls `LinkedArtifactsFetcher::fetch()`,
+3. `LinkedArtifactPrecomputeJob` runs and calls `LinkedArtifactsClient::fetch()`,
    which GETs the artifact from LAC with `Cache-Control: no-cache`, causing LAC to consult the lambda and store the result.
 
 ## The classes
@@ -36,28 +36,33 @@ We are calling this event triggered request a **precompute**.
 | `LinkedArtifactsConfig` | Interface for parsed and validated `$wgEventBusLinkedArtifacts` config. |
 | `LinkedArtifactsPrecomputeIngress` | Maps DomainEvents to precompute jobs |
 | `LinkedArtifactPrecomputeJob` | Force-refreshes one artifact URI |
-| `LinkedArtifactsFetcher` | Locates and fetches artifacts from LAC. Callers should use this. |
+| `LinkedArtifactsClient` | Client for the LAC HTTP API: locates and fetches artifacts. Callers should use this. |
 | `LinkedArtifactResponse` | Represents a response from LAC, with the response body. |
 
 The precompute job carries the **LAC artifact URI path**. The URI path is the LAC cache key.
 
 ## Reading a Revision linked artifact
 
-Use `EventBus.LinkedArtifactsFetcher`.
+Use `EventBus.LinkedArtifactsClient`.
 
 ```php
 // Verify that this page should have this artifact.
-if ( $fetcher->coversPage( 'my-artifact', $wikiId, $pageId, $namespace ) ) {
+if ( $client->coversPage( 'my-artifact', $wikiId, $pageId, $namespace ) ) {
 	// Fetch a revision entity artifact from LAC.
-	$response = $fetcher->fetchRevisionArtifact( 'my-artifact', $wikiId, $pageId, $revisionId, $timeoutMs );
+	$response = $client->fetchRevisionArtifact( 'my-artifact', $wikiId, $pageId, $revisionId, $timeoutMs );
 }
 ```
 
 `coversPage()` is false when the feature is disabled or the artifact does not cover the
 page.
 
-`LinkedArtifactResponse::isNotFound()` means the LAC has no artifact for that key. It does
-not distinguish "not computed yet" from "no lambda registered".
+By default, LAC computes the artifact on a cache miss, and the request waits for the lambda.
+To not wait, and not make LAC compute the artifact, pass
+`LinkedArtifactsClient::CACHE_CONTROL_ONLY_IF_CACHED` as `$cacheControl`.
+`LinkedArtifactResponse::isNotCached()` is then true on a miss.
+
+`LinkedArtifactResponse::isNotFound()` means that LAC has no cache for the artifact name.
+It does not mean a cache miss.
 
 ## Configuration
 
@@ -74,7 +79,7 @@ affects precompute only:
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `entity_kind` | string | **required** | The kind of entity the artifact is linked to (and keyed by); selects which fetcher addresses it.  As of 2026-09, only 'revision' is supported. |
+| `entity_kind` | string | **required** | The kind of entity the artifact is linked to (and keyed by); selects which client method addresses it.  As of 2026-09, only 'revision' is supported. |
 | `precompute.enabled` | bool | `true` | Set false to stop precomputing this artifact, draining any queued jobs |
 | `precompute.events` | string[] | `[]` | Domain event types that trigger a precompute |
 | `precompute.timeout_ms` | int | `LinkedArtifactsConfig::PRECOMPUTE_TIMEOUT_MS_DEFAULT` | Timeout for the no-cache request from the precompute job.|
@@ -82,7 +87,7 @@ affects precompute only:
 | `page.namespaces` | int[] | all | Namespaces this artifact covers |
 | `page.sample` | float | `1.0` | Fraction of pages covered, `0.0`–`1.0` |
 
-`page.sample` and `page.namespaces` used by `LinkedArtifactsFetcher::coversPage()` to decide which pages an
+`page.sample` and `page.namespaces` used by `LinkedArtifactsClient::coversPage()` to decide which pages an
 artifact covers.
 
 ```php

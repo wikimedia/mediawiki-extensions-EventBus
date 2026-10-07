@@ -4,8 +4,8 @@ namespace MediaWiki\Extension\EventBus\Tests\Unit\LinkedArtifacts\Job;
 
 use MediaWiki\Extension\EventBus\LinkedArtifacts\Job\LinkedArtifactPrecomputeJob;
 use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactResponse;
+use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsClient;
 use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsConfig;
-use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsFetcher;
 use MediaWikiUnitTestCase;
 
 /**
@@ -41,17 +41,17 @@ class LinkedArtifactPrecomputeJobTest extends MediaWikiUnitTestCase {
 		LinkedArtifactResponse $response,
 		?array $params = null
 	): LinkedArtifactPrecomputeJob {
-		$fetcher = $this->createMock( LinkedArtifactsFetcher::class );
+		$client = $this->createMock( LinkedArtifactsClient::class );
 		// The job force-refreshes the configured path at the artifact's own timeout
 		// (30000ms), not the top-level default (5000ms).
-		$fetcher->expects( $this->once() )
+		$client->expects( $this->once() )
 			->method( 'fetch' )
-			->with( self::PATH, 30000, true )
+			->with( self::PATH, 30000, LinkedArtifactsClient::CACHE_CONTROL_NO_CACHE )
 			->willReturn( $response );
 
 		return new LinkedArtifactPrecomputeJob(
 			$params ?? self::jobParams(),
-			$fetcher,
+			$client,
 			self::newConfig()
 		);
 	}
@@ -78,12 +78,12 @@ class LinkedArtifactPrecomputeJobTest extends MediaWikiUnitTestCase {
 	}
 
 	public function testAJobWithNoPathIsDroppedWithoutAnyRequest(): void {
-		$fetcher = $this->createMock( LinkedArtifactsFetcher::class );
-		$fetcher->expects( $this->never() )->method( 'fetch' );
+		$client = $this->createMock( LinkedArtifactsClient::class );
+		$client->expects( $this->never() )->method( 'fetch' );
 
 		$job = new LinkedArtifactPrecomputeJob(
 			[ LinkedArtifactPrecomputeJob::ARTIFACT_NAME_PARAM => 'my-artifact' ],
-			$fetcher,
+			$client,
 			self::newConfig()
 		);
 
@@ -94,8 +94,8 @@ class LinkedArtifactPrecomputeJobTest extends MediaWikiUnitTestCase {
 	public function testAnArtifactWithPrecomputeDisabledDropsTheJob(): void {
 		// The point of the per-artifact switch: turning it off drains jobs already queued
 		// for that artifact, which blanking its `events` cannot do.
-		$fetcher = $this->createMock( LinkedArtifactsFetcher::class );
-		$fetcher->expects( $this->never() )->method( 'fetch' );
+		$client = $this->createMock( LinkedArtifactsClient::class );
+		$client->expects( $this->never() )->method( 'fetch' );
 
 		$config = new LinkedArtifactsConfig( [
 			'enabled' => true,
@@ -104,16 +104,16 @@ class LinkedArtifactPrecomputeJobTest extends MediaWikiUnitTestCase {
 			],
 		] );
 
-		$this->assertTrue( ( new LinkedArtifactPrecomputeJob( self::jobParams(), $fetcher, $config ) )->run() );
+		$this->assertTrue( ( new LinkedArtifactPrecomputeJob( self::jobParams(), $client, $config ) )->run() );
 	}
 
 	public function testADisabledWikiDropsTheJobWithoutAnyRequest(): void {
 		// The feature can be switched off after a job is enqueued; queued jobs must not
 		// keep precomputing artifacts readers are no longer allowed to ask for.
-		$fetcher = $this->createMock( LinkedArtifactsFetcher::class );
-		$fetcher->expects( $this->never() )->method( 'fetch' );
+		$client = $this->createMock( LinkedArtifactsClient::class );
+		$client->expects( $this->never() )->method( 'fetch' );
 
-		$job = new LinkedArtifactPrecomputeJob( self::jobParams(), $fetcher, self::newConfig( false ) );
+		$job = new LinkedArtifactPrecomputeJob( self::jobParams(), $client, self::newConfig( false ) );
 
 		$this->assertTrue( $job->run() );
 	}

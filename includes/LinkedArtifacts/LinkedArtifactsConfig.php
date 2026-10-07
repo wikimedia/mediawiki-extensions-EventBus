@@ -208,7 +208,7 @@ class LinkedArtifactsConfig {
 
 	/**
 	 * Timeout in milliseconds for precomputing an artifact, to use as
-	 * {@link LinkedArtifactsFetcher::fetch()} `timeout` parameter.
+	 * {@link LinkedArtifactsClient::fetch()} `timeout` parameter.
 	 * Precomputes are expected to be a cache miss that triggers a
 	 * lambda compute, so this could potentially be higher than a reader's timeout.
 	 *
@@ -292,7 +292,7 @@ class LinkedArtifactsConfig {
 	 * i.e. whether the page is in an enabled namespace and within
 	 * the artifact's sample.
 	 *
-	 * NOTE: {@link LinkedArtifactsFetcher::coversPage()} should likely be called instead.
+	 * NOTE: {@link LinkedArtifactsClient::coversPage()} should likely be called instead.
 	 *
 	 * @param string $artifactName
 	 * @param string|false $wikiId The page's wiki ID; false for the local wiki.

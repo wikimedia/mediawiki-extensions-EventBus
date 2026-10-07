@@ -23,10 +23,11 @@ declare( strict_types=1 );
 namespace MediaWiki\Extension\EventBus\LinkedArtifacts;
 
 use Psr\Log\LoggerInterface;
+use Wikimedia\Assert\Assert;
 use Wikimedia\Http\MultiHttpClient;
 
 /**
- * Locates and fetches artifacts in the Hoarde "Linked Artifacts Cache" (LAC).
+ * Client for the HTTP API of the Hoarde "Linked Artifacts Cache" (LAC).
  *
  * Used by the {@link LinkedArtifactPrecomputeJob} as well
  * as for regular readers fetching artifacts.
@@ -39,7 +40,21 @@ use Wikimedia\Http\MultiHttpClient;
  * @see https://gitlab.wikimedia.org/repos/sre/hoarde/-/blob/main/API.md
  * @unstable
  */
-class LinkedArtifactsFetcher {
+class LinkedArtifactsClient {
+
+	/**
+	 * `Cache-Control` request directive: LAC disregards any stored artifact and computes
+	 * it with the lambda. Use it to precompute an artifact.
+	 */
+	public const CACHE_CONTROL_NO_CACHE = 'no-cache';
+
+	/**
+	 * `Cache-Control` request directive: LAC returns a stored artifact, and does not
+	 * compute it on a miss. A miss is a 504, see {@link LinkedArtifactResponse::isNotCached()}.
+	 */
+	public const CACHE_CONTROL_ONLY_IF_CACHED = 'only-if-cached';
+
+	private const CACHE_CONTROL_DIRECTIVES = [ self::CACHE_CONTROL_NO_CACHE, self::CACHE_CONTROL_ONLY_IF_CACHED ];
 
 	/**
 	 * The `entity_kind` value in $wgEventBusLinkedArtifacts served by the revision methods.
@@ -121,7 +136,7 @@ class LinkedArtifactsFetcher {
 	 * @param int $pageId
 	 * @param int $revisionId
 	 * @param int $timeoutMs Request timeout in milliseconds, the caller's own budget.
-	 * @param bool $noCache Force LAC to recompute rather than return what it has.
+	 * @param string|null $cacheControl See {@link fetch()}.
 	 * @return LinkedArtifactResponse
 	 */
 	public function fetchRevisionArtifact(
@@ -130,12 +145,12 @@ class LinkedArtifactsFetcher {
 		int $pageId,
 		int $revisionId,
 		int $timeoutMs,
-		bool $noCache = false
+		?string $cacheControl = null
 	): LinkedArtifactResponse {
 		return $this->fetch(
 			$this->getRevisionArtifactUri( $artifactName, $wikiId, $pageId, $revisionId ),
 			$timeoutMs,
-			$noCache
+			$cacheControl
 		);
 	}
 
@@ -144,21 +159,29 @@ class LinkedArtifactsFetcher {
 	 *
 	 * @param string $artifactUri A LAC URI path, as built by one of the methods above.
 	 * @param int $timeoutMs Request timeout in milliseconds.
-	 * @param bool $noCache When true, send `Cache-Control: no-cache` so LAC disregards any
-	 *   stored output and consults the lambda — i.e. compute it. Only meaningful for a URI
-	 *   naming one entity; LAC's page-scoped route has no single revision to recompute.
+	 * @param string|null $cacheControl The `Cache-Control` request directive:
+	 *   {@link CACHE_CONTROL_NO_CACHE}, {@link CACHE_CONTROL_ONLY_IF_CACHED}, or null for none.
+	 *   With none, LAC returns a stored artifact, or computes it on a miss.
+	 *   CACHE_CONTROL_NO_CACHE is only meaningful for a URI naming one entity;
+	 *   LAC's page-scoped route has no single revision to recompute.
 	 * @return LinkedArtifactResponse
 	 */
 	public function fetch(
 		string $artifactUri,
 		int $timeoutMs,
-		bool $noCache = false
+		?string $cacheControl = null
 	): LinkedArtifactResponse {
+		Assert::parameter(
+			$cacheControl === null || in_array( $cacheControl, self::CACHE_CONTROL_DIRECTIVES, true ),
+			'$cacheControl',
+			'must be null or one of: ' . implode( ', ', self::CACHE_CONTROL_DIRECTIVES )
+		);
+
 		$url = rtrim( $this->config->getBaseUrl(), '/' ) . $artifactUri;
 
 		$headers = [];
-		if ( $noCache ) {
-			$headers['Cache-Control'] = 'no-cache';
+		if ( $cacheControl !== null ) {
+			$headers['Cache-Control'] = $cacheControl;
 		}
 
 		$responses = $this->http->runMulti(
@@ -186,7 +209,9 @@ class LinkedArtifactsFetcher {
 		// object, which is worth having when debugging.
 		$response = new LinkedArtifactResponse( $statusCode, $contentType, $body );
 
-		if ( !$response->isSuccess() ) {
+		// An only-if-cached miss is an expected response. The caller decides what to do with it.
+		$isExpectedMiss = $cacheControl === self::CACHE_CONTROL_ONLY_IF_CACHED && $response->isNotCached();
+		if ( !$response->isSuccess() && !$isExpectedMiss ) {
 			$context = [
 				'url' => $url,
 				'status_code' => $statusCode,

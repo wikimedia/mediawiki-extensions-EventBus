@@ -5,8 +5,8 @@ use MediaWiki\Extension\CentralAuth\CentralAuthServices;
 use MediaWiki\Extension\EventBus\EventBusFactory;
 use MediaWiki\Extension\EventBus\EventFactory;
 use MediaWiki\Extension\EventBus\GlobalEditCountLookup;
+use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsClient;
 use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsConfig;
-use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsFetcher;
 use MediaWiki\Extension\EventBus\Serializers\EventSerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageEntitySerializer;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageLinkEntitySerializer;
@@ -177,10 +177,10 @@ return [
 		);
 	},
 
-	'EventBus.LinkedArtifactsFetcher' => static function (
+	'EventBus.LinkedArtifactsClient' => static function (
 		MediaWikiServices $services
-	): LinkedArtifactsFetcher {
-		return new LinkedArtifactsFetcher(
+	): LinkedArtifactsClient {
+		return new LinkedArtifactsClient(
 			$services->get( 'EventBus.LinkedArtifactsConfig' ),
 			$services->getHttpRequestFactory()->createMultiClient( [
 				'telemetry' => $services->getTracer()

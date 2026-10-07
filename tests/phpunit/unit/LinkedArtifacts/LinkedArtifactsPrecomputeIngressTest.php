@@ -3,8 +3,8 @@
 namespace MediaWiki\Extension\EventBus\Tests\Unit\LinkedArtifacts;
 
 use MediaWiki\Extension\EventBus\LinkedArtifacts\Job\LinkedArtifactPrecomputeJob;
+use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsClient;
 use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsConfig;
-use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsFetcher;
 use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsPrecomputeIngress;
 use MediaWiki\JobQueue\JobQueueGroup;
 use MediaWiki\JobQueue\JobSpecification;
@@ -42,7 +42,7 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiUnitTestCase {
 		return new LinkedArtifactsPrecomputeIngress(
 			$jobQueueGroup,
 			$config,
-			new LinkedArtifactsFetcher(
+			new LinkedArtifactsClient(
 				$config,
 				$this->createMock( MultiHttpClient::class ),
 				$this->createMock( LoggerInterface::class )

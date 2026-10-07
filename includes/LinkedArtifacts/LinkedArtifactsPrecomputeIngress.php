@@ -46,16 +46,16 @@ class LinkedArtifactsPrecomputeIngress
 
 	private JobQueueGroup $jobQueueGroup;
 	private LinkedArtifactsConfig $config;
-	private LinkedArtifactsFetcher $fetcher;
+	private LinkedArtifactsClient $client;
 
 	public function __construct(
 		JobQueueGroup $jobQueueGroup,
 		LinkedArtifactsConfig $config,
-		LinkedArtifactsFetcher $fetcher
+		LinkedArtifactsClient $client
 	) {
 		$this->jobQueueGroup = $jobQueueGroup;
 		$this->config = $config;
-		$this->fetcher = $fetcher;
+		$this->client = $client;
 	}
 
 	// NOTE: PageLatestRevisionChanged is emitted for every new latest revision,
@@ -104,16 +104,16 @@ class LinkedArtifactsPrecomputeIngress
 
 			// If we need to support more entityKinds, add them here.
 			switch ( $entityKind ) {
-				case LinkedArtifactsFetcher::REVISION_ENTITY_KIND:
+				case LinkedArtifactsClient::REVISION_ENTITY_KIND:
 					// If this page should be precomputed
-					if ( $this->fetcher->coversPage(
+					if ( $this->client->coversPage(
 						$artifactName,
 						$wikiId,
 						$pageId,
 						$page->getNamespace(),
 					) ) {
 						// Get the artifact URI for this revision entity linked artifact.
-						$artifactUri = $this->fetcher->getRevisionArtifactUri(
+						$artifactUri = $this->client->getRevisionArtifactUri(
 							$artifactName,
 							$wikiId,
 							$pageId,

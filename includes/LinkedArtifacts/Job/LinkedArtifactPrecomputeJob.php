@@ -22,8 +22,8 @@ declare( strict_types=1 );
 
 namespace MediaWiki\Extension\EventBus\LinkedArtifacts\Job;
 
+use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsClient;
 use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsConfig;
-use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsFetcher;
 use MediaWiki\JobQueue\Job;
 use MediaWiki\Logger\LoggerFactory;
 use Psr\Log\LoggerInterface;
@@ -51,17 +51,17 @@ class LinkedArtifactPrecomputeJob extends Job {
 	 */
 	public const ARTIFACT_NAME_PARAM = 'artifact_name';
 
-	private LinkedArtifactsFetcher $fetcher;
+	private LinkedArtifactsClient $client;
 	private LinkedArtifactsConfig $config;
 	private LoggerInterface $logger;
 
 	public function __construct(
 		array $params,
-		LinkedArtifactsFetcher $fetcher,
+		LinkedArtifactsClient $client,
 		LinkedArtifactsConfig $config
 	) {
 		parent::__construct( self::JOB_NAME, $params );
-		$this->fetcher = $fetcher;
+		$this->client = $client;
 		$this->config = $config;
 		$this->logger = LoggerFactory::getInstance( 'EventBus.LinkedArtifacts' );
 	}
@@ -104,11 +104,10 @@ class LinkedArtifactPrecomputeJob extends Job {
 
 		// TODO: rather than calling fetch here, we will probably want to call
 		//       a specific precompute method that will handle emitting LACComputed DomainEvents.
-		$response = $this->fetcher->fetch(
+		$response = $this->client->fetch(
 			$artifactUri,
 			$this->config->getPrecomputeTimeoutMs( $artifactName ),
-			// force fetch with no-cache.
-			true
+			LinkedArtifactsClient::CACHE_CONTROL_NO_CACHE
 		);
 
 		if ( $response->isSuccess() ) {
