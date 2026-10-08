@@ -31,7 +31,7 @@ We are calling this event triggered request a **precompute**.
 
 1. A user edits a page; MediaWiki emits `PageLatestRevisionChanged` DomainEvent.
 2. `LinkedArtifactsPrecomputeIngress` receives it. For each configured artifact that this
-   event should trigger, a `linkedArtifactPrecompute` job is enqueued.
+   event should trigger, a `linkedArtifactPrecompute.<artifact_name>` job is enqueued.
 3. `LinkedArtifactPrecomputeJob` runs and calls `LinkedArtifactsPrecompute`,
    which GETs the artifact from LAC with `Cache-Control: no-cache`, causing LAC to consult the lambda and store the result.
 4. On success, `LinkedArtifactsPrecompute` dispatches a `RevisionLinkedArtifactPrecomputed`
@@ -144,3 +144,22 @@ $wgEventBusLinkedArtifacts = [
 	],
 ];
 ```
+
+## Job queue
+
+Each configured artifact has its own job type,
+`linkedArtifactPrecompute.<artifact_name>`. All of these job types use `LinkedArtifactPrecomputeJob`.
+The job type is the job queue, so each artifact has its own Kafka topic at WMF
+(`mediawiki.job.linkedArtifactPrecompute.<artifact_name>`). A slow lambda then does not delay
+the precompute of other artifacts.
+
+`LinkedArtifactPrecomputeJob::onRegistration()` (the extension registration callback) adds the job
+types to `$wgJobClasses` from `$wgEventBusLinkedArtifacts`. No extension.json change is needed
+for a new artifact.
+
+Artifact names must match `[A-Za-z0-9_-]+` and have at most 120 characters, because they are part of
+the job type and the topic name.
+Renaming an artifact changes its job type: jobs that are queued under the old type cannot run.
+
+At WMF, change-prop's `low_traffic_jobs` rule runs all `mediawiki.job.*` topics. To give an artifact
+its own concurrency, add its job type to `high_traffic_jobs_config` in operations/deployment-charts.

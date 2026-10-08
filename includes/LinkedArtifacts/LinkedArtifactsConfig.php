@@ -100,6 +100,20 @@ class LinkedArtifactsConfig {
 	private const ENTITY_KINDS = [ self::REVISION_ENTITY_KIND ];
 
 	/**
+	 * Artifact names are part of job types and Kafka topic names. A dot is not allowed,
+	 * because it separates the parts of a job type.
+	 */
+	private const ARTIFACT_NAME_PATTERN = '/^[A-Za-z0-9_-]+$/';
+
+	/**
+	 * Maximum artifact name length. Kafka topic names can have up to 249 characters.
+	 * The topic name of a job type also contains a prefix,
+	 * e.g. `eqiad.mediawiki.job.linkedArtifactPrecompute.`,
+	 * and change-prop adds prefixes for its retry topics.
+	 */
+	private const ARTIFACT_NAME_MAX_LENGTH = 120;
+
+	/**
 	 * Default precompute fetch timeout for artifacts that do not set their own.
 	 *
 	 * Deliberately a code default rather than a config setting: per-artifact overrides
@@ -171,6 +185,16 @@ class LinkedArtifactsConfig {
 		// The artifact name is the LAC cache name and the first component of every
 		// artifact URL.
 		Assert::parameter( $artifactName !== '', 'artifacts', 'must not contain an empty artifact name' );
+		Assert::parameter(
+			preg_match( self::ARTIFACT_NAME_PATTERN, $artifactName ) === 1,
+			'artifacts',
+			"artifact name '$artifactName' must match " . self::ARTIFACT_NAME_PATTERN
+		);
+		Assert::parameter(
+			strlen( $artifactName ) <= self::ARTIFACT_NAME_MAX_LENGTH,
+			'artifacts',
+			"artifact name '$artifactName' must have at most " . self::ARTIFACT_NAME_MAX_LENGTH . ' characters'
+		);
 
 		// dotted config key, used for assertion error messages.
 		$configKey = 'artifacts.' . $artifactName;

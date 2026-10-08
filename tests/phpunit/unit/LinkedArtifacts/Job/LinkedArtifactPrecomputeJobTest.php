@@ -2,10 +2,13 @@
 
 namespace MediaWiki\Extension\EventBus\Tests\Unit\LinkedArtifacts\Job;
 
+use MediaWiki\Config\HashConfig;
 use MediaWiki\Extension\EventBus\LinkedArtifacts\Job\LinkedArtifactPrecomputeJob;
 use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactResponse;
 use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsConfig;
 use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsPrecompute;
+use MediaWiki\MainConfigNames;
+use MediaWiki\Settings\SettingsBuilder;
 use MediaWikiUnitTestCase;
 
 /**
@@ -43,6 +46,17 @@ class LinkedArtifactPrecomputeJobTest extends MediaWikiUnitTestCase {
 		$precompute = $this->createMock( LinkedArtifactsPrecompute::class );
 		$precompute->expects( $this->never() )->method( 'precomputeRevisionArtifact' );
 		return $precompute;
+	}
+
+	public function testTheJobTypeIsTheArtifactJobType(): void {
+		$this->assertSame(
+			'linkedArtifactPrecompute.my-artifact',
+			LinkedArtifactPrecomputeJob::getJobType( 'my-artifact' )
+		);
+		$job = new LinkedArtifactPrecomputeJob(
+			self::jobParams(), $this->newNeverCalledPrecompute(), self::newConfig()
+		);
+		$this->assertSame( 'linkedArtifactPrecompute.my-artifact', $job->getType() );
 	}
 
 	/**
@@ -153,5 +167,71 @@ class LinkedArtifactPrecomputeJobTest extends MediaWikiUnitTestCase {
 		);
 
 		$this->assertTrue( $job->run() );
+	}
+
+	/**
+	 * @param mixed $linkedArtifacts EventBusLinkedArtifacts config.
+	 * @return array|null The JobClasses that onRegistration() sets, or null if it sets none.
+	 */
+	private function runOnRegistration( $linkedArtifacts ): ?array {
+		$jobClasses = null;
+		$settings = $this->createMock( SettingsBuilder::class );
+		$settings->method( 'getConfig' )->willReturn( new HashConfig( [
+			'EventBusLinkedArtifacts' => $linkedArtifacts,
+			MainConfigNames::JobClasses => [
+				'otherJob' => 'OtherJob',
+				self::siteJobType() => 'SiteDefinedJob',
+			],
+		] ) );
+		$settings->method( 'overrideConfigValue' )
+			->willReturnCallback( static function ( string $key, $value ) use ( &$jobClasses, $settings ) {
+				$jobClasses = $value;
+				return $settings;
+			} );
+		LinkedArtifactPrecomputeJob::onRegistration( [], $settings );
+		return $jobClasses;
+	}
+
+	private static function siteJobType(): string {
+		return LinkedArtifactPrecomputeJob::getJobType( 'disabled' );
+	}
+
+	public function testOnRegistrationRegistersAJobTypeForEachArtifact(): void {
+		$jobClasses = $this->runOnRegistration( [
+			'artifacts' => [
+				'with_events' => [ 'entity_kind' => 'revision', 'precompute' => [ 'events' => [ 'E' ] ] ],
+				// Jobs that are queued before precompute is disabled must still run.
+				'disabled' => [ 'entity_kind' => 'revision', 'precompute' => [ 'enabled' => false ] ],
+				'read_only' => [ 'entity_kind' => 'revision' ],
+				// The registration callback must not throw on malformed config.
+				'malformed' => 'not an array',
+			],
+		] );
+
+		$this->assertSame(
+			[
+				'otherJob' => 'OtherJob',
+				// A job type that the site configures explicitly wins.
+				self::siteJobType() => 'SiteDefinedJob',
+				LinkedArtifactPrecomputeJob::getJobType( 'with_events' ) => LinkedArtifactPrecomputeJob::JOB_SPEC,
+				LinkedArtifactPrecomputeJob::getJobType( 'read_only' ) => LinkedArtifactPrecomputeJob::JOB_SPEC,
+				LinkedArtifactPrecomputeJob::getJobType( 'malformed' ) => LinkedArtifactPrecomputeJob::JOB_SPEC,
+			],
+			$jobClasses
+		);
+	}
+
+	/**
+	 * @dataProvider provideConfigWithoutArtifacts
+	 */
+	public function testOnRegistrationWithoutArtifactsSetsNothing( $linkedArtifacts ): void {
+		$this->assertNull( $this->runOnRegistration( $linkedArtifacts ) );
+	}
+
+	public static function provideConfigWithoutArtifacts(): iterable {
+		yield 'no artifacts key' => [ [] ];
+		yield 'empty artifacts' => [ [ 'artifacts' => [] ] ];
+		yield 'artifacts is not an array' => [ [ 'artifacts' => 'bad' ] ];
+		yield 'config is not an array' => [ 'bad' ];
 	}
 }

@@ -27,22 +27,40 @@ use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsConfig;
 use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsPrecompute;
 use MediaWiki\JobQueue\Job;
 use MediaWiki\Logger\LoggerFactory;
+use MediaWiki\MainConfigNames;
+use MediaWiki\Settings\SettingsBuilder;
 use Psr\Log\LoggerInterface;
 
 /**
  * Precomputes one Linked Artifacts Cache (LAC) artifact via {@link LinkedArtifactsPrecompute}.
  *
- * This job is respsonsible for triggering precompute for all artifacts configured in
- * $wgEventBusLinkedArtifacts.  This is nice, because users don't have to implement a new Job class
- * just to configure artifact precompute.  However, it also means that all artifact precompute jobs
- * will use the same queue (Kafka topic at WMF). It would be nice to consider allowing JobQueue to
- * support jobs specifying a subqueue (topic) even if they use the same Job class implementation.
+ * This job precomputes artifacts configured in $wgEventBusLinkedArtifacts.
+ *
+ * Each configured artifact has its own job type, see {@link getJobType()}.
+ * Each artifact has its own queue (a Kafka topic at WMF)
+ * and its own job runner settings. {@link onRegistration()} registers
+ * the job types in $wgJobClasses.
  *
  * @unstable
  */
 class LinkedArtifactPrecomputeJob extends Job {
 
-	public const JOB_NAME = 'linkedArtifactPrecompute';
+	/**
+	 * Prefix of the job type of each artifact. See {@link getJobType()}.
+	 */
+	public const JOB_TYPE_PREFIX = 'linkedArtifactPrecompute';
+
+	/**
+	 * The $wgJobClasses ObjectFactory spec for the job type of each artifact.
+	 */
+	public const JOB_SPEC = [
+		'class' => self::class,
+		'needsPage' => false,
+		'services' => [
+			'EventBus.LinkedArtifactsPrecompute',
+			'EventBus.LinkedArtifactsConfig',
+		],
+	];
 
 	/**
 	 * Job params key for the artifact name. Used for logs, errors and metrics
@@ -78,8 +96,21 @@ class LinkedArtifactPrecomputeJob extends Job {
 		private readonly LinkedArtifactsPrecompute $precompute,
 		private readonly LinkedArtifactsConfig $config
 	) {
-		parent::__construct( self::JOB_NAME, $params );
+		// JobFactory sets the registered job type after construction. This sets the same type
+		// when code constructs the job directly.
+		parent::__construct( self::getJobType( (string)( $params[self::ARTIFACT_NAME_PARAM] ?? '' ) ), $params );
 		$this->logger = LoggerFactory::getInstance( 'EventBus.LinkedArtifacts' );
+	}
+
+	/**
+	 * The job type of the precompute jobs of an artifact, e.g.
+	 * `linkedArtifactPrecompute.revision_feature_counts`.
+	 *
+	 * @param string $artifactName
+	 * @return string
+	 */
+	public static function getJobType( string $artifactName ): string {
+		return self::JOB_TYPE_PREFIX . '.' . $artifactName;
 	}
 
 	/** @inheritDoc */
@@ -176,6 +207,40 @@ class LinkedArtifactPrecomputeJob extends Job {
 			$trigger['event_type'] ?? null,
 			$trigger['cause'] ?? null,
 			(bool)( $trigger['is_reconciliation_request'] ?? false )
+		);
+	}
+
+	/**
+	 * Extension registration callback. Registers a job type in $wgJobClasses for each artifact
+	 * in EventBusLinkedArtifacts config, see {@link getJobType()}.
+	 *
+	 * Artifacts that have precompute.enabled = false still have a job type.
+	 * This allows jobs that are queued before precompute is disabled to still run,
+	 * and drop themselves gracefully.
+	 *
+	 * This must not throw: an exception here stops MediaWiki setup for every request.
+	 * It does not validate the config. LinkedArtifactsConfig does that.
+	 *
+	 * @param array $info Extension credits.
+	 * @param SettingsBuilder $settings
+	 */
+	public static function onRegistration( array $info, SettingsBuilder $settings ): void {
+		$config = $settings->getConfig();
+		$linkedArtifacts = $config->get( 'EventBusLinkedArtifacts' );
+		$artifacts = is_array( $linkedArtifacts ) ? ( $linkedArtifacts['artifacts'] ?? null ) : null;
+		if ( !is_array( $artifacts ) || !$artifacts ) {
+			return;
+		}
+
+		$jobClasses = [];
+		foreach ( array_keys( $artifacts ) as $artifactName ) {
+			$jobClasses[self::getJobType( (string)$artifactName )] = self::JOB_SPEC;
+		}
+
+		// Job types that the site configures explicitly win.
+		$settings->overrideConfigValue(
+			MainConfigNames::JobClasses,
+			$config->get( MainConfigNames::JobClasses ) + $jobClasses
 		);
 	}
 }

@@ -175,15 +175,6 @@
 	"ServiceWiringFiles": [
 		"ServiceWiring.php"
 	],
-	"manifest_version": 2,
-	"JobClasses": {
-		"linkedArtifactPrecompute": {
-			"needsPage": false,
-			"class": "MediaWiki\\Extension\\EventBus\\LinkedArtifacts\\Job\\LinkedArtifactPrecomputeJob",
-			"services": [
-				"EventBus.LinkedArtifactsPrecompute",
-				"EventBus.LinkedArtifactsConfig"
-			]
-		}
-	}
+	"callback": "MediaWiki\\Extension\\EventBus\\LinkedArtifacts\\Job\\LinkedArtifactPrecomputeJob::onRegistration",
+	"manifest_version": 2
 }

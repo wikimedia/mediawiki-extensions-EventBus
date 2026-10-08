@@ -3,6 +3,7 @@
 namespace MediaWiki\Extension\EventBus\Tests\Integration\LinkedArtifacts;
 
 use MediaWiki\Extension\EventBus\LinkedArtifacts\Job\LinkedArtifactPrecomputeJob;
+use MediaWiki\MainConfigNames;
 use MediaWiki\Page\Event\PageLatestRevisionChangedEvent;
 use MediaWiki\WikiMap\WikiMap;
 use MediaWikiIntegrationTestCase;
@@ -15,7 +16,7 @@ use MediaWikiIntegrationTestCase;
 class LinkedArtifactsPrecomputeIngressTest extends MediaWikiIntegrationTestCase {
 
 	public function testAnEditEnqueuesAPrecomputeJobForASubscribedArtifact(): void {
-		$this->overrideConfigValue( 'EventBusLinkedArtifacts', [
+		$linkedArtifacts = [
 			'enabled' => true,
 			'base_url' => 'https://lac.example',
 			'artifacts' => [
@@ -24,6 +25,13 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiIntegrationTestCase 
 					'precompute' => [ 'events' => [ PageLatestRevisionChangedEvent::TYPE ] ],
 				],
 			],
+		];
+		$this->overrideConfigValues( [
+			'EventBusLinkedArtifacts' => $linkedArtifacts,
+			// The registration callback ran before this test set the config, so register the
+			// job type here. Popping the job needs it.
+			MainConfigNames::JobClasses => $this->getConfVar( MainConfigNames::JobClasses ) +
+				[ LinkedArtifactPrecomputeJob::getJobType( 'my-artifact' ) => LinkedArtifactPrecomputeJob::JOB_SPEC ],
 		] );
 
 		$status = $this->editPage( 'LacPrecomputeIngressTestPage', 'content' );
@@ -37,7 +45,7 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiIntegrationTestCase 
 		// already on the queue and no deferred-update flush is needed.
 		$job = $this->getServiceContainer()
 			->getJobQueueGroup()
-			->get( LinkedArtifactPrecomputeJob::JOB_NAME )
+			->get( LinkedArtifactPrecomputeJob::getJobType( 'my-artifact' ) )
 			->pop();
 		$this->assertInstanceOf( LinkedArtifactPrecomputeJob::class, $job );
 

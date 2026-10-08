@@ -147,7 +147,7 @@ class LinkedArtifactsPrecomputeIngress
 
 			$this->jobQueueGroup->lazyPush(
 				new JobSpecification(
-					LinkedArtifactPrecomputeJob::JOB_NAME,
+					LinkedArtifactPrecomputeJob::getJobType( $artifactName ),
 					[
 						LinkedArtifactPrecomputeJob::ARTIFACT_NAME_PARAM => $artifactName,
 						LinkedArtifactPrecomputeJob::ENTITY_KIND_PARAM => $entityKind,

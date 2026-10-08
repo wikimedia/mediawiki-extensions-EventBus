@@ -85,7 +85,7 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiUnitTestCase {
 		$jobQueueGroup->expects( $this->once() )
 			->method( 'lazyPush' )
 			->willReturnCallback( static function ( JobSpecification $spec ) {
-				Assert::assertSame( LinkedArtifactPrecomputeJob::JOB_NAME, $spec->getType() );
+				Assert::assertSame( 'linkedArtifactPrecompute.my-artifact', $spec->getType() );
 				$params = $spec->getParams();
 				// Added by JobSpecification.
 				unset( $params['requestId'] );

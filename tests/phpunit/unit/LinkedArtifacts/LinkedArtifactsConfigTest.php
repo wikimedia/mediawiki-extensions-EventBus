@@ -253,4 +253,32 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 			'unknown' => [ [ 'entity_kind' => 'user' ] ],
 		];
 	}
+
+	/**
+	 * @dataProvider provideInvalidArtifactNames
+	 */
+	public function testAnInvalidArtifactNameThrows( string $artifactName ): void {
+		$this->expectException( InvalidArgumentException::class );
+		self::newConfig( [ $artifactName => [ 'entity_kind' => 'revision' ] ] );
+	}
+
+	public static function provideInvalidArtifactNames(): array {
+		return [
+			'dot' => [ 'my.artifact' ],
+			'space' => [ 'my artifact' ],
+			'slash' => [ 'my/artifact' ],
+			'too long' => [ str_repeat( 'a', 121 ) ],
+		];
+	}
+
+	public function testAnArtifactNameWithTheMaximumLengthIsAccepted(): void {
+		$artifactName = str_repeat( 'a', 120 );
+		$config = self::newConfig( [ $artifactName => [ 'entity_kind' => 'revision' ] ] );
+		$this->assertSame( 'revision', $config->getEntityKind( $artifactName ) );
+	}
+
+	public function testAValidArtifactNameIsAccepted(): void {
+		$config = self::newConfig( [ 'revision_feature-counts2' => [ 'entity_kind' => 'revision' ] ] );
+		$this->assertSame( 'revision', $config->getEntityKind( 'revision_feature-counts2' ) );
+	}
 }
