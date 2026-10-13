@@ -29,7 +29,7 @@ use Wikimedia\Http\MultiHttpClient;
 /**
  * Client for the HTTP API of the Hoarde "Linked Artifacts Cache" (LAC).
  *
- * Used by the {@link LinkedArtifactPrecomputeJob} as well
+ * Used by the {@link LinkedArtifactPrefetchJob} as well
  * as for regular readers fetching artifacts.
  *
  *  - {@link fetch()} GETs a LAC URI and reports the outcome.
@@ -44,7 +44,7 @@ class LinkedArtifactsClient {
 
 	/**
 	 * `Cache-Control` request directive: LAC disregards any stored artifact and computes
-	 * it with the lambda. Use it to precompute an artifact.
+	 * it with the lambda. Use it for a reconciliation request.
 	 */
 	public const CACHE_CONTROL_NO_CACHE = 'no-cache';
 

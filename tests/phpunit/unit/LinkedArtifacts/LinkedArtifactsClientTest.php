@@ -75,7 +75,7 @@ class LinkedArtifactsClientTest extends MediaWikiUnitTestCase {
 	}
 
 	public function testFetchRevisionArtifactReadsWithoutForcingARefresh(): void {
-		// A reader must not make LAC re-run the lambda; only a precompute does that.
+		// A reader must not make LAC re-run the lambda; only a reconciliation prefetch does that.
 		$captured = null;
 		$client = $this->newClient(
 			[ 'code' => 200, 'headers' => [ 'content-type' => 'application/json' ], 'body' => '{}' ],
@@ -238,7 +238,7 @@ class LinkedArtifactsClientTest extends MediaWikiUnitTestCase {
 	}
 
 	public function testCoversPageRequiresTheFeatureToBeEnabled(): void {
-		// A disabled wiki precomputes nothing, so nothing is worth requesting.
+		// A disabled wiki prefetches nothing, so nothing is worth requesting.
 		$this->assertFalse(
 			$this->newCoverageClient( self::DEFAULT_ARTIFACTS, false )
 				->coversPage( 'my-artifact', 'enwiki', 42, 0 )
@@ -297,7 +297,7 @@ class LinkedArtifactsClientTest extends MediaWikiUnitTestCase {
 			'half' => [ 'entity_kind' => 'revision', 'page' => [ 'sample' => 0.5 ] ],
 		] );
 
-		// Same (wiki_id, page_id) ⇒ same decision on repeated calls, so that a precompute
+		// Same (wiki_id, page_id) ⇒ same decision on repeated calls, so that a prefetch
 		// path and a reading path asking independently always agree.
 		$decision = $client->coversPage( 'half', 'enwiki', 42, 0 );
 		$this->assertSame( $decision, $client->coversPage( 'half', 'enwiki', 42, 0 ) );

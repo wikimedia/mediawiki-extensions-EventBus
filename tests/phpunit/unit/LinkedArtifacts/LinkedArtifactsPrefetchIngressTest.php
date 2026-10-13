@@ -2,9 +2,9 @@
 
 namespace MediaWiki\Extension\EventBus\Tests\Unit\LinkedArtifacts;
 
-use MediaWiki\Extension\EventBus\LinkedArtifacts\Job\LinkedArtifactPrecomputeJob;
+use MediaWiki\Extension\EventBus\LinkedArtifacts\Job\LinkedArtifactPrefetchJob;
 use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsConfig;
-use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsPrecomputeIngress;
+use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsPrefetchIngress;
 use MediaWiki\JobQueue\JobQueueGroup;
 use MediaWiki\JobQueue\JobSpecification;
 use MediaWiki\Page\Event\PageLatestRevisionChangedEvent;
@@ -14,14 +14,14 @@ use MediaWikiUnitTestCase;
 use PHPUnit\Framework\Assert;
 
 /**
- * @covers \MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsPrecomputeIngress
+ * @covers \MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsPrefetchIngress
  */
-class LinkedArtifactsPrecomputeIngressTest extends MediaWikiUnitTestCase {
+class LinkedArtifactsPrefetchIngressTest extends MediaWikiUnitTestCase {
 
 	private const DEFAULT_ARTIFACTS = [
 		'my-artifact' => [
 			'entity_kind' => 'revision',
-			'precompute' => [ 'events' => [ PageLatestRevisionChangedEvent::TYPE ] ],
+			'prefetch' => [ 'events' => [ PageLatestRevisionChangedEvent::TYPE ] ],
 		],
 	];
 
@@ -29,14 +29,14 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiUnitTestCase {
 		JobQueueGroup $jobQueueGroup,
 		bool $enabled = true,
 		?array $artifacts = null
-	): LinkedArtifactsPrecomputeIngress {
+	): LinkedArtifactsPrefetchIngress {
 		$config = new LinkedArtifactsConfig( [
 			'enabled' => $enabled,
 			'base_url' => 'https://lac.example',
 			'artifacts' => $artifacts ?? self::DEFAULT_ARTIFACTS,
 		] );
 
-		return new LinkedArtifactsPrecomputeIngress( $jobQueueGroup, $config );
+		return new LinkedArtifactsPrefetchIngress( $jobQueueGroup, $config );
 	}
 
 	/**
@@ -85,18 +85,18 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiUnitTestCase {
 		$jobQueueGroup->expects( $this->once() )
 			->method( 'lazyPush' )
 			->willReturnCallback( static function ( JobSpecification $spec ) {
-				Assert::assertSame( 'linkedArtifactPrecompute.my-artifact', $spec->getType() );
+				Assert::assertSame( 'linkedArtifactPrefetch.my-artifact', $spec->getType() );
 				$params = $spec->getParams();
 				// Added by JobSpecification.
 				unset( $params['requestId'] );
 				Assert::assertEquals(
 					[
-						LinkedArtifactPrecomputeJob::ARTIFACT_NAME_PARAM => 'my-artifact',
-						LinkedArtifactPrecomputeJob::ENTITY_KIND_PARAM => 'revision',
-						LinkedArtifactPrecomputeJob::WIKI_ID_PARAM => 'enwiki',
-						LinkedArtifactPrecomputeJob::PAGE_ID_PARAM => 42,
-						LinkedArtifactPrecomputeJob::REVISION_ID_PARAM => 99,
-						LinkedArtifactPrecomputeJob::TRIGGER_PARAM => [
+						LinkedArtifactPrefetchJob::ARTIFACT_NAME_PARAM => 'my-artifact',
+						LinkedArtifactPrefetchJob::ENTITY_KIND_PARAM => 'revision',
+						LinkedArtifactPrefetchJob::WIKI_ID_PARAM => 'enwiki',
+						LinkedArtifactPrefetchJob::PAGE_ID_PARAM => 42,
+						LinkedArtifactPrefetchJob::REVISION_ID_PARAM => 99,
+						LinkedArtifactPrefetchJob::TRIGGER_PARAM => [
 							'event_type' => PageLatestRevisionChangedEvent::TYPE,
 							'cause' => 'edit',
 							'is_reconciliation_request' => false,
@@ -129,7 +129,7 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiUnitTestCase {
 			->method( 'lazyPush' )
 			->willReturnCallback( static function ( JobSpecification $spec ) {
 				Assert::assertTrue(
-					$spec->getParams()[LinkedArtifactPrecomputeJob::TRIGGER_PARAM]['is_reconciliation_request']
+					$spec->getParams()[LinkedArtifactPrefetchJob::TRIGGER_PARAM]['is_reconciliation_request']
 				);
 			} );
 
@@ -147,11 +147,11 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiUnitTestCase {
 		);
 	}
 
-	public function testSkipsAnArtifactWhosePrecomputeIsDisabled(): void {
+	public function testSkipsAnArtifactWhosePrefetchIsDisabled(): void {
 		$ingress = $this->newIngress( $this->newNeverPushingJobQueueGroup(), true, [
 			'my-artifact' => [
 				'entity_kind' => 'revision',
-				'precompute' => [
+				'prefetch' => [
 					'enabled' => false,
 					'events' => [ PageLatestRevisionChangedEvent::TYPE ],
 				],
@@ -166,7 +166,7 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiUnitTestCase {
 			'my-artifact' => [
 				'entity_kind' => 'revision',
 				'page' => $page,
-				'precompute' => [ 'events' => [ PageLatestRevisionChangedEvent::TYPE ] ],
+				'prefetch' => [ 'events' => [ PageLatestRevisionChangedEvent::TYPE ] ],
 			],
 		];
 	}
@@ -198,7 +198,7 @@ class LinkedArtifactsPrecomputeIngressTest extends MediaWikiUnitTestCase {
 		);
 	}
 
-	public function testSampleZeroSkipsPrecompute(): void {
+	public function testSampleZeroSkipsPrefetch(): void {
 		$ingress = $this->newIngress(
 			$this->newNeverPushingJobQueueGroup(),
 			true,

@@ -28,21 +28,26 @@ class LinkedArtifactResponseTest extends MediaWikiUnitTestCase {
 	}
 
 	/**
-	 * @dataProvider provideLastModifiedHeaders
+	 * @dataProvider provideHeaderTimestamps
 	 */
-	public function testGetLastModified( array $headers, ?string $expected ): void {
-		$lastModified = ( new LinkedArtifactResponse( 200, $headers ) )->getLastModified();
+	public function testHeaderTimestamps( string $method, array $headers, ?string $expected ): void {
+		$timestamp = ( new LinkedArtifactResponse( 200, $headers ) )->$method();
 
-		$this->assertSame( $expected, $lastModified?->getTimestamp( TS_ISO_8601 ) );
+		$this->assertSame( $expected, $timestamp?->getTimestamp( TS_ISO_8601 ) );
 	}
 
-	public static function provideLastModifiedHeaders(): array {
+	public static function provideHeaderTimestamps(): array {
+		$lastModified = 'getLastModifiedTimestamp';
 		return [
-			'HTTP date' => [ [ 'last-modified' => 'Tue, 06 Oct 2026 12:00:05 GMT' ], '2026-10-06T12:00:05Z' ],
+			'HTTP date' => [
+				$lastModified, [ 'last-modified' => 'Tue, 06 Oct 2026 12:00:05 GMT' ], '2026-10-06T12:00:05Z'
+			],
 			// HTTP dates must use "GMT" (RFC 9110 §5.6.7). LAC used "UTC" before T440395.
-			'UTC zone' => [ [ 'last-modified' => 'Tue, 06 Oct 2026 12:00:05 UTC' ], null ],
-			'absent' => [ [], null ],
-			'not a date' => [ [ 'last-modified' => 'yesterday-ish' ], null ],
+			'UTC zone' => [ $lastModified, [ 'last-modified' => 'Tue, 06 Oct 2026 12:00:05 UTC' ], null ],
+			'absent' => [ $lastModified, [], null ],
+			'not a date' => [ $lastModified, [ 'last-modified' => 'yesterday-ish' ], null ],
+			'Date' => [ 'getDateTimestamp', [ 'date' => 'Tue, 06 Oct 2026 13:00:00 GMT' ], '2026-10-06T13:00:00Z' ],
+			'Date absent' => [ 'getDateTimestamp', [ 'last-modified' => 'Tue, 06 Oct 2026 12:00:05 GMT' ], null ],
 		];
 	}
 

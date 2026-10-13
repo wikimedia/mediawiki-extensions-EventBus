@@ -27,18 +27,20 @@ use Wikimedia\Rdbms\IConnectionProvider;
 use Wikimedia\Timestamp\ConvertibleTimestamp;
 
 /**
- * Precomputes Linked Artifacts Cache (LAC) artifacts: a no-cache fetch makes LAC
- * consult the artifact's lambda and store the result. On success, a DomainEvent
- * that carries the artifact is dispatched.
+ * Prefetches Linked Artifacts Cache (LAC) artifacts.
+ * A prefetch is a fetch intended to happen before a reader needs to fetch,
+ * usually causing LAC to cache the artifact. On success, it dispatches a
+ * DomainEvent that carries the artifact.
  *
- * This class does not compute the artifact. "Precompute" means that it causes LAC to
- * compute the artifact before a reader asks for it.
+ * MediaWiki does not compute the artifact. On a cache miss, LAC consults the artifact's
+ * lambda and stores the result.
  *
- * This does not check whether precompute is enabled. Callers decide that.
+ * For reconciliation requests, the prefetch request sets
+ * `Cache-Control: no-cache`, forcing the artifact to be (re)computed and stored in LAC.
  *
  * @unstable
  */
-class LinkedArtifactsPrecompute {
+class LinkedArtifactsPrefetcher {
 
 	public function __construct(
 		private readonly LinkedArtifactsClient $client,
@@ -49,19 +51,20 @@ class LinkedArtifactsPrecompute {
 	}
 
 	/**
-	 * Precompute one revision's artifact, then dispatch a
-	 * {@link RevisionLinkedArtifactPrecomputedEvent} on success.
+	 * Prefetch one revision's artifact, then dispatch a
+	 * {@link RevisionLinkedArtifactPrefetchedEvent} on success.
 	 *
 	 * @param string $artifactName
 	 * @param string|false $wikiId The page's wiki ID; false for the local wiki.
 	 * @param int $pageId
 	 * @param int $revisionId
-	 * @param string|null $triggerEventType See {@link RevisionLinkedArtifactPrecomputedEvent}.
+	 * @param string|null $triggerEventType See {@link RevisionLinkedArtifactPrefetchedEvent}.
 	 * @param string|null $triggerCause
-	 * @param bool $isReconciliationRequest
+	 * @param bool $isReconciliationRequest If true, LAC computes the artifact again, even if
+	 *   it has it cached.
 	 * @return LinkedArtifactResponse The LAC response, for the caller's retry decision.
 	 */
-	public function precomputeRevisionArtifact(
+	public function prefetchRevisionArtifact(
 		string $artifactName,
 		string|false $wikiId,
 		int $pageId,
@@ -75,22 +78,27 @@ class LinkedArtifactsPrecompute {
 			$wikiId,
 			$pageId,
 			$revisionId,
-			$this->config->getPrecomputeTimeoutMs( $artifactName ),
-			LinkedArtifactsClient::CACHE_CONTROL_NO_CACHE
+			$this->config->getPrefetchTimeoutMs( $artifactName ),
+			// Only a reconciliation request forces a new compute. Other prefetches accept an
+			// artifact that LAC has cached, e.g. from a reader or from a duplicate job.
+			$isReconciliationRequest ? LinkedArtifactsClient::CACHE_CONTROL_NO_CACHE : null
 		);
 
 		if ( $response->isSuccess() ) {
 			$this->eventDispatcher->dispatch(
-				new RevisionLinkedArtifactPrecomputedEvent(
+				new RevisionLinkedArtifactPrefetchedEvent(
 					$artifactName,
 					$this->config->resolveWikiId( $wikiId ),
 					$pageId,
 					$revisionId,
 					$response->getContentType(),
 					$response->getBody(),
-					// The time that the lambda computed the artifact.
-					// If LAC does not send it, use the time that the fetch completed (now).
-					$response->getLastModified() ?? new ConvertibleTimestamp(),
+					// When LAC sent the response. Use LAC's clock, so that this time is never
+					// earlier than the compute time. If LAC does not send it, use the time now.
+					$response->getDateTimestamp() ?? new ConvertibleTimestamp(),
+					// When the lambda computed the artifact. On a cache hit, this is earlier
+					// than the prefetch.
+					$response->getLastModifiedTimestamp(),
 					$triggerEventType,
 					$triggerCause,
 					$isReconciliationRequest

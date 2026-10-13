@@ -24,17 +24,18 @@ namespace MediaWiki\Extension\EventBus\LinkedArtifacts\Job;
 
 use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactResponse;
 use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsConfig;
-use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsPrecompute;
+use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsPrefetcher;
 use MediaWiki\JobQueue\Job;
+use MediaWiki\JobQueue\JobSpecification;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MainConfigNames;
 use MediaWiki\Settings\SettingsBuilder;
 use Psr\Log\LoggerInterface;
 
 /**
- * Precomputes one Linked Artifacts Cache (LAC) artifact via {@link LinkedArtifactsPrecompute}.
+ * Prefetches one Linked Artifacts Cache (LAC) artifact via {@link LinkedArtifactsPrefetcher}.
  *
- * This job precomputes artifacts configured in $wgEventBusLinkedArtifacts.
+ * This job prefetches artifacts configured in $wgEventBusLinkedArtifacts.
  *
  * Each configured artifact has its own job type, see {@link getJobType()}.
  * Each artifact has its own queue (a Kafka topic at WMF)
@@ -43,12 +44,12 @@ use Psr\Log\LoggerInterface;
  *
  * @unstable
  */
-class LinkedArtifactPrecomputeJob extends Job {
+class LinkedArtifactPrefetchJob extends Job {
 
 	/**
 	 * Prefix of the job type of each artifact. See {@link getJobType()}.
 	 */
-	public const JOB_TYPE_PREFIX = 'linkedArtifactPrecompute';
+	public const JOB_TYPE_PREFIX = 'linkedArtifactPrefetch';
 
 	/**
 	 * The $wgJobClasses ObjectFactory spec for the job type of each artifact.
@@ -57,14 +58,14 @@ class LinkedArtifactPrecomputeJob extends Job {
 		'class' => self::class,
 		'needsPage' => false,
 		'services' => [
-			'EventBus.LinkedArtifactsPrecompute',
+			'EventBus.LinkedArtifactsPrefetcher',
 			'EventBus.LinkedArtifactsConfig',
 		],
 	];
 
 	/**
 	 * Job params key for the artifact name. Used for logs, errors and metrics
-	 * Also used to lookup some artifact's precompute settings from config at runtime,
+	 * Also used to lookup some artifact's prefetch settings from config at runtime,
 	 * in case e.g. timeouts need to be changed via config after jobs are enqueued.
 	 */
 	public const ARTIFACT_NAME_PARAM = 'artifact_name';
@@ -83,9 +84,9 @@ class LinkedArtifactPrecomputeJob extends Job {
 	public const REVISION_ID_PARAM = 'revision_id';
 
 	/**
-	 * Job params key for what triggered the precompute. An array with the keys
+	 * Job params key for what triggered the prefetch. An array with the keys
 	 * `event_type`, `cause` and `is_reconciliation_request`. Optional.
-	 * It is part of job deduplication, because the precomputed DomainEvent carries it.
+	 * It is part of job deduplication, because the RevisionLinkedArtifactPrefetchedEvent carries it.
 	 */
 	public const TRIGGER_PARAM = 'trigger';
 
@@ -93,7 +94,7 @@ class LinkedArtifactPrecomputeJob extends Job {
 
 	public function __construct(
 		array $params,
-		private readonly LinkedArtifactsPrecompute $precompute,
+		private readonly LinkedArtifactsPrefetcher $prefetcher,
 		private readonly LinkedArtifactsConfig $config
 	) {
 		// JobFactory sets the registered job type after construction. This sets the same type
@@ -103,8 +104,8 @@ class LinkedArtifactPrecomputeJob extends Job {
 	}
 
 	/**
-	 * The job type of the precompute jobs of an artifact, e.g.
-	 * `linkedArtifactPrecompute.revision_feature_counts`.
+	 * The job type of the prefetch jobs of an artifact, e.g.
+	 * `linkedArtifactPrefetch.revision_feature_counts`.
 	 *
 	 * @param string $artifactName
 	 * @return string
@@ -126,18 +127,18 @@ class LinkedArtifactPrecomputeJob extends Job {
 		// Ensure that LinkedArtifacts integration is still enabled.
 		if ( !$this->config->isEnabled() ) {
 			$this->logger->info(
-				'Ignoring LinkedArtifactsCache precompute job for artifact {artifact_name}: '
+				'Ignoring LinkedArtifactsCache prefetch job for artifact {artifact_name}: '
 					. 'LinkedArtifacts has been disabled since the job was enqueued',
 				$logContext
 			);
 			return true;
 		}
 
-		// Ensure that precompute is still enabled for this artifact.
-		if ( !$this->config->isPrecomputeEnabled( $artifactName ) ) {
+		// Ensure that prefetch is still enabled for this artifact.
+		if ( !$this->config->isPrefetchEnabled( $artifactName ) ) {
 			$this->logger->info(
-				'Ignoring LinkedArtifactsCache precompute job for artifact {artifact_name}: '
-					. 'precompute has been disabled for this artifact since the job was enqueued',
+				'Ignoring LinkedArtifactsCache prefetch job for artifact {artifact_name}: '
+					. 'prefetch has been disabled for this artifact since the job was enqueued',
 				$logContext
 			);
 			return true;
@@ -146,7 +147,7 @@ class LinkedArtifactPrecomputeJob extends Job {
 		// If we need to support more entity kinds, add them here.
 		switch ( $entityKind ) {
 			case LinkedArtifactsConfig::REVISION_ENTITY_KIND:
-				$response = $this->precomputeFromRevisionJobParams( $artifactName );
+				$response = $this->prefetchFromRevisionJobParams( $artifactName );
 				break;
 			default:
 				// Retrying cannot fix malformed params.
@@ -174,7 +175,7 @@ class LinkedArtifactPrecomputeJob extends Job {
 		}
 
 		$this->setLastError(
-			__METHOD__ . ": failed precomputing LAC artifact '$artifactName', "
+			__METHOD__ . ": failed prefetching LAC artifact '$artifactName', "
 				. "status {$response->getStatusCode()}"
 		);
 
@@ -182,12 +183,12 @@ class LinkedArtifactPrecomputeJob extends Job {
 	}
 
 	/**
-	 * Helper func that calls out to LinkedArtifactsPrecompute using the revision identifiers in the job params.
+	 * Helper func that calls out to LinkedArtifactsPrefetcher using the revision identifiers in the job params.
 	 *
 	 * @param string $artifactName
 	 * @return LinkedArtifactResponse|null Null if the job params have no valid revision identifiers.
 	 */
-	private function precomputeFromRevisionJobParams( string $artifactName ): ?LinkedArtifactResponse {
+	private function prefetchFromRevisionJobParams( string $artifactName ): ?LinkedArtifactResponse {
 		$wikiId = (string)( $this->params[self::WIKI_ID_PARAM] ?? '' );
 		$pageId = (int)( $this->params[self::PAGE_ID_PARAM] ?? 0 );
 		$revisionId = (int)( $this->params[self::REVISION_ID_PARAM] ?? 0 );
@@ -199,7 +200,7 @@ class LinkedArtifactPrecomputeJob extends Job {
 
 		$trigger = $this->params[self::TRIGGER_PARAM] ?? [];
 
-		return $this->precompute->precomputeRevisionArtifact(
+		return $this->prefetcher->prefetchRevisionArtifact(
 			$artifactName,
 			$wikiId,
 			$pageId,
@@ -211,11 +212,69 @@ class LinkedArtifactPrecomputeJob extends Job {
 	}
 
 	/**
+	 * A JobSpecification to prefetch an artifact linked to a revision.
+	 * Use this to submit a prefetch job with JobQueueGroup::lazyPush().
+	 *
+	 * This does not check config. Callers check that the artifact is configured and covers
+	 * the page, e.g. with {@link LinkedArtifactsConfig::appliesToPage()}.
+	 *
+	 * The trigger describes what caused the prefetch. Listeners of
+	 * RevisionLinkedArtifactPrefetchedEvent use it to select the prefetches that they handle.
+	 * Code that is not a DomainEvent listener can set its own $triggerEventType, e.g. a name
+	 * for a reader request.
+	 *
+	 * @param string $artifactName
+	 * @param string $wikiId The wiki ID of the page. Not false: resolve the local wiki first,
+	 *   e.g. with {@link LinkedArtifactsConfig::resolveWikiId()}.
+	 * @param int $pageId
+	 * @param int $revisionId
+	 * @param string|null $triggerEventType The upstream event that caused this prefetch, e.g. the DomainEvent type.
+	 * @param string|null $triggerCause The description of the upstream event cause, e.g. `edit`.
+	 * @param bool $isReconciliationRequest If true, LAC will consult the lambda, even if
+	 *   the artifact is already cached. Use this to refresh an artifact that might be stale.
+	 * @return JobSpecification
+	 */
+	public static function newRevisionJobSpec(
+		string $artifactName,
+		string $wikiId,
+		int $pageId,
+		int $revisionId,
+		?string $triggerEventType = null,
+		?string $triggerCause = null,
+		bool $isReconciliationRequest = false
+	): JobSpecification {
+		return new JobSpecification(
+			self::getJobType( $artifactName ),
+			[
+				self::ARTIFACT_NAME_PARAM => $artifactName,
+				self::ENTITY_KIND_PARAM => LinkedArtifactsConfig::REVISION_ENTITY_KIND,
+				self::WIKI_ID_PARAM => $wikiId,
+				self::PAGE_ID_PARAM => $pageId,
+				self::REVISION_ID_PARAM => $revisionId,
+				self::TRIGGER_PARAM => [
+					'event_type' => $triggerEventType,
+					'cause' => $triggerCause,
+					'is_reconciliation_request' => $isReconciliationRequest,
+				],
+			],
+			[
+				'removeDuplicates' => true,
+				// NOTE: we explicitly choose not to ignore TRIGGER_PARAM for
+				// job deduplication. Jobs with different TRIGGER_PARAM all run, because
+				// each job dispatches a RevisionLinkedArtifactPrefetchedEvent with its trigger,
+				// e.g. for both 'reconciliation requests' and regular event triggers.
+				// This costs little: only a reconciliation request makes LAC compute the
+				// artifact again. Other prefetches get the artifact that LAC has cached.
+			]
+		);
+	}
+
+	/**
 	 * Extension registration callback. Registers a job type in $wgJobClasses for each artifact
 	 * in EventBusLinkedArtifacts config, see {@link getJobType()}.
 	 *
-	 * Artifacts that have precompute.enabled = false still have a job type.
-	 * This allows jobs that are queued before precompute is disabled to still run,
+	 * Artifacts that have prefetch.enabled = false still have a job type.
+	 * This allows jobs that are queued before prefetch is disabled to still run,
 	 * and drop themselves gracefully.
 	 *
 	 * This must not throw: an exception here stops MediaWiki setup for every request.

@@ -75,18 +75,35 @@ class LinkedArtifactResponse {
 	}
 
 	/**
-	 * Last-Modified header from LAC response: when LAC stored the artifact, i.e. when
-	 * its lambda computed it.
+	 * The Last-Modified header of the LAC response, as a timestamp: when LAC stored the
+	 * artifact, i.e. when its lambda computed it.
 	 *
 	 * @return ConvertibleTimestamp|null Null if the header is absent or not a valid date.
 	 */
-	public function getLastModified(): ?ConvertibleTimestamp {
-		$lastModified = $this->getHeader( 'last-modified' );
-		if ( $lastModified === null ) {
+	public function getLastModifiedTimestamp(): ?ConvertibleTimestamp {
+		return $this->getHeaderAsTimestamp( 'last-modified' );
+	}
+
+	/**
+	 * The Date header of the LAC response, as a timestamp: when LAC sent the response.
+	 *
+	 * @return ConvertibleTimestamp|null Null if the header is absent or not a valid date.
+	 */
+	public function getDateTimestamp(): ?ConvertibleTimestamp {
+		return $this->getHeaderAsTimestamp( 'date' );
+	}
+
+	/**
+	 * @param string $name The name of a header with an HTTP date.
+	 * @return ConvertibleTimestamp|null Null if the header is absent or not a valid date.
+	 */
+	private function getHeaderAsTimestamp( string $name ): ?ConvertibleTimestamp {
+		$value = $this->getHeader( $name );
+		if ( $value === null ) {
 			return null;
 		}
 		try {
-			return new ConvertibleTimestamp( $lastModified );
+			return new ConvertibleTimestamp( $value );
 		} catch ( TimestampException ) {
 			return null;
 		}

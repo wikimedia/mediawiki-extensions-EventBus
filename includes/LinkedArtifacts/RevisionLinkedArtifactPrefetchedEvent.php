@@ -26,28 +26,39 @@ use MediaWiki\DomainEvent\DomainEvent;
 use Wikimedia\Timestamp\ConvertibleTimestamp;
 
 /**
- * Dispatched after MediaWiki successfully precomputes a Linked Artifacts Cache (LAC)
- * artifact linked to a revision. It carries the artifact body, so listeners can use it
+ * Dispatched after MediaWiki prefetches an artifact linked to a revision from the
+ * Linked Artifacts Cache (LAC). It carries the artifact body, so listeners can use it
  * without another LAC request.
  *
- * MediaWiki does not compute the artifact. A precompute is a no-cache fetch from LAC,
- * ideally before a reader asks for the artifact. The cache miss makes LAC compute the artifact
- * with its lambda.
+ * A 'prefetch' is an intentional fetch ahead of read time use cases,
+ * to ensure that the cache is populated for this revision.
  *
- * This event is dispatched for every artifact whose entity is `revision`.
- * Listeners filter on {@link getArtifactName()}.
+ * MediaWiki does not compute the artifact. The artifact can be:
+ *  - computed by LAC for this prefetch, on a cache miss;
+ *  - computed again by LAC, for a reconciliation request;
+ *  - already cached, e.g. because a reader or another job fetched it first.
  *
- * Only precomputes that MediaWiki triggers dispatch this event. Artifacts that LAC computes
- * on a read miss, and pages outside an artifact's configured coverage, do not.
+ * The event timestamp is when MediaWiki prefetched the artifact, i.e. when LAC responded.
+ * {@link getArtifactComputeTimestamp()} is when LAC computed the artifact. For an artifact
+ * that was already cached, the compute time is earlier than the prefetch.
+ *
+ * Only prefetches that MediaWiki triggers dispatch this event. Reader fetches, and pages
+ * outside an artifact's configured coverage, do not.
  *
  * isReconciliationRequest() comes from the upstream trigger. If a reconciliation request
- * (e.g. a null edit) triggered the precompute, this event is also a reconciliation event.
+ * (e.g. a null edit) triggered the prefetch, this event is also a reconciliation event.
+ *
+ * This event is dispatched for every artifact whose entity is `revision`.
+ * Listeners should filter on {@link getArtifactName()}.
+ * NOTE: it may be technically possible to declare an event with a more dynamic type,
+ *       e.g. ArtifactNamePrefetched, based on $artifactName.  If this seems useful
+ *       one day, we might consider it.  This idea may make listener interfaces a bit funky.
  *
  * @unstable
  */
-class RevisionLinkedArtifactPrecomputedEvent extends DomainEvent {
+class RevisionLinkedArtifactPrefetchedEvent extends DomainEvent {
 
-	public const TYPE = 'RevisionLinkedArtifactPrecomputed';
+	public const TYPE = 'RevisionLinkedArtifactPrefetched';
 
 	/**
 	 * @param string $artifactName The LAC cache artifact name.
@@ -56,9 +67,11 @@ class RevisionLinkedArtifactPrecomputedEvent extends DomainEvent {
 	 * @param int $revisionId
 	 * @param string|null $contentType Content type of the artifact, from LAC.
 	 * @param string $body The artifact content, from LAC.
-	 * @param ConvertibleTimestamp $timestamp When LAC computed the artifact.
+	 * @param ConvertibleTimestamp $timestamp When MediaWiki prefetched the artifact.
 	 *   This is the event timestamp, see {@link DomainEvent::getEventTimestamp()}.
-	 * @param string|null $triggerEventType The DomainEvent type that triggered the precompute,
+	 * @param ConvertibleTimestamp|null $artifactComputeTimestamp When LAC computed the
+	 *   artifact, from the LAC Last-Modified header. Null if LAC did not send it.
+	 * @param string|null $triggerEventType The DomainEvent type that triggered the prefetch,
 	 *   e.g. `PageLatestRevisionChanged`. Null if no DomainEvent triggered it.
 	 * @param string|null $triggerCause The cause of the triggering event, e.g. `edit`.
 	 * @param bool $isReconciliationRequest Whether the trigger was a reconciliation request,
@@ -73,12 +86,23 @@ class RevisionLinkedArtifactPrecomputedEvent extends DomainEvent {
 		private readonly ?string $contentType,
 		private readonly string $body,
 		ConvertibleTimestamp $timestamp,
+		private readonly ?ConvertibleTimestamp $artifactComputeTimestamp,
 		private readonly ?string $triggerEventType = null,
 		private readonly ?string $triggerCause = null,
 		bool $isReconciliationRequest = false
 	) {
 		parent::__construct( $timestamp, $isReconciliationRequest );
 		$this->declareEventType( self::TYPE );
+	}
+
+	/**
+	 * When LAC computed the artifact. For an artifact that was already cached, this is
+	 * earlier than the event timestamp.
+	 *
+	 * @return ConvertibleTimestamp|null Null if LAC did not send it.
+	 */
+	public function getArtifactComputeTimestamp(): ?ConvertibleTimestamp {
+		return $this->artifactComputeTimestamp;
 	}
 
 	public function getArtifactName(): string {
@@ -122,7 +146,7 @@ class RevisionLinkedArtifactPrecomputedEvent extends DomainEvent {
 	}
 
 	/**
-	 * The DomainEvent type that triggered the precompute, or null if none did.
+	 * The DomainEvent type that triggered the prefetch, or null if none did.
 	 */
 	public function getTriggerEventType(): ?string {
 		return $this->triggerEventType;

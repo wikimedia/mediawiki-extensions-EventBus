@@ -29,7 +29,7 @@ use Wikimedia\Assert\Assert;
 /**
  * EventBusLinkedArtifacts config value class.
  *
- * Represents the configuration for the Linked Artifacts Cache (LAC) precompute and access.
+ * Represents the configuration for the Linked Artifacts Cache (LAC) prefetch and access.
  *
  * Example of wgEventBusLinkedArtifacts MediaWiki config:
  * <pre>
@@ -48,19 +48,19 @@ use Wikimedia\Assert\Assert;
  *       // This is used to construct the correct LAC URL.
  *       'entity_kind' => 'revision',
  *
- *       // Precompute settings. Everything here affects precompute only;
+ *       // Prefetch settings. Everything here affects prefetch only;
  *       // `entity_kind` and `page` above also apply to readers.
- *       'precompute' => [
- *         // Set false to stop precomputing this artifact, including any jobs
+ *       'prefetch' => [
+ *         // Set false to stop prefetching this artifact, including any jobs
  *         // already queued for it. Defaults to true.
  *         'enabled' => true,
  *
- *         // DomainEvent TYPE names that this artifact should be precomputed after.
- *         // NOTE: make sure LinkedArtifactsPrecomputeIngress is registered to
+ *         // DomainEvent TYPE names that this artifact should be prefetched after.
+ *         // NOTE: make sure LinkedArtifactsPrefetchIngress is registered to
  *         // handle these event types.
  *         'events' => [ 'PageLatestRevisionChanged' ],
  *
- *         // precompute fetch timeout_ms override for this artifact
+ *         // prefetch fetch timeout_ms override for this artifact
  *         // in milliseconds. Defaults to 5000.
  *         'timeout_ms' => 30000,
  *       ],
@@ -71,11 +71,11 @@ use Wikimedia\Assert\Assert;
  *
  *         // page namespaces that this artifact applies to.
  *         // If a page does not belong to this namespace,
- *         // it will not be auto-precomputed or fetchable.
+ *         // it will not be auto-prefetched or fetchable.
  *         'namespaces' => [ 0, 1 ],
  *
  *         // Deterministic sampling rate on page_id. This can be used to
- *         // avoid precomputing (or fetching) all pages indiscriminately.
+ *         // avoid prefetching (or fetching) all pages indiscriminately.
  *         // Usually useful when rolling out new LAC features before enabling them for all pages.
  *         'sample' => 0.5,
  *       ],
@@ -94,7 +94,7 @@ class LinkedArtifactsConfig {
 	public const REVISION_ENTITY_KIND = 'revision';
 
 	/**
-	 * The `entity_kind` values that the precompute code can handle.
+	 * The `entity_kind` values that the prefetch code can handle.
 	 * Add a kind here when code handles it.
 	 */
 	private const ENTITY_KINDS = [ self::REVISION_ENTITY_KIND ];
@@ -108,19 +108,19 @@ class LinkedArtifactsConfig {
 	/**
 	 * Maximum artifact name length. Kafka topic names can have up to 249 characters.
 	 * The topic name of a job type also contains a prefix,
-	 * e.g. `eqiad.mediawiki.job.linkedArtifactPrecompute.`,
+	 * e.g. `eqiad.mediawiki.job.linkedArtifactPrefetch.`,
 	 * and change-prop adds prefixes for its retry topics.
 	 */
 	private const ARTIFACT_NAME_MAX_LENGTH = 120;
 
 	/**
-	 * Default precompute fetch timeout for artifacts that do not set their own.
+	 * Default prefetch fetch timeout for artifacts that do not set their own.
 	 *
 	 * Deliberately a code default rather than a config setting: per-artifact overrides
 	 * cover what actually differs (lambdas vary in speed), and changing the fallback for
 	 * every artifact is rare enough to be worth a code deployment.
 	 */
-	public const PRECOMPUTE_TIMEOUT_MS_DEFAULT = 5000;
+	public const PREFETCH_TIMEOUT_MS_DEFAULT = 5000;
 
 	/**
 	 * Whether the LAC integration is enabled on this wiki.
@@ -167,9 +167,9 @@ class LinkedArtifactsConfig {
 			$this->validateArtifactConfig( $artifactName, $artifactConfig );
 
 			// Store a map from DomainEvent types to artifact names.
-			// This can be used to auto trigger artifact precompute when DomainEvents are emitted.
-			// `events` is optional: an artifact may be read-only, never precomputed.
-			foreach ( $artifactConfig['precompute']['events'] ?? [] as $eventType ) {
+			// This can be used to auto trigger artifact prefetch when DomainEvents are emitted.
+			// `events` is optional: an artifact may be read-only, never prefetched.
+			foreach ( $artifactConfig['prefetch']['events'] ?? [] as $eventType ) {
 				$this->artifactsByEvent[$eventType][] = $artifactName;
 			}
 		}
@@ -208,26 +208,26 @@ class LinkedArtifactsConfig {
 			'must be one of: ' . implode( ', ', self::ENTITY_KINDS )
 		);
 
-		$precompute = $artifactConfig['precompute'] ?? [];
-		Assert::parameterType( 'array', $precompute, "$configKey.precompute" );
+		$prefetch = $artifactConfig['prefetch'] ?? [];
+		Assert::parameterType( 'array', $prefetch, "$configKey.prefetch" );
 
-		// If set, assert that precompute.timeout_ms is greater than 0
-		if ( isset( $precompute['timeout_ms'] ) ) {
-			Assert::parameterType( 'integer', $precompute['timeout_ms'], "$configKey.precompute.timeout_ms" );
+		// If set, assert that prefetch.timeout_ms is greater than 0
+		if ( isset( $prefetch['timeout_ms'] ) ) {
+			Assert::parameterType( 'integer', $prefetch['timeout_ms'], "$configKey.prefetch.timeout_ms" );
 			Assert::parameter(
-				$precompute['timeout_ms'] > 0,
-				"$configKey.precompute.timeout_ms",
+				$prefetch['timeout_ms'] > 0,
+				"$configKey.prefetch.timeout_ms",
 				'must be greater than 0'
 			);
 		}
 
-		// precompute.enabled defaults to true if it is not set.
-		if ( isset( $precompute['enabled'] ) ) {
-			Assert::parameterType( 'boolean', $precompute['enabled'], "$configKey.precompute.enabled" );
+		// prefetch.enabled defaults to true if it is not set.
+		if ( isset( $prefetch['enabled'] ) ) {
+			Assert::parameterType( 'boolean', $prefetch['enabled'], "$configKey.prefetch.enabled" );
 		}
 
-		// If set assert, that precompute.events is an array of strings.
-		Assert::parameterElementType( 'string', $precompute['events'] ?? [], "$configKey.precompute.events" );
+		// If set assert, that prefetch.events is an array of strings.
+		Assert::parameterElementType( 'string', $prefetch['events'] ?? [], "$configKey.prefetch.events" );
 
 		$page = $artifactConfig['page'] ?? [];
 		// If set, assert that page.namespaces is an array of integers.
@@ -245,7 +245,7 @@ class LinkedArtifactsConfig {
 	}
 
 	/**
-	 * Whether the LAC integration is enabled on this wiki. Both the precompute path and
+	 * Whether the LAC integration is enabled on this wiki. Both the prefetch path and
 	 * readers must gate on this before doing anything else.
 	 */
 	public function isEnabled(): bool {
@@ -260,21 +260,21 @@ class LinkedArtifactsConfig {
 	}
 
 	/**
-	 * Timeout in milliseconds for precomputing an artifact, to use as
+	 * Timeout in milliseconds for prefetching an artifact, to use as
 	 * {@link LinkedArtifactsClient::fetch()} `timeout` parameter.
-	 * Precomputes are expected to be a cache miss that triggers a
-	 * lambda compute, so this could potentially be higher than a reader's timeout.
+	 * A prefetch usually gets a cache miss, and LAC then computes the artifact with its
+	 * lambda. So this timeout can be longer than a reader's timeout.
 	 *
 	 * @param string $artifactName
 	 * @return int
 	 */
-	public function getPrecomputeTimeoutMs( string $artifactName ): int {
-		return $this->artifacts[$artifactName]['precompute']['timeout_ms']
-			?? self::PRECOMPUTE_TIMEOUT_MS_DEFAULT;
+	public function getPrefetchTimeoutMs( string $artifactName ): int {
+		return $this->artifacts[$artifactName]['prefetch']['timeout_ms']
+			?? self::PREFETCH_TIMEOUT_MS_DEFAULT;
 	}
 
 	/**
-	 * Whether this artifact should be precomputed at all.
+	 * Whether this artifact should be prefetched at all.
 	 * Defaults to true.
 	 *
 	 * Checked both before enqueuing and inside the job, so that switching an artifact off
@@ -283,27 +283,27 @@ class LinkedArtifactsConfig {
 	 * @param string $artifactName
 	 * @return bool
 	 */
-	public function isPrecomputeEnabled( string $artifactName ): bool {
+	public function isPrefetchEnabled( string $artifactName ): bool {
 		if ( !isset( $this->artifacts[$artifactName] ) ) {
 			return false;
 		}
 
-		return $this->artifacts[$artifactName]['precompute']['enabled'] ?? true;
+		return $this->artifacts[$artifactName]['prefetch']['enabled'] ?? true;
 	}
 
 	/**
-	 * Names of the artifacts that $eventType should precompute.
+	 * Names of the artifacts that $eventType should prefetch.
 	 *
-	 * That is, those whose `precompute.events` list contains $eventType and whose
-	 * precompute is enabled.
+	 * That is, those whose `prefetch.events` list contains $eventType and whose
+	 * prefetch is enabled.
 	 *
 	 * @param string $eventType
 	 * @return string[]
 	 */
-	public function getArtifactsToPrecomputeForEvent( string $eventType ): array {
+	public function getArtifactsToPrefetchForEvent( string $eventType ): array {
 		return array_values( array_filter(
 			$this->artifactsByEvent[$eventType] ?? [],
-			fn ( string $artifactName ): bool => $this->isPrecomputeEnabled( $artifactName )
+			fn ( string $artifactName ): bool => $this->isPrefetchEnabled( $artifactName )
 		) );
 	}
 

@@ -84,7 +84,7 @@
 			]
 		},
 		{
-			"class": "MediaWiki\\Extension\\EventBus\\LinkedArtifacts\\LinkedArtifactsPrecomputeIngress",
+			"class": "MediaWiki\\Extension\\EventBus\\LinkedArtifacts\\LinkedArtifactsPrefetchIngress",
 			"services": [
 				"JobQueueGroup",
 				"EventBus.LinkedArtifactsConfig"
@@ -175,6 +175,6 @@
 	"ServiceWiringFiles": [
 		"ServiceWiring.php"
 	],
-	"callback": "MediaWiki\\Extension\\EventBus\\LinkedArtifacts\\Job\\LinkedArtifactPrecomputeJob::onRegistration",
+	"callback": "MediaWiki\\Extension\\EventBus\\LinkedArtifacts\\Job\\LinkedArtifactPrefetchJob::onRegistration",
 	"manifest_version": 2
 }

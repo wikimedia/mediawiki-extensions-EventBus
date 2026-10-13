@@ -2,23 +2,24 @@
 
 namespace MediaWiki\Extension\EventBus\Tests\Unit\LinkedArtifacts;
 
-use MediaWiki\Extension\EventBus\LinkedArtifacts\RevisionLinkedArtifactPrecomputedEvent;
+use MediaWiki\Extension\EventBus\LinkedArtifacts\RevisionLinkedArtifactPrefetchedEvent;
 use MediaWikiUnitTestCase;
 use Wikimedia\Timestamp\ConvertibleTimestamp;
 
 /**
- * @covers \MediaWiki\Extension\EventBus\LinkedArtifacts\RevisionLinkedArtifactPrecomputedEvent
+ * @covers \MediaWiki\Extension\EventBus\LinkedArtifacts\RevisionLinkedArtifactPrefetchedEvent
  */
-class RevisionLinkedArtifactPrecomputedEventTest extends MediaWikiUnitTestCase {
+class RevisionLinkedArtifactPrefetchedEventTest extends MediaWikiUnitTestCase {
 
 	public function testGetters(): void {
 		$timestamp = new ConvertibleTimestamp( '20261006120000' );
-		$event = new RevisionLinkedArtifactPrecomputedEvent(
+		$computeTimestamp = new ConvertibleTimestamp( '20261006110000' );
+		$event = new RevisionLinkedArtifactPrefetchedEvent(
 			'my-artifact', 'enwiki', 42, 99, 'application/json', '{"a":1}',
-			$timestamp, 'PageLatestRevisionChanged', 'edit', true
+			$timestamp, $computeTimestamp, 'PageLatestRevisionChanged', 'edit', true
 		);
 
-		$this->assertSame( RevisionLinkedArtifactPrecomputedEvent::TYPE, $event->getEventType() );
+		$this->assertSame( RevisionLinkedArtifactPrefetchedEvent::TYPE, $event->getEventType() );
 		$this->assertSame( 'my-artifact', $event->getArtifactName() );
 		$this->assertSame( 'enwiki', $event->getWikiId() );
 		$this->assertSame( 42, $event->getPageId() );
@@ -26,6 +27,7 @@ class RevisionLinkedArtifactPrecomputedEventTest extends MediaWikiUnitTestCase {
 		$this->assertSame( 'application/json', $event->getContentType() );
 		$this->assertSame( '{"a":1}', $event->getBody() );
 		$this->assertSame( $timestamp, $event->getEventTimestamp() );
+		$this->assertSame( $computeTimestamp, $event->getArtifactComputeTimestamp() );
 		$this->assertSame( [ 'a' => 1 ], $event->getJsonBody() );
 		$this->assertSame( 'PageLatestRevisionChanged', $event->getTriggerEventType() );
 		$this->assertSame( 'edit', $event->getTriggerCause() );
@@ -34,8 +36,8 @@ class RevisionLinkedArtifactPrecomputedEventTest extends MediaWikiUnitTestCase {
 	}
 
 	public function testTriggerDefaults(): void {
-		$event = new RevisionLinkedArtifactPrecomputedEvent(
-			'my-artifact', 'enwiki', 42, 99, null, '', new ConvertibleTimestamp()
+		$event = new RevisionLinkedArtifactPrefetchedEvent(
+			'my-artifact', 'enwiki', 42, 99, null, '', new ConvertibleTimestamp(), null
 		);
 
 		$this->assertNull( $event->getContentType() );

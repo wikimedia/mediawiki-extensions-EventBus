@@ -23,18 +23,18 @@ declare( strict_types=1 );
 namespace MediaWiki\Extension\EventBus\LinkedArtifacts;
 
 /**
- * Listener interface for RevisionLinkedArtifactPrecomputedEvents.
+ * Listener interface for RevisionLinkedArtifactPrefetchedEvents.
  *
- * Register implementations for the event type 'RevisionLinkedArtifactPrecomputed',
- * see RevisionLinkedArtifactPrecomputedEvent::TYPE.
+ * Register implementations for the event type 'RevisionLinkedArtifactPrefetched',
+ * see RevisionLinkedArtifactPrefetchedEvent::TYPE.
  *
- * @see RevisionLinkedArtifactPrecomputedEvent
+ * @see RevisionLinkedArtifactPrefetchedEvent
  * @unstable
  */
-interface RevisionLinkedArtifactPrecomputedListener {
+interface RevisionLinkedArtifactPrefetchedListener {
 
-	public function handleRevisionLinkedArtifactPrecomputedEvent(
-		RevisionLinkedArtifactPrecomputedEvent $event
+	public function handleRevisionLinkedArtifactPrefetchedEvent(
+		RevisionLinkedArtifactPrefetchedEvent $event
 	): void;
 
 }

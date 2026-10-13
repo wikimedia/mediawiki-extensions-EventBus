@@ -27,54 +27,63 @@ NOTE: As of 2026-09, only revision entity linked artifacts are supported.
 A lambda function can be slow, and the LAC stores an artifact only once a client asks for it. So
 the first reader after an edit would wait for the computation. To avoid that, MediaWiki
 asks the LAC for the artifact immediately after its entity changes (e.g. an edit).
-We are calling this event triggered request a **precompute**.
+We are calling this event triggered request a **prefetch**.
+
+A prefetch is just a fetch ahead of expected reader use cases.
+LAC returns the artifact if it is cached or consults the artifact lambda on a cache miss.
+A prefetch for a reconciliation request (e.g. a null edit) sends
+`Cache-Control: no-cache`, forcing LAC to consult the artifact lambda and store the result.
 
 1. A user edits a page; MediaWiki emits `PageLatestRevisionChanged` DomainEvent.
-2. `LinkedArtifactsPrecomputeIngress` receives it. For each configured artifact that this
-   event should trigger, a `linkedArtifactPrecompute.<artifact_name>` job is enqueued.
-3. `LinkedArtifactPrecomputeJob` runs and calls `LinkedArtifactsPrecompute`,
-   which GETs the artifact from LAC with `Cache-Control: no-cache`, causing LAC to consult the lambda and store the result.
-4. On success, `LinkedArtifactsPrecompute` dispatches a `RevisionLinkedArtifactPrecomputed`
-   DomainEvent that carries the artifact content.
+2. `LinkedArtifactsPrefetchIngress` receives it. For each configured artifact that this
+   event should trigger, a `linkedArtifactPrefetch.<artifact_name>` job is enqueued.
+3. `LinkedArtifactPrefetchJob` runs and calls `LinkedArtifactsPrefetcher`,
+   which GETs the artifact from LAC.
+4. On success, `LinkedArtifactsPrefetcher` dispatches a `RevisionLinkedArtifactPrefetched`
+   DomainEvent that carries the artifact content. The event timestamp is when LAC responded
+   (the `Date` header). `getArtifactComputeTimestamp()` is when LAC computed the artifact
+   (the `Last-Modified` header).
 
 ## The classes
 
-| Class | Responsibility                                                          |
-| --- |-------------------------------------------------------------------------|
-| `LinkedArtifactsConfig` | Interface for parsed and validated `$wgEventBusLinkedArtifacts` config. |
-| `LinkedArtifactsPrecomputeIngress` | Maps input DomainEvents to precompute jobs                              |
-| `LinkedArtifactPrecomputeJob` | Runs one precompute from its job params                                 |
-| `LinkedArtifactsPrecompute` | Force-refreshes one artifact and dispatches the precomputed DomainEvent |
-| `RevisionLinkedArtifactPrecomputedEvent` | DomainEvent dispatched after a revision artifact is precomputed         |
+| Class | Responsibility                                                                       |
+| --- |--------------------------------------------------------------------------------------|
+| `LinkedArtifactsConfig` | Interface for parsed and validated `$wgEventBusLinkedArtifacts` config.              |
+| `LinkedArtifactsPrefetchIngress` | Maps input DomainEvents to prefetch jobs                                             |
+| `LinkedArtifactPrefetchJob` | Runs one prefetch from its job params                                                |
+| `LinkedArtifactsPrefetcher` | Prefetches one artifact and dispatches the LinkedArtifactPrefetchedEvent DomainEvent |
+| `RevisionLinkedArtifactPrefetchedEvent` | DomainEvent dispatched after a revision artifact is prefetched                       |
 | `LinkedArtifactsClient` | Client for the LAC HTTP API: locates and fetches artifacts. Callers should use this. |
-| `LinkedArtifactResponse` | Represents a response from LAC, with the response body.                 |
-
-The precompute job carries the artifact name, the entity kind and the entity identifiers
-(`wiki_id`, `page_id`, `revision_id`). It also carries what triggered the precompute. The
-trigger is part of job deduplication, because the precomputed DomainEvent carries it.
+| `LinkedArtifactResponse` | Represents a response from LAC, with the response body.                              |
 
 NOTE: Singular class names represent or work with a single artifact,
-      e.g. LinkedArtifactResponse, RevisionLinkedArtifactPrecomputeEvent, etc.
+      e.g. LinkedArtifactResponse, RevisionLinkedArtifactPrefetchedEvent, etc.
       Plural class names work with the LinkedArtifactsCache system, which is explicitly
       named 'Linked Artifacts Cache' -- 'Artifacts' plural.
 
-## Subscribing to precomputed artifacts
+## Subscribing to prefetched artifacts
 
-Register a `DomainEventIngress` for `RevisionLinkedArtifactPrecomputed` and implement
-`RevisionLinkedArtifactPrecomputedListener`. The event is dispatched for every revision
+Register a `DomainEventIngress` for `RevisionLinkedArtifactPrefetched` and implement
+`RevisionLinkedArtifactPrefetchedListener`. The event is dispatched for every revision
 artifact, so filter on `getArtifactName()`.
 
 ```json
 "DomainEventIngresses": [
 	{
 		"class": "MyExtension\\MyArtifactIngress",
-		"events": [ "RevisionLinkedArtifactPrecomputed" ]
+		"events": [ "RevisionLinkedArtifactPrefetched" ]
 	}
 ]
 ```
 
-The event fires only for precomputes that MediaWiki triggers. It does not fire when LAC
-computes an artifact on a read miss, or for pages outside the artifact's `page.*` coverage.
+The event fires only for prefetches that MediaWiki triggers. It does not fire for reader
+fetches.
+
+LAC can have computed the artifact for this prefetch, or it can have had it cached already.
+The event timestamp is the time of the prefetch, and `getArtifactComputeTimestamp()` is when
+LAC computed the artifact. LAC keeps a small number of revisions
+for each page, so a newer revision can make LAC remove the artifact, even before the
+listeners run. A reader that needs a older revision artifact later should store it (e.g. FlaggedRevs use cases).
 
 ## Reading a Revision linked artifact
 
@@ -91,8 +100,8 @@ if ( $client->coversPage( 'my-artifact', $wikiId, $pageId, $namespace ) ) {
 `coversPage()` is false when the feature is disabled or the artifact does not cover the
 page.
 
-By default, LAC computes the artifact on a cache miss, and the request waits for the lambda.
-To not wait, and not make LAC compute the artifact, pass
+By default, LAC consults the lambda to compute the artifact on a cache miss,
+and the request waits for the lambda. To not wait, and not make LAC compute the artifact, pass
 `LinkedArtifactsClient::CACHE_CONTROL_ONLY_IF_CACHED` as `$cacheControl`.
 `LinkedArtifactResponse::isNotCached()` is then true on a miss.
 
@@ -109,15 +118,15 @@ All configuration is in `$wgEventBusLinkedArtifacts`.
 | `base_url` | string | null | LAC service base URL |
 | `artifacts` | array | `{}` | One entry per artifact, keyed by LAC cache name |
 
-Per artifact. `entity_kind` and `page.*` also govern reading; everything under `precompute.*`
-affects precompute only:
+Per artifact. `entity_kind` and `page.*` also govern reading; everything under `prefetch.*`
+affects prefetch only:
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `entity_kind` | string | **required** | The kind of entity the artifact is linked to (and keyed by); selects which client method addresses it.  As of 2026-09, only 'revision' is supported. |
-| `precompute.enabled` | bool | `true` | Set false to stop precomputing this artifact, draining any queued jobs |
-| `precompute.events` | string[] | `[]` | Domain event types that trigger a precompute |
-| `precompute.timeout_ms` | int | `LinkedArtifactsConfig::PRECOMPUTE_TIMEOUT_MS_DEFAULT` | Timeout for the no-cache request from the precompute job.|
+| `prefetch.enabled` | bool | `true` | Set false to stop prefetching this artifact, draining any queued jobs |
+| `prefetch.events` | string[] | `[]` | Domain event types that trigger a prefetch |
+| `prefetch.timeout_ms` | int | `LinkedArtifactsConfig::PREFETCH_TIMEOUT_MS_DEFAULT` | Timeout for the request from the prefetch job.|
 | `page.*` | array | `{}` | page related artifact configuration.  For artifacts linked to both revision and page entities. |
 | `page.namespaces` | int[] | all | Namespaces this artifact covers |
 | `page.sample` | float | `1.0` | Fraction of pages covered, `0.0`–`1.0` |
@@ -132,7 +141,7 @@ $wgEventBusLinkedArtifacts = [
 	'artifacts' => [
 		'my_revision_artifact' => [
 			'entity_kind' => 'revision',
-			'precompute' => [
+			'prefetch' => [
 				'events' => [ 'PageLatestRevisionChanged' ],
 				'timeout_ms' => 30000,
 			],
@@ -148,18 +157,14 @@ $wgEventBusLinkedArtifacts = [
 ## Job queue
 
 Each configured artifact has its own job type,
-`linkedArtifactPrecompute.<artifact_name>`. All of these job types use `LinkedArtifactPrecomputeJob`.
-The job type is the job queue, so each artifact has its own Kafka topic at WMF
-(`mediawiki.job.linkedArtifactPrecompute.<artifact_name>`). A slow lambda then does not delay
-the precompute of other artifacts.
+`linkedArtifactPrefetch.<artifact_name>`. All of these job types use `LinkedArtifactPrefetchJob`.
+The job type is the job queue name, so each artifact has its own Kafka topic at WMF
+(e.g. `eqiad.mediawiki.job.linkedArtifactPrefetch.<artifact_name>`). A slow lambda then does not delay
+the prefetch of other artifacts.
 
-`LinkedArtifactPrecomputeJob::onRegistration()` (the extension registration callback) adds the job
+`LinkedArtifactPrefetchJob::onRegistration()` (the extension registration callback) adds the job
 types to `$wgJobClasses` from `$wgEventBusLinkedArtifacts`. No extension.json change is needed
 for a new artifact.
-
-Artifact names must match `[A-Za-z0-9_-]+` and have at most 120 characters, because they are part of
-the job type and the topic name.
-Renaming an artifact changes its job type: jobs that are queued under the old type cannot run.
 
 At WMF, change-prop's `low_traffic_jobs` rule runs all `mediawiki.job.*` topics. To give an artifact
 its own concurrency, add its job type to `high_traffic_jobs_config` in operations/deployment-charts.

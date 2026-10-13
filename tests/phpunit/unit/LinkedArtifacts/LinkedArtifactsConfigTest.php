@@ -18,11 +18,11 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 			'artifacts' => $artifacts ?? [
 				'my-artifact' => [
 					'entity_kind' => 'revision',
-					'precompute' => [ 'events' => [ 'PageLatestRevisionChanged', 'SomeOtherEvent' ] ],
+					'prefetch' => [ 'events' => [ 'PageLatestRevisionChanged', 'SomeOtherEvent' ] ],
 				],
 				'other-artifact' => [
 					'entity_kind' => 'revision',
-					'precompute' => [ 'events' => [ 'SomeOtherEvent' ] ],
+					'prefetch' => [ 'events' => [ 'SomeOtherEvent' ] ],
 				],
 			],
 		] );
@@ -34,63 +34,63 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 		$this->assertTrue( $config->isEnabled() );
 		$this->assertSame( 'https://lac.example/base', $config->getBaseUrl() );
 		$this->assertSame(
-			LinkedArtifactsConfig::PRECOMPUTE_TIMEOUT_MS_DEFAULT,
-			$config->getPrecomputeTimeoutMs( 'my-artifact' )
+			LinkedArtifactsConfig::PREFETCH_TIMEOUT_MS_DEFAULT,
+			$config->getPrefetchTimeoutMs( 'my-artifact' )
 		);
 	}
 
-	public function testGetPrecomputeTimeoutFallsBackToTheCodeDefault(): void {
+	public function testGetPrefetchTimeoutFallsBackToTheCodeDefault(): void {
 		$config = self::newConfig();
 
 		// There is no config-level default: an artifact that sets no timeout, and a name
 		// that is not configured at all, both fall back to the class constant.
 		$this->assertSame(
-			LinkedArtifactsConfig::PRECOMPUTE_TIMEOUT_MS_DEFAULT,
-			$config->getPrecomputeTimeoutMs( 'my-artifact' )
+			LinkedArtifactsConfig::PREFETCH_TIMEOUT_MS_DEFAULT,
+			$config->getPrefetchTimeoutMs( 'my-artifact' )
 		);
 		$this->assertSame(
-			LinkedArtifactsConfig::PRECOMPUTE_TIMEOUT_MS_DEFAULT,
-			$config->getPrecomputeTimeoutMs( 'unknown-artifact' )
+			LinkedArtifactsConfig::PREFETCH_TIMEOUT_MS_DEFAULT,
+			$config->getPrefetchTimeoutMs( 'unknown-artifact' )
 		);
 	}
 
-	public function testGetPrecomputeTimeoutHonoursPerArtifactOverride(): void {
+	public function testGetPrefetchTimeoutHonoursPerArtifactOverride(): void {
 		// Artifacts differ in how long their lambda takes, so each may override.
 		$config = self::newConfig( [
 			'slow-artifact' => [
 				'entity_kind' => 'revision',
-				'precompute' => [ 'events' => [ 'SomeOtherEvent' ], 'timeout_ms' => 30000 ],
+				'prefetch' => [ 'events' => [ 'SomeOtherEvent' ], 'timeout_ms' => 30000 ],
 			],
 			'default-artifact' => [
 				'entity_kind' => 'revision',
-				'precompute' => [ 'events' => [ 'SomeOtherEvent' ] ],
+				'prefetch' => [ 'events' => [ 'SomeOtherEvent' ] ],
 			],
 		] );
 
-		$this->assertSame( 30000, $config->getPrecomputeTimeoutMs( 'slow-artifact' ) );
+		$this->assertSame( 30000, $config->getPrefetchTimeoutMs( 'slow-artifact' ) );
 		$this->assertSame(
-			LinkedArtifactsConfig::PRECOMPUTE_TIMEOUT_MS_DEFAULT,
-			$config->getPrecomputeTimeoutMs( 'default-artifact' )
+			LinkedArtifactsConfig::PREFETCH_TIMEOUT_MS_DEFAULT,
+			$config->getPrefetchTimeoutMs( 'default-artifact' )
 		);
 	}
 
-	public function testGetArtifactsToPrecomputeForEventReturnsSubscribedArtifacts(): void {
+	public function testGetArtifactsToPrefetchForEventReturnsSubscribedArtifacts(): void {
 		$config = self::newConfig();
 
 		$this->assertSame(
 			[ 'my-artifact' ],
-			$config->getArtifactsToPrecomputeForEvent( 'PageLatestRevisionChanged' )
+			$config->getArtifactsToPrefetchForEvent( 'PageLatestRevisionChanged' )
 		);
 		$this->assertSame(
 			[ 'my-artifact', 'other-artifact' ],
-			$config->getArtifactsToPrecomputeForEvent( 'SomeOtherEvent' )
+			$config->getArtifactsToPrefetchForEvent( 'SomeOtherEvent' )
 		);
 	}
 
-	public function testGetArtifactsToPrecomputeForEventReturnsEmptyArrayForUnknownEvent(): void {
+	public function testGetArtifactsToPrefetchForEventReturnsEmptyArrayForUnknownEvent(): void {
 		$config = self::newConfig();
 
-		$this->assertSame( [], $config->getArtifactsToPrecomputeForEvent( 'PageDeleted' ) );
+		$this->assertSame( [], $config->getArtifactsToPrefetchForEvent( 'PageDeleted' ) );
 	}
 
 	public function testMissingKeysDefaultSafely(): void {
@@ -99,10 +99,10 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 		$this->assertFalse( $config->isEnabled() );
 		$this->assertSame( '', $config->getBaseUrl() );
 		$this->assertSame(
-			LinkedArtifactsConfig::PRECOMPUTE_TIMEOUT_MS_DEFAULT,
-			$config->getPrecomputeTimeoutMs( 'unknown-artifact' )
+			LinkedArtifactsConfig::PREFETCH_TIMEOUT_MS_DEFAULT,
+			$config->getPrefetchTimeoutMs( 'unknown-artifact' )
 		);
-		$this->assertSame( [], $config->getArtifactsToPrecomputeForEvent( 'UnknownEvent' ) );
+		$this->assertSame( [], $config->getArtifactsToPrefetchForEvent( 'UnknownEvent' ) );
 	}
 
 	public function testAppliesToPageIsFalseForAnUnconfiguredArtifact(): void {
@@ -123,7 +123,7 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 		$this->expectException( InvalidArgumentException::class );
 
 		self::newConfig( [
-			'bad-artifact' => [ 'entity_kind' => 'revision', 'precompute' => [ 'timeout_ms' => $timeoutMs ] ],
+			'bad-artifact' => [ 'entity_kind' => 'revision', 'prefetch' => [ 'timeout_ms' => $timeoutMs ] ],
 		] );
 	}
 
@@ -142,53 +142,53 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 			'artifacts' => [
 				'bad-artifact' => [
 					'entity_kind' => 'revision',
-					'precompute' => [ 'timeout_ms' => 0 ],
+					'prefetch' => [ 'timeout_ms' => 0 ],
 				],
 			],
 		] );
 	}
 
-	public function testGetArtifactsToPrecomputeForEventExcludesDisabledArtifacts(): void {
+	public function testGetArtifactsToPrefetchForEventExcludesDisabledArtifacts(): void {
 		// The ingress relies on this filtering rather than checking each artifact itself.
 		$config = self::newConfig( [
 			'on' => [
 				'entity_kind' => 'revision',
-				'precompute' => [ 'events' => [ 'SomeOtherEvent' ] ],
+				'prefetch' => [ 'events' => [ 'SomeOtherEvent' ] ],
 			],
 			'off' => [
 				'entity_kind' => 'revision',
-				'precompute' => [ 'enabled' => false, 'events' => [ 'SomeOtherEvent' ] ],
+				'prefetch' => [ 'enabled' => false, 'events' => [ 'SomeOtherEvent' ] ],
 			],
 		] );
 
-		$this->assertSame( [ 'on' ], $config->getArtifactsToPrecomputeForEvent( 'SomeOtherEvent' ) );
+		$this->assertSame( [ 'on' ], $config->getArtifactsToPrefetchForEvent( 'SomeOtherEvent' ) );
 	}
 
-	public function testIsPrecomputeEnabledDefaultsToTrue(): void {
-		$this->assertTrue( self::newConfig()->isPrecomputeEnabled( 'my-artifact' ) );
+	public function testIsPrefetchEnabledDefaultsToTrue(): void {
+		$this->assertTrue( self::newConfig()->isPrefetchEnabled( 'my-artifact' ) );
 	}
 
-	public function testIsPrecomputeEnabledHonoursTheArtifactSwitch(): void {
+	public function testIsPrefetchEnabledHonoursTheArtifactSwitch(): void {
 		$config = self::newConfig( [
-			'off' => [ 'entity_kind' => 'revision', 'precompute' => [ 'enabled' => false ] ],
-			'on' => [ 'entity_kind' => 'revision', 'precompute' => [ 'enabled' => true ] ],
+			'off' => [ 'entity_kind' => 'revision', 'prefetch' => [ 'enabled' => false ] ],
+			'on' => [ 'entity_kind' => 'revision', 'prefetch' => [ 'enabled' => true ] ],
 		] );
 
-		$this->assertFalse( $config->isPrecomputeEnabled( 'off' ) );
-		$this->assertTrue( $config->isPrecomputeEnabled( 'on' ) );
+		$this->assertFalse( $config->isPrefetchEnabled( 'off' ) );
+		$this->assertTrue( $config->isPrefetchEnabled( 'on' ) );
 	}
 
-	public function testIsPrecomputeEnabledIsFalseForAnUnconfiguredArtifact(): void {
+	public function testIsPrefetchEnabledIsFalseForAnUnconfiguredArtifact(): void {
 		// A queued job can outlive its artifact's config; draining it is the right answer,
 		// so this reports false rather than throwing the way getEntityKind() does.
-		$this->assertFalse( self::newConfig()->isPrecomputeEnabled( 'no-such-artifact' ) );
+		$this->assertFalse( self::newConfig()->isPrefetchEnabled( 'no-such-artifact' ) );
 	}
 
-	public function testANonBooleanPrecomputeEnabledThrows(): void {
+	public function testANonBooleanPrefetchEnabledThrows(): void {
 		$this->expectException( InvalidArgumentException::class );
 
 		self::newConfig( [
-			'bad-artifact' => [ 'entity_kind' => 'revision', 'precompute' => [ 'enabled' => 'yes' ] ],
+			'bad-artifact' => [ 'entity_kind' => 'revision', 'prefetch' => [ 'enabled' => 'yes' ] ],
 		] );
 	}
 
@@ -236,7 +236,7 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 	 */
 	public function testAnArtifactWithoutAValidEntityKindThrows( array $artifactConfig ): void {
 		// Required: there is no default, and an artifact whose entity kind no listener handles
-		// is silently never precomputed, so a missing one must fail loudly at construction.
+		// is silently never prefetched, so a missing one must fail loudly at construction.
 		$this->expectException( InvalidArgumentException::class );
 
 		new LinkedArtifactsConfig( [
@@ -249,7 +249,7 @@ class LinkedArtifactsConfigTest extends MediaWikiUnitTestCase {
 			'absent' => [ [] ],
 			'empty' => [ [ 'entity_kind' => '' ] ],
 			'not a string' => [ [ 'entity_kind' => 7 ] ],
-			// No code handles this entity kind, so the artifact would never be precomputed.
+			// No code handles this entity kind, so the artifact would never be prefetched.
 			'unknown' => [ [ 'entity_kind' => 'user' ] ],
 		];
 	}

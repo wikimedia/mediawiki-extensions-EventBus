@@ -3,18 +3,18 @@
 namespace MediaWiki\Extension\EventBus\Tests\Integration\LinkedArtifacts;
 
 use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsClient;
-use MediaWiki\Extension\EventBus\LinkedArtifacts\RevisionLinkedArtifactPrecomputedEvent;
+use MediaWiki\Extension\EventBus\LinkedArtifacts\RevisionLinkedArtifactPrefetchedEvent;
 use MediaWiki\WikiMap\WikiMap;
 use MediaWikiIntegrationTestCase;
 use Psr\Log\NullLogger;
 use Wikimedia\Http\MultiHttpClient;
 
 /**
- * @covers \MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsPrecompute
+ * @covers \MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsPrefetcher
  * @group EventBus
  * @group Database
  */
-class LinkedArtifactsPrecomputeTest extends MediaWikiIntegrationTestCase {
+class LinkedArtifactsPrefetcherTest extends MediaWikiIntegrationTestCase {
 
 	public function testSuccessNotifiesRegisteredListeners(): void {
 		$this->overrideConfigValue( 'EventBusLinkedArtifacts', [
@@ -40,14 +40,14 @@ class LinkedArtifactsPrecomputeTest extends MediaWikiIntegrationTestCase {
 
 		$received = [];
 		$this->registerListener(
-			RevisionLinkedArtifactPrecomputedEvent::TYPE,
-			static function ( RevisionLinkedArtifactPrecomputedEvent $event ) use ( &$received ) {
+			RevisionLinkedArtifactPrefetchedEvent::TYPE,
+			static function ( RevisionLinkedArtifactPrefetchedEvent $event ) use ( &$received ) {
 				$received[] = $event;
 			}
 		);
 
-		$this->getServiceContainer()->getService( 'EventBus.LinkedArtifactsPrecompute' )
-			->precomputeRevisionArtifact( 'my-artifact', false, 42, 99, 'PageLatestRevisionChanged', 'edit' );
+		$this->getServiceContainer()->getService( 'EventBus.LinkedArtifactsPrefetcher' )
+			->prefetchRevisionArtifact( 'my-artifact', false, 42, 99, 'PageLatestRevisionChanged', 'edit' );
 		$this->runDeferredUpdates();
 
 		$this->assertCount( 1, $received );
