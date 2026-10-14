@@ -62,7 +62,8 @@ use Wikimedia\Rdbms\IDBAccessObject;
 use Wikimedia\Timestamp\TimestampException;
 
 /**
- * Handles PageRevisionUpdated events by forwarding page edits to EventGate.
+ * Forwards page change domain events (edits, creations, deletions, moves,
+ * history visibility changes) to EventGate.
  */
 class PageChangeEventIngress extends DomainEventIngress implements
 	PageLatestRevisionChangedListener,

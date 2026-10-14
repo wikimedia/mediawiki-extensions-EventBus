@@ -390,9 +390,9 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 	}
 
 	/**
-	 * Test that page PageRevisionUpdated events are properly handled
+	 * Test that PageLatestRevisionChanged events are properly handled
 	 */
-	public function testPageRevisionUpdatedWithEdit() {
+	public function testPageLatestRevisionChangedWithEdit() {
 		$performer = $this->createMock( UserIdentity::class );
 		$performer->method( 'getName' )->willReturn( 'TestUser' );
 		$performer->method( 'getId' )->willReturn( 123 );
@@ -452,7 +452,7 @@ class PageChangeEventIngressTest extends MediaWikiUnitTestCase {
 			$patrolStatus
 		);
 
-		// `send` triggers only if the PageRevisionUpdated event
+		// `send` triggers only if the PageLatestRevisionChanged event
 		// has successfully been serialized and is ready to be sent
 		// to EventGate.
 		$this->eventBus->expects( $this->once() )
