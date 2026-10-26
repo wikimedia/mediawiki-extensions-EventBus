@@ -81,9 +81,10 @@ fetches.
 
 LAC can have computed the artifact for this prefetch, or it can have had it cached already.
 The event timestamp is the time of the prefetch, and `getArtifactComputeTimestamp()` is when
-LAC computed the artifact. LAC keeps a small number of revisions
-for each page, so a newer revision can make LAC remove the artifact, even before the
-listeners run. A reader that needs a older revision artifact later should store it (e.g. FlaggedRevs use cases).
+LAC computed the artifact. `getTriggerTimestamp()` is when the trigger occurred, e.g. the edit.
+LAC keeps a small number of revisions for each page, so a newer revision can make LAC remove
+the artifact, even before the listeners run. A reader that needs a older revision artifact
+later should store it (e.g. FlaggedRevs use cases).
 
 ## Reading a Revision linked artifact
 
@@ -168,3 +169,31 @@ for a new artifact.
 
 At WMF, change-prop's `low_traffic_jobs` rule runs all `mediawiki.job.*` topics. To give an artifact
 its own concurrency, add its job type to `high_traffic_jobs_config` in operations/deployment-charts.
+
+## Metrics
+
+The metrics use the StatsLib component name `linked_artifacts`. In Prometheus, the names
+will start with `mediawiki_linked_artifacts_`.
+
+All metrics have the labels `wiki_id`, `artifact`, `entity_kind` and `linked_artifact_service`.
+
+| Metric | Type | Other labels | Notes |
+| --- | --- | --- | --- |
+| `fetch_duration_seconds` | Histogram | `cache_control`, `status_code`, `purpose` | Each LAC fetch, from readers and prefetches. `cache_control` is `none` when the request has no `Cache-Control`. `status_code` 0 is no response, e.g. a timeout. `purpose` is `read` or `prefetch`. The `_count` with `purpose="prefetch"` is the number of prefetches. |
+| `fetch_artifact_body_size_bytes` | Histogram | `purpose` | The body size of each successful fetch. |
+| `fetch_artifact_age_seconds` | Histogram | `cache_control`, `purpose` | `Date` minus `Last-Modified` of each successful fetch. Near 0: LAC computed the artifact for this request. |
+| `prefetch_trigger_to_response_duration_seconds` | Histogram | `status_code` | The end-to-end duration of the prefetch: the time of the LAC response minus the time of the trigger (e.g. an edit). This includes the job queue delay and the LAC fetch. Prefetches without a trigger time are not observed. |
+
+`LinkedArtifactsClient` defines the fetch histogram buckets.
+`LinkedArtifactsPrefetcher` defines the `prefetch_trigger_to_response_duration_seconds` buckets.
+Do not change the buckets of a deployed metric. Use a new metric name instead.
+
+TODO: Add fetch Cache Status label after https://phabricator.wikimedia.org/T440993
+
+Other metrics that are useful for prefetch:
+
+- `mediawiki_EventBus_events_outgoing_by_stream_total{stream_name="mediawiki_job_linkedArtifactPrefetch_<artifact_name>"}`:
+  the prefetch jobs that MediaWiki enqueues.
+- `mediawiki_jobexecutor_exec_runtime_seconds{type="linkedArtifactPrefetch_<artifact_name>"}`:
+  the run time of the prefetch jobs.
+- The change-prop metrics of the job rule: the queue delay, the consumer lag and the retries.

@@ -89,6 +89,12 @@ class LinkedArtifactsPrefetchIngressTest extends MediaWikiUnitTestCase {
 				$params = $spec->getParams();
 				// Added by JobSpecification.
 				unset( $params['requestId'] );
+				// The time of the ingress with milliseconds, not the event timestamp. See T441939.
+				Assert::assertMatchesRegularExpression(
+					'/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/',
+					$params[LinkedArtifactPrefetchJob::TRIGGER_PARAM]['dt']
+				);
+				unset( $params[LinkedArtifactPrefetchJob::TRIGGER_PARAM]['dt'] );
 				Assert::assertEquals(
 					[
 						LinkedArtifactPrefetchJob::ARTIFACT_NAME_PARAM => 'my-artifact',

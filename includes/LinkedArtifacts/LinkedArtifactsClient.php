@@ -25,6 +25,7 @@ namespace MediaWiki\Extension\EventBus\LinkedArtifacts;
 use Psr\Log\LoggerInterface;
 use Wikimedia\Assert\Assert;
 use Wikimedia\Http\MultiHttpClient;
+use Wikimedia\Stats\StatsFactory;
 
 /**
  * Client for the HTTP API of the Hoarde "Linked Artifacts Cache" (LAC).
@@ -56,12 +57,44 @@ class LinkedArtifactsClient {
 
 	private const CACHE_CONTROL_DIRECTIVES = [ self::CACHE_CONTROL_NO_CACHE, self::CACHE_CONTROL_ONLY_IF_CACHED ];
 
+	/**
+	 * Purpose of a fetch: a reader needs the artifact. For the `purpose` metric label.
+	 */
+	public const PURPOSE_READ = 'read';
+
+	/**
+	 * Purpose of a fetch: a prefetch, see {@link LinkedArtifactsPrefetcher}.
+	 * For the `purpose` metric label.
+	 */
+	public const PURPOSE_PREFETCH = 'prefetch';
+
+	/**
+	 * A fixed set of purposes keeps the number of metric series small.
+	 */
+	private const PURPOSES = [ self::PURPOSE_READ, self::PURPOSE_PREFETCH ];
+
+	/**
+	 * Histogram buckets. StatsLib allows at most 10 buckets.
+	 * Do not change a bucket list after deployment. Rename the metric instead.
+	 */
+	private const FETCH_DURATION_SECONDS_BUCKETS = [ 0.03, 0.1, 0.25, 0.5, 1, 3, 10, 30, 60, 300 ];
+	private const FETCH_ARTIFACT_BODY_SIZE_BYTES_BUCKETS = [
+		128, 256, 512, 1024, 4096, 16384, 65536, 262144, 1048576, 16777216
+	];
+	private const FETCH_ARTIFACT_AGE_SECONDS_BUCKETS = [
+		1, 10, 60, 600, 3600, 86400, 604800, 2592000, 7776000, 31536000
+	];
+
+	/**
+	 * URI used when fetching revision entity artifacts from LAC.
+	 */
 	private const REVISION_URI_FORMAT = '/revisions/v1/%s/%s/%s/%s';
 
 	public function __construct(
 		private readonly LinkedArtifactsConfig $config,
 		private readonly MultiHttpClient $http,
-		private readonly LoggerInterface $logger
+		private readonly LoggerInterface $logger,
+		private readonly StatsFactory $stats
 	) {
 	}
 
@@ -125,6 +158,8 @@ class LinkedArtifactsClient {
 	 * @param int $revisionId
 	 * @param int $timeoutMs Request timeout in milliseconds, the caller's own budget.
 	 * @param string|null $cacheControl See {@link fetch()}.
+	 * @param string $purpose Why the caller fetches the artifact, for the `purpose` metric label:
+	 *   {@link PURPOSE_READ} or {@link PURPOSE_PREFETCH}.
 	 * @return LinkedArtifactResponse
 	 */
 	public function fetchRevisionArtifact(
@@ -133,13 +168,31 @@ class LinkedArtifactsClient {
 		int $pageId,
 		int $revisionId,
 		int $timeoutMs,
-		?string $cacheControl = null
+		?string $cacheControl = null,
+		string $purpose = self::PURPOSE_READ
 	): LinkedArtifactResponse {
-		return $this->fetch(
+		Assert::parameter(
+			in_array( $purpose, self::PURPOSES, true ),
+			'$purpose',
+			'must be one of: ' . implode( ', ', self::PURPOSES )
+		);
+
+		$startTime = microtime( true );
+		$response = $this->fetch(
 			$this->getRevisionArtifactUri( $artifactName, $wikiId, $pageId, $revisionId ),
 			$timeoutMs,
 			$cacheControl
 		);
+		$this->recordFetchMetrics(
+			$artifactName,
+			$this->config->resolveWikiId( $wikiId ),
+			LinkedArtifactsConfig::REVISION_ENTITY_KIND,
+			$cacheControl,
+			$purpose,
+			$response,
+			microtime( true ) - $startTime
+		);
+		return $response;
 	}
 
 	/**
@@ -152,6 +205,8 @@ class LinkedArtifactsClient {
 	 *   With none, LAC returns a stored artifact, or computes it on a miss.
 	 *   CACHE_CONTROL_NO_CACHE is only meaningful for a URI naming one entity;
 	 *   LAC's page-scoped route has no single revision to recompute.
+	 *   This method records no metrics, because it does not know the artifact.
+	 *   The per-entity methods record them.
 	 * @return LinkedArtifactResponse
 	 */
 	public function fetch(
@@ -216,6 +271,80 @@ class LinkedArtifactsClient {
 		}
 
 		return $response;
+	}
+
+	/**
+	 * Record the metrics of one fetch.
+	 *
+	 * @param string $artifactName
+	 * @param string $wikiId
+	 * @param string $entityKind
+	 * @param string|null $cacheControl
+	 * @param string $purpose
+	 * @param LinkedArtifactResponse $response
+	 * @param float $seconds The duration of the fetch.
+	 */
+	private function recordFetchMetrics(
+		string $artifactName,
+		string $wikiId,
+		string $entityKind,
+		?string $cacheControl,
+		string $purpose,
+		LinkedArtifactResponse $response,
+		float $seconds
+	): void {
+		$labels = [
+			'wiki_id' => $wikiId,
+			'artifact' => $artifactName,
+			'entity_kind' => $entityKind,
+			'linked_artifact_service' => LinkedArtifactsConfig::LINKED_ARTIFACTS_CACHE_SERVICE_NAME,
+			'purpose' => $purpose,
+		];
+		$cacheControlLabel = $cacheControl ?? 'none';
+
+		// Status code 0 is no response, e.g. a timeout.
+		$this->observe( 'fetch_duration_seconds', self::FETCH_DURATION_SECONDS_BUCKETS, $seconds, $labels + [
+			'cache_control' => $cacheControlLabel,
+			'status_code' => (string)$response->getStatusCode(),
+		] );
+
+		if ( !$response->isSuccess() ) {
+			return;
+		}
+
+		$this->observe(
+			'fetch_artifact_body_size_bytes',
+			self::FETCH_ARTIFACT_BODY_SIZE_BYTES_BUCKETS,
+			strlen( $response->getBody() ),
+			$labels
+		);
+
+		// The age is the time since the lambda computed the artifact. LAC sets both headers.
+		$date = $response->getDateTimestamp();
+		$lastModified = $response->getLastModifiedTimestamp();
+		if ( $date !== null && $lastModified !== null ) {
+			$age = (int)$date->getTimestamp() - (int)$lastModified->getTimestamp();
+			$this->observe(
+				'fetch_artifact_age_seconds',
+				self::FETCH_ARTIFACT_AGE_SECONDS_BUCKETS,
+				max( 0, $age ),
+				$labels + [ 'cache_control' => $cacheControlLabel ]
+			);
+		}
+	}
+
+	/**
+	 * @param string $name
+	 * @param array<int|float> $buckets
+	 * @param int|float $value
+	 * @param array<string,string> $labels
+	 */
+	private function observe( string $name, array $buckets, int|float $value, array $labels ): void {
+		$histogram = $this->stats->getHistogram( $name, $buckets );
+		foreach ( $labels as $key => $labelValue ) {
+			$histogram->setLabel( $key, $labelValue );
+		}
+		$histogram->observe( $value );
 	}
 
 	/**

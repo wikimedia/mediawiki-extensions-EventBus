@@ -9,6 +9,8 @@ use PHPUnit\Framework\Assert;
 use Psr\Log\LoggerInterface;
 use Wikimedia\Assert\ParameterAssertionException;
 use Wikimedia\Http\MultiHttpClient;
+use Wikimedia\Stats\StatsFactory;
+use Wikimedia\Stats\UnitTestingHelper;
 
 /**
  * @covers \MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsClient
@@ -18,6 +20,14 @@ class LinkedArtifactsClientTest extends MediaWikiUnitTestCase {
 	private const URI = '/revisions/v1/my-artifact/enwiki/42/99';
 
 	private const DEFAULT_ARTIFACTS = [ 'my-artifact' => [ 'entity_kind' => 'revision' ] ];
+
+	private UnitTestingHelper $stats;
+
+	protected function setUp(): void {
+		parent::setUp();
+		$this->stats = StatsFactory::newUnitTestingHelper()
+			->withComponent( LinkedArtifactsConfig::STATS_COMPONENT );
+	}
 
 	/**
 	 * @param array|null $httpResponse The `response` payload runMulti should return.
@@ -53,7 +63,8 @@ class LinkedArtifactsClientTest extends MediaWikiUnitTestCase {
 				'artifacts' => $artifacts ?? self::DEFAULT_ARTIFACTS,
 			] ),
 			$http,
-			$logger ?? $this->createMock( LoggerInterface::class )
+			$logger ?? $this->createMock( LoggerInterface::class ),
+			$this->stats->getStatsFactory()
 		);
 	}
 
@@ -90,6 +101,65 @@ class LinkedArtifactsClientTest extends MediaWikiUnitTestCase {
 		Assert::assertSame( 'https://lac.example/base' . self::URI, $captured['requests'][0]['url'] );
 		Assert::assertSame( [], $captured['requests'][0]['headers'] );
 		Assert::assertSame( 3.0, $captured['options']['reqTimeout'] );
+	}
+
+	public function testFetchRevisionArtifactRecordsTheFetchMetrics(): void {
+		$client = $this->newClient( [
+			'code' => 200,
+			'headers' => [
+				'content-type' => 'application/json',
+				'date' => 'Wed, 21 Oct 2026 10:02:00 GMT',
+				'last-modified' => 'Wed, 21 Oct 2026 10:00:00 GMT',
+			],
+			'body' => '{"a":1}',
+		] );
+
+		$client->fetchRevisionArtifact( 'my-artifact', 'enwiki', 42, 99, 3000 );
+
+		$labels = 'wiki_id="enwiki",artifact="my_artifact",entity_kind="revision",'
+			. 'linked_artifact_service="linked_artifacts_cache",purpose="read"';
+		$this->assertSame(
+			1.0,
+			$this->stats->sum( "fetch_duration_seconds_count{{$labels},cache_control=\"none\",status_code=\"200\"}" )
+		);
+		$this->assertSame( 7.0, $this->stats->sum( "fetch_artifact_body_size_bytes_sum{{$labels}}" ) );
+		$this->assertSame(
+			120.0,
+			$this->stats->sum( "fetch_artifact_age_seconds_sum{{$labels},cache_control=\"none\"}" )
+		);
+	}
+
+	public function testAPrefetchHasThePrefetchPurpose(): void {
+		$client = $this->newClient( [ 'code' => 200, 'headers' => [], 'body' => '{}' ] );
+
+		$client->fetchRevisionArtifact(
+			'my-artifact', 'enwiki', 42, 99, 3000, null, LinkedArtifactsClient::PURPOSE_PREFETCH
+		);
+
+		$this->assertSame( 1.0, $this->stats->sum( 'fetch_duration_seconds_count{purpose="prefetch"}' ) );
+	}
+
+	public function testAnUnknownPurposeThrows(): void {
+		// A fixed set of purposes keeps the number of metric series small.
+		$this->expectException( ParameterAssertionException::class );
+
+		$this->newClient()->fetchRevisionArtifact( 'my-artifact', 'enwiki', 42, 99, 3000, null, 'my-feature' );
+	}
+
+	public function testAFailedFetchRecordsOnlyTheFetchDuration(): void {
+		$client = $this->newClient( [ 'code' => 500, 'headers' => [], 'body' => '' ] );
+
+		$client->fetchRevisionArtifact(
+			'my-artifact', 'enwiki', 42, 99, 3000, LinkedArtifactsClient::CACHE_CONTROL_NO_CACHE
+		);
+
+		$this->assertSame(
+			1.0,
+			$this->stats->sum( 'fetch_duration_seconds_count{cache_control="no_cache",status_code="500"}' )
+		);
+		$formatted = implode( "\n", $this->stats->getAllFormatted() );
+		$this->assertStringNotContainsString( 'fetch_artifact_body_size_bytes', $formatted );
+		$this->assertStringNotContainsString( 'fetch_artifact_age_seconds', $formatted );
 	}
 
 	// -- Transport ----------------------------------------------------------------------

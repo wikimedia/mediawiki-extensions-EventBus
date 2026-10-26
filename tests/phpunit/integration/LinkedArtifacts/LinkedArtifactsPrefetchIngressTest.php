@@ -61,13 +61,16 @@ class LinkedArtifactsPrefetchIngressTest extends MediaWikiIntegrationTestCase {
 		$this->assertSame( WikiMap::getCurrentWikiId(), $params[LinkedArtifactPrefetchJob::WIKI_ID_PARAM] );
 		$this->assertSame( $revision->getPageId(), $params[LinkedArtifactPrefetchJob::PAGE_ID_PARAM] );
 		$this->assertSame( $revision->getId(), $params[LinkedArtifactPrefetchJob::REVISION_ID_PARAM] );
+		$trigger = $params[LinkedArtifactPrefetchJob::TRIGGER_PARAM];
+		$this->assertIsString( $trigger['dt'] );
+		unset( $trigger['dt'] );
 		$this->assertSame(
 			[
 				'event_type' => PageLatestRevisionChangedEvent::TYPE,
 				'cause' => 'edit',
 				'is_reconciliation_request' => false,
 			],
-			$params[LinkedArtifactPrefetchJob::TRIGGER_PARAM]
+			$trigger
 		);
 	}
 }

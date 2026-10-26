@@ -31,6 +31,9 @@ use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MainConfigNames;
 use MediaWiki\Settings\SettingsBuilder;
 use Psr\Log\LoggerInterface;
+use Wikimedia\Timestamp\ConvertibleTimestamp;
+use Wikimedia\Timestamp\TimestampException;
+use Wikimedia\Timestamp\TimestampFormat;
 
 /**
  * Prefetches one Linked Artifacts Cache (LAC) artifact via {@link LinkedArtifactsPrefetcher}.
@@ -85,8 +88,9 @@ class LinkedArtifactPrefetchJob extends Job {
 
 	/**
 	 * Job params key for what triggered the prefetch. An array with the keys
-	 * `event_type`, `cause` and `is_reconciliation_request`. Optional.
+	 * `is_reconciliation_request`, and `event_type`, `cause` and `dt` if they are known. Optional.
 	 * It is part of job deduplication, because the RevisionLinkedArtifactPrefetchedEvent carries it.
+	 * `dt` is the ISO 8601 time of the trigger with milliseconds.
 	 */
 	public const TRIGGER_PARAM = 'trigger';
 
@@ -124,7 +128,7 @@ class LinkedArtifactPrefetchJob extends Job {
 			'entity_kind' => $entityKind,
 		];
 
-		// Ensure that LinkedArtifacts integration is still enabled.
+		// Ensure that MediaWiki LinkedArtifacts integration is still enabled.
 		if ( !$this->config->isEnabled() ) {
 			$this->logger->info(
 				'Ignoring LinkedArtifactsCache prefetch job for artifact {artifact_name}: '
@@ -163,14 +167,14 @@ class LinkedArtifactPrefetchJob extends Job {
 			return true;
 		}
 
-		// Happy case!
-		if ( $response->isSuccess() ) {
-			return true;
-		}
-
 		// LAC has no artifact for this key. This is already logged by the client.
 		// Return true to avoid retries.
 		if ( $response->isNotFound() ) {
+			return true;
+		}
+
+		// Happy case!
+		if ( $response->isSuccess() ) {
 			return true;
 		}
 
@@ -178,7 +182,6 @@ class LinkedArtifactPrefetchJob extends Job {
 			__METHOD__ . ": failed prefetching LAC artifact '$artifactName', "
 				. "status {$response->getStatusCode()}"
 		);
-
 		return false;
 	}
 
@@ -205,10 +208,30 @@ class LinkedArtifactPrefetchJob extends Job {
 			$wikiId,
 			$pageId,
 			$revisionId,
+			(bool)( $trigger['is_reconciliation_request'] ?? false ),
 			$trigger['event_type'] ?? null,
 			$trigger['cause'] ?? null,
-			(bool)( $trigger['is_reconciliation_request'] ?? false )
+			$this->getTriggerTimestamp()
 		);
+	}
+
+	/**
+	 * The trigger time from the `dt` of the trigger job param.
+	 *
+	 * @return ConvertibleTimestamp|null Null if the job params have no valid trigger time,
+	 *   e.g. for a job that was enqueued before the trigger time was added.
+	 */
+	private function getTriggerTimestamp(): ?ConvertibleTimestamp {
+		$triggerDt = $this->params[self::TRIGGER_PARAM]['dt'] ?? null;
+		// ConvertibleTimestamp makes the time now from an empty value.
+		if ( !is_string( $triggerDt ) || $triggerDt === '' ) {
+			return null;
+		}
+		try {
+			return new ConvertibleTimestamp( $triggerDt );
+		} catch ( TimestampException ) {
+			return null;
+		}
 	}
 
 	/**
@@ -228,10 +251,13 @@ class LinkedArtifactPrefetchJob extends Job {
 	 *   e.g. with {@link LinkedArtifactsConfig::resolveWikiId()}.
 	 * @param int $pageId
 	 * @param int $revisionId
-	 * @param string|null $triggerEventType The upstream event that caused this prefetch, e.g. the DomainEvent type.
-	 * @param string|null $triggerCause The description of the upstream event cause, e.g. `edit`.
 	 * @param bool $isReconciliationRequest If true, LAC will consult the lambda, even if
 	 *   the artifact is already cached. Use this to refresh an artifact that might be stale.
+	 * @param string|null $triggerEventType The upstream event that caused this prefetch, e.g. the DomainEvent type.
+	 * @param string|null $triggerCause The description of the upstream event cause, e.g. `edit`.
+	 * @param ConvertibleTimestamp|null $triggerTimestamp When the trigger occurred.
+	 *   It is stored as `trigger.dt`: ISO 8601 in UTC, with milliseconds, e.g. `2026-10-21T10:00:00.123Z`.
+	 *   The `prefetch_trigger_to_response_duration_seconds` metric measures from this time.
 	 * @return JobSpecification
 	 */
 	public static function newRevisionJobSpec(
@@ -239,10 +265,29 @@ class LinkedArtifactPrefetchJob extends Job {
 		string $wikiId,
 		int $pageId,
 		int $revisionId,
+		bool $isReconciliationRequest = false,
 		?string $triggerEventType = null,
 		?string $triggerCause = null,
-		bool $isReconciliationRequest = false
+		?ConvertibleTimestamp $triggerTimestamp = null
 	): JobSpecification {
+		$triggerDt = null;
+		if ( $triggerTimestamp ) {
+			// TimestampFormat::ISO_8601 has whole seconds only, so format with milliseconds.
+			// getTimestamp() converts to UTC. Do not change the timezone of $triggerTimestamp itself.
+			$utcTimestamp = new ConvertibleTimestamp( $triggerTimestamp->getTimestamp( TimestampFormat::UNIX_MICRO ) );
+			$triggerDt = $utcTimestamp->format( 'Y-m-d\TH:i:s.v\Z' );
+		}
+
+		$trigger = [
+			'event_type' => $triggerEventType,
+			'cause' => $triggerCause,
+			'is_reconciliation_request' => $isReconciliationRequest,
+			'dt' => $triggerDt,
+		];
+		// Omit unknown trigger fields. Do not set them to null.
+		// See https://wikitech.wikimedia.org/wiki/Event_Platform/Schemas/Guidelines#No_union_types_/_No_null_values
+		$trigger = array_filter( $trigger, static fn ( $value ): bool => $value !== null );
+
 		return new JobSpecification(
 			self::getJobType( $artifactName ),
 			[
@@ -251,11 +296,7 @@ class LinkedArtifactPrefetchJob extends Job {
 				self::WIKI_ID_PARAM => $wikiId,
 				self::PAGE_ID_PARAM => $pageId,
 				self::REVISION_ID_PARAM => $revisionId,
-				self::TRIGGER_PARAM => [
-					'event_type' => $triggerEventType,
-					'cause' => $triggerCause,
-					'is_reconciliation_request' => $isReconciliationRequest,
-				],
+				self::TRIGGER_PARAM => $trigger,
 			],
 			[
 				'removeDuplicates' => true,
@@ -265,6 +306,8 @@ class LinkedArtifactPrefetchJob extends Job {
 				// e.g. for both 'reconciliation requests' and regular event triggers.
 				// This costs little: only a reconciliation request makes LAC compute the
 				// artifact again. Other prefetches get the artifact that LAC has cached.
+				// The trigger `dt` is also part of deduplication. Thus jobs from two
+				// DomainEvents for the same revision both run.
 			]
 		);
 	}

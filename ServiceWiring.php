@@ -186,7 +186,8 @@ return [
 			$services->getHttpRequestFactory()->createMultiClient( [
 				'telemetry' => $services->getTracer()
 			] ),
-			LoggerFactory::getInstance( 'EventBus.LinkedArtifacts' )
+			LoggerFactory::getInstance( 'EventBus.LinkedArtifacts' ),
+			$services->getStatsFactory()->withComponent( LinkedArtifactsConfig::STATS_COMPONENT )
 		);
 	},
 
@@ -197,7 +198,8 @@ return [
 			$services->get( 'EventBus.LinkedArtifactsClient' ),
 			$services->get( 'EventBus.LinkedArtifactsConfig' ),
 			$services->getDomainEventDispatcher(),
-			$services->getConnectionProvider()
+			$services->getConnectionProvider(),
+			$services->getStatsFactory()->withComponent( LinkedArtifactsConfig::STATS_COMPONENT )
 		);
 	},
 ];

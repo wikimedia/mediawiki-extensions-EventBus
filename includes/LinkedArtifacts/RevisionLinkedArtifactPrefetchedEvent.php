@@ -41,6 +41,7 @@ use Wikimedia\Timestamp\ConvertibleTimestamp;
  * The event timestamp is when MediaWiki prefetched the artifact, i.e. when LAC responded.
  * {@link getArtifactComputeTimestamp()} is when LAC computed the artifact. For an artifact
  * that was already cached, the compute time is earlier than the prefetch.
+ * {@link getTriggerTimestamp()} is when the trigger occurred, e.g. the edit.
  *
  * Only prefetches that MediaWiki triggers dispatch this event. Reader fetches, and pages
  * outside an artifact's configured coverage, do not.
@@ -71,12 +72,14 @@ class RevisionLinkedArtifactPrefetchedEvent extends DomainEvent {
 	 *   This is the event timestamp, see {@link DomainEvent::getEventTimestamp()}.
 	 * @param ConvertibleTimestamp|null $artifactComputeTimestamp When LAC computed the
 	 *   artifact, from the LAC Last-Modified header. Null if LAC did not send it.
-	 * @param string|null $triggerEventType The DomainEvent type that triggered the prefetch,
-	 *   e.g. `PageLatestRevisionChanged`. Null if no DomainEvent triggered it.
-	 * @param string|null $triggerCause The cause of the triggering event, e.g. `edit`.
 	 * @param bool $isReconciliationRequest Whether the trigger was a reconciliation request,
 	 *   e.g. a null edit. This event then is also a reconciliation event, see
 	 *   {@link DomainEvent::isReconciliationRequest()}.
+	 * @param string|null $triggerEventType The DomainEvent type that triggered the prefetch,
+	 *   e.g. `PageLatestRevisionChanged`. Null if no DomainEvent triggered it.
+	 * @param string|null $triggerCause The cause of the triggering event, e.g. `edit`.
+	 * @param ConvertibleTimestamp|null $triggerTimestamp When the trigger occurred.
+	 *   Null if unknown.
 	 */
 	public function __construct(
 		private readonly string $artifactName,
@@ -87,9 +90,10 @@ class RevisionLinkedArtifactPrefetchedEvent extends DomainEvent {
 		private readonly string $body,
 		ConvertibleTimestamp $timestamp,
 		private readonly ?ConvertibleTimestamp $artifactComputeTimestamp,
+		bool $isReconciliationRequest = false,
 		private readonly ?string $triggerEventType = null,
 		private readonly ?string $triggerCause = null,
-		bool $isReconciliationRequest = false
+		private readonly ?ConvertibleTimestamp $triggerTimestamp = null
 	) {
 		parent::__construct( $timestamp, $isReconciliationRequest );
 		$this->declareEventType( self::TYPE );
@@ -146,7 +150,7 @@ class RevisionLinkedArtifactPrefetchedEvent extends DomainEvent {
 	}
 
 	/**
-	 * The DomainEvent type that triggered the prefetch, or null if none did.
+	 * The event type that triggered the prefetch, or null if none did.
 	 */
 	public function getTriggerEventType(): ?string {
 		return $this->triggerEventType;
@@ -157,6 +161,15 @@ class RevisionLinkedArtifactPrefetchedEvent extends DomainEvent {
 	 */
 	public function getTriggerCause(): ?string {
 		return $this->triggerCause;
+	}
+
+	/**
+	 * When the trigger that caused the prefetch occurred, or null if unknown.
+	 *
+	 * @return ConvertibleTimestamp|null
+	 */
+	public function getTriggerTimestamp(): ?ConvertibleTimestamp {
+		return $this->triggerTimestamp;
 	}
 
 	/**

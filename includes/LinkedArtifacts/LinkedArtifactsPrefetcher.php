@@ -23,8 +23,12 @@ declare( strict_types=1 );
 namespace MediaWiki\Extension\EventBus\LinkedArtifacts;
 
 use MediaWiki\DomainEvent\DomainEventDispatcher;
+use Wikimedia\Assert\Assert;
+use Wikimedia\Assert\ParameterAssertionException;
 use Wikimedia\Rdbms\IConnectionProvider;
+use Wikimedia\Stats\StatsFactory;
 use Wikimedia\Timestamp\ConvertibleTimestamp;
+use Wikimedia\Timestamp\TimestampFormat;
 
 /**
  * Prefetches Linked Artifacts Cache (LAC) artifacts.
@@ -42,11 +46,19 @@ use Wikimedia\Timestamp\ConvertibleTimestamp;
  */
 class LinkedArtifactsPrefetcher {
 
+	/**
+	 * Histogram buckets of `prefetch_trigger_to_response_duration_seconds`.
+	 * StatsLib allows at most 10 buckets.
+	 * Do not change the buckets after deployment. Rename the metric instead.
+	 */
+	private const TRIGGER_TO_RESPONSE_DURATION_SECONDS_BUCKETS = [ 0.1, 0.5, 1, 2, 5, 10, 30, 60, 300, 3600 ];
+
 	public function __construct(
 		private readonly LinkedArtifactsClient $client,
 		private readonly LinkedArtifactsConfig $config,
 		private readonly DomainEventDispatcher $eventDispatcher,
-		private readonly IConnectionProvider $connectionProvider
+		private readonly IConnectionProvider $connectionProvider,
+		private readonly StatsFactory $stats
 	) {
 	}
 
@@ -58,21 +70,33 @@ class LinkedArtifactsPrefetcher {
 	 * @param string|false $wikiId The page's wiki ID; false for the local wiki.
 	 * @param int $pageId
 	 * @param int $revisionId
-	 * @param string|null $triggerEventType See {@link RevisionLinkedArtifactPrefetchedEvent}.
-	 * @param string|null $triggerCause
 	 * @param bool $isReconciliationRequest If true, LAC computes the artifact again, even if
 	 *   it has it cached.
+	 * @param string|null $triggerEventType See {@link RevisionLinkedArtifactPrefetchedEvent}.
+	 * @param string|null $triggerCause
+	 * @param ConvertibleTimestamp|null $triggerTimestamp See {@link RevisionLinkedArtifactPrefetchedEvent}.
+	 *   If set, the `prefetch_trigger_to_response_duration_seconds` metric measures from this time.
 	 * @return LinkedArtifactResponse The LAC response, for the caller's retry decision.
+	 * @throws ParameterAssertionException If the artifact is not a configured revision artifact.
 	 */
 	public function prefetchRevisionArtifact(
 		string $artifactName,
 		string|false $wikiId,
 		int $pageId,
 		int $revisionId,
+		bool $isReconciliationRequest = false,
 		?string $triggerEventType = null,
 		?string $triggerCause = null,
-		bool $isReconciliationRequest = false
+		?ConvertibleTimestamp $triggerTimestamp = null
 	): LinkedArtifactResponse {
+		// NOTE: getEntityKind() asserts that the artifact is configured.
+		$entityKind = $this->config->getEntityKind( $artifactName );
+		Assert::parameter(
+			$entityKind === LinkedArtifactsConfig::REVISION_ENTITY_KIND,
+			'$artifactName',
+			"must name a revision linked artifact, '$artifactName' is linked to a '$entityKind' entity"
+		);
+
 		$response = $this->client->fetchRevisionArtifact(
 			$artifactName,
 			$wikiId,
@@ -81,8 +105,20 @@ class LinkedArtifactsPrefetcher {
 			$this->config->getPrefetchTimeoutMs( $artifactName ),
 			// Only a reconciliation request forces a new compute. Other prefetches accept an
 			// artifact that LAC has cached, e.g. from a reader or from a duplicate job.
-			$isReconciliationRequest ? LinkedArtifactsClient::CACHE_CONTROL_NO_CACHE : null
+			$isReconciliationRequest ? LinkedArtifactsClient::CACHE_CONTROL_NO_CACHE : null,
+			LinkedArtifactsClient::PURPOSE_PREFETCH
 		);
+
+		if ( $triggerTimestamp ) {
+			$this->recordTriggerToResponseDuration(
+				$artifactName,
+				$wikiId,
+				$entityKind,
+				$response,
+				$triggerTimestamp,
+				self::timestampNow()
+			);
+		}
 
 		if ( $response->isSuccess() ) {
 			$this->eventDispatcher->dispatch(
@@ -99,14 +135,63 @@ class LinkedArtifactsPrefetcher {
 					// When the lambda computed the artifact. On a cache hit, this is earlier
 					// than the prefetch.
 					$response->getLastModifiedTimestamp(),
+					$isReconciliationRequest,
 					$triggerEventType,
 					$triggerCause,
-					$isReconciliationRequest
+					$triggerTimestamp
 				),
 				$this->connectionProvider
 			);
 		}
 
 		return $response;
+	}
+
+	/**
+	 * Observe `prefetch_trigger_to_response_duration_seconds`: the time from the trigger
+	 * (e.g. an edit) to the LAC response of the prefetch.
+	 *
+	 * @param string $artifactName
+	 * @param string|false $wikiId
+	 * @param string $entityKind
+	 * @param LinkedArtifactResponse $response
+	 * @param ConvertibleTimestamp $triggerTimestamp
+	 * @param ConvertibleTimestamp $responseTimestamp
+	 */
+	private function recordTriggerToResponseDuration(
+		string $artifactName,
+		string|false $wikiId,
+		string $entityKind,
+		LinkedArtifactResponse $response,
+		ConvertibleTimestamp $triggerTimestamp,
+		ConvertibleTimestamp $responseTimestamp
+	): void {
+		$labels = [
+			'wiki_id' => $this->config->resolveWikiId( $wikiId ),
+			'artifact' => $artifactName,
+			'entity_kind' => $entityKind,
+			'linked_artifact_service' => LinkedArtifactsConfig::LINKED_ARTIFACTS_CACHE_SERVICE_NAME,
+			// Status code 0 is no response, e.g. a timeout.
+			'status_code' => (string)$response->getStatusCode(),
+		];
+		$histogram = $this->stats->getHistogram(
+			'prefetch_trigger_to_response_duration_seconds',
+			self::TRIGGER_TO_RESPONSE_DURATION_SECONDS_BUCKETS
+		);
+		foreach ( $labels as $key => $value ) {
+			$histogram->setLabel( $key, $value );
+		}
+		$duration = (float)$responseTimestamp->getTimestamp( TimestampFormat::UNIX_MICRO )
+			- (float)$triggerTimestamp->getTimestamp( TimestampFormat::UNIX_MICRO );
+		$histogram->observe( max( 0.0, $duration ) );
+	}
+
+	/**
+	 * The time now, with microseconds. new ConvertibleTimestamp() has whole seconds only.
+	 *
+	 * @return ConvertibleTimestamp
+	 */
+	private static function timestampNow(): ConvertibleTimestamp {
+		return new ConvertibleTimestamp( sprintf( '%.6F', microtime( true ) ) );
 	}
 }

@@ -29,6 +29,7 @@ use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\Page\Event\PageLatestRevisionChangedEvent;
 use MediaWiki\Page\Event\PageLatestRevisionChangedListener;
 use Psr\Log\LoggerInterface;
+use Wikimedia\Timestamp\ConvertibleTimestamp;
 
 /**
  * Reacts to MediaWiki DomainEvents by enqueuing jobs that prefetch the Linked Artifacts
@@ -125,10 +126,15 @@ class LinkedArtifactsPrefetchIngress
 							$wikiId,
 							$pageId,
 							$revisionId,
+							$event->isReconciliationRequest(),
 							// Use the event TYPE constant. getEventType() returns a deprecated alias.
 							PageLatestRevisionChangedEvent::TYPE,
 							$event->getCause(),
-							$event->isReconciliationRequest()
+							// trigger.dt should be the triggering event timestamp.
+							// TODO: Use $event->getEventTimestamp() when T441939 is fixed.
+							// Until then, use the time now, with microseconds. new ConvertibleTimestamp()
+							// has whole seconds only.
+							new ConvertibleTimestamp( sprintf( '%.6F', microtime( true ) ) )
 						);
 					}
 					break;

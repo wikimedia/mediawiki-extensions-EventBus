@@ -10,11 +10,20 @@ use MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsPrefetcher;
 use MediaWiki\MainConfigNames;
 use MediaWiki\Settings\SettingsBuilder;
 use MediaWikiUnitTestCase;
+use Wikimedia\Timestamp\ConvertibleTimestamp;
 
 /**
  * @covers \MediaWiki\Extension\EventBus\LinkedArtifacts\Job\LinkedArtifactPrefetchJob
  */
 class LinkedArtifactPrefetchJobTest extends MediaWikiUnitTestCase {
+
+	private function newPrefetchJob(
+		array $params,
+		LinkedArtifactsPrefetcher $prefetcher,
+		LinkedArtifactsConfig $config
+	): LinkedArtifactPrefetchJob {
+		return new LinkedArtifactPrefetchJob( $params, $prefetcher, $config );
+	}
 
 	private static function newConfig( bool $enabled = true ): LinkedArtifactsConfig {
 		return new LinkedArtifactsConfig( [
@@ -50,7 +59,9 @@ class LinkedArtifactPrefetchJobTest extends MediaWikiUnitTestCase {
 
 	public function testNewRevisionJobSpec(): void {
 		// E.g. a reader request that is not a DomainEvent sets its own trigger.
-		$spec = LinkedArtifactPrefetchJob::newRevisionJobSpec( 'my-artifact', 'enwiki', 42, 99, 'MyReaderRequest' );
+		$spec = LinkedArtifactPrefetchJob::newRevisionJobSpec(
+			'my-artifact', 'enwiki', 42, 99, false, 'MyReaderRequest'
+		);
 
 		$this->assertSame( 'linkedArtifactPrefetch.my-artifact', $spec->getType() );
 		$params = $spec->getParams();
@@ -63,9 +74,9 @@ class LinkedArtifactPrefetchJobTest extends MediaWikiUnitTestCase {
 				LinkedArtifactPrefetchJob::WIKI_ID_PARAM => 'enwiki',
 				LinkedArtifactPrefetchJob::PAGE_ID_PARAM => 42,
 				LinkedArtifactPrefetchJob::REVISION_ID_PARAM => 99,
+				// An unknown cause is omitted, not null.
 				LinkedArtifactPrefetchJob::TRIGGER_PARAM => [
 					'event_type' => 'MyReaderRequest',
-					'cause' => null,
 					'is_reconciliation_request' => false,
 				],
 			],
@@ -74,12 +85,61 @@ class LinkedArtifactPrefetchJobTest extends MediaWikiUnitTestCase {
 		$this->assertTrue( $spec->ignoreDuplicates() );
 	}
 
+	/**
+	 * @dataProvider provideTimestamps
+	 */
+	public function testNewRevisionJobSpecStoresTheTriggerTimeInUtcWithMilliseconds(
+		ConvertibleTimestamp $triggerTimestamp,
+		string $expectedDt
+	): void {
+		$spec = LinkedArtifactPrefetchJob::newRevisionJobSpec(
+			'my-artifact', 'enwiki', 42, 99, false, 'MyReaderRequest', null, $triggerTimestamp
+		);
+
+		$this->assertSame( $expectedDt, $spec->getParams()[LinkedArtifactPrefetchJob::TRIGGER_PARAM]['dt'] );
+	}
+
+	public static function provideTimestamps(): iterable {
+		yield 'whole seconds' => [ new ConvertibleTimestamp( '20261021100000' ), '2026-10-21T10:00:00.000Z' ];
+		yield 'microseconds' => [ new ConvertibleTimestamp( '1792576800.123456' ), '2026-10-21T10:00:00.123Z' ];
+		yield 'not UTC' => [ new ConvertibleTimestamp( '2026-10-21T12:00:00.5+02:00' ), '2026-10-21T10:00:00.500Z' ];
+	}
+
+	/**
+	 * @dataProvider provideTriggerDts
+	 */
+	public function testTheTriggerTimeIsPassedToThePrefetcher( mixed $triggerDt, ?string $expectedDt ): void {
+		$params = self::jobParams();
+		$params[LinkedArtifactPrefetchJob::TRIGGER_PARAM]['dt'] = $triggerDt;
+
+		$prefetcher = $this->createMock( LinkedArtifactsPrefetcher::class );
+		$prefetcher->expects( $this->once() )
+			->method( 'prefetchRevisionArtifact' )
+			->with(
+				'my-artifact', 'enwiki', 42, 99, true, 'PageLatestRevisionChanged', 'edit',
+				$this->callback( static fn ( ?ConvertibleTimestamp $timestamp ): bool =>
+					$timestamp?->format( 'Y-m-d\TH:i:s.v\Z' ) === $expectedDt
+				)
+			)
+			->willReturn( new LinkedArtifactResponse( 200, [ 'content-type' => 'application/json' ], '{}' ) );
+
+		$this->assertTrue( $this->newPrefetchJob( $params, $prefetcher, self::newConfig() )->run() );
+	}
+
+	public static function provideTriggerDts(): iterable {
+		yield 'with milliseconds' => [ '2026-10-21T10:00:00.123Z', '2026-10-21T10:00:00.123Z' ];
+		// ConvertibleTimestamp makes the time now from an empty string. The job must not.
+		yield 'empty' => [ '', null ];
+		yield 'not a timestamp' => [ 'yesterday-ish', null ];
+		yield 'not a string' => [ 42, null ];
+	}
+
 	public function testTheJobTypeIsTheArtifactJobType(): void {
 		$this->assertSame(
 			'linkedArtifactPrefetch.my-artifact',
 			LinkedArtifactPrefetchJob::getJobType( 'my-artifact' )
 		);
-		$job = new LinkedArtifactPrefetchJob(
+		$job = $this->newPrefetchJob(
 			self::jobParams(), $this->newNeverCalledPrefetcher(), self::newConfig()
 		);
 		$this->assertSame( 'linkedArtifactPrefetch.my-artifact', $job->getType() );
@@ -92,10 +152,11 @@ class LinkedArtifactPrefetchJobTest extends MediaWikiUnitTestCase {
 		$prefetcher = $this->createMock( LinkedArtifactsPrefetcher::class );
 		$prefetcher->expects( $this->once() )
 			->method( 'prefetchRevisionArtifact' )
-			->with( 'my-artifact', 'enwiki', 42, 99, 'PageLatestRevisionChanged', 'edit', true )
+			// The job params have no trigger time.
+			->with( 'my-artifact', 'enwiki', 42, 99, true, 'PageLatestRevisionChanged', 'edit', null )
 			->willReturn( $response );
 
-		return new LinkedArtifactPrefetchJob( self::jobParams(), $prefetcher, self::newConfig() );
+		return $this->newPrefetchJob( self::jobParams(), $prefetcher, self::newConfig() );
 	}
 
 	public function testSuccessReportsDone(): void {
@@ -126,17 +187,17 @@ class LinkedArtifactPrefetchJobTest extends MediaWikiUnitTestCase {
 		$prefetcher = $this->createMock( LinkedArtifactsPrefetcher::class );
 		$prefetcher->expects( $this->once() )
 			->method( 'prefetchRevisionArtifact' )
-			->with( 'my-artifact', 'enwiki', 42, 99, null, null, false )
+			->with( 'my-artifact', 'enwiki', 42, 99, false, null, null, null )
 			->willReturn( new LinkedArtifactResponse( 200, [ 'content-type' => 'application/json' ], '{}' ) );
 
 		$this->assertTrue(
-			( new LinkedArtifactPrefetchJob( $params, $prefetcher, self::newConfig() ) )->run()
+			$this->newPrefetchJob( $params, $prefetcher, self::newConfig() )->run()
 		);
 	}
 
 	public function testAnOldUriOnlyJobIsDroppedWithoutAnyRequest(): void {
 		// Jobs enqueued before the params carried revision identifiers.
-		$job = new LinkedArtifactPrefetchJob(
+		$job = $this->newPrefetchJob(
 			[
 				'artifact_uri' => '/revisions/v1/my-artifact/enwiki/42/99',
 				LinkedArtifactPrefetchJob::ARTIFACT_NAME_PARAM => 'my-artifact',
@@ -152,7 +213,7 @@ class LinkedArtifactPrefetchJobTest extends MediaWikiUnitTestCase {
 	public function testAnUnsupportedEntityKindIsDroppedWithoutAnyRequest(): void {
 		$params = [ LinkedArtifactPrefetchJob::ENTITY_KIND_PARAM => 'user' ] + self::jobParams();
 
-		$job = new LinkedArtifactPrefetchJob( $params, $this->newNeverCalledPrefetcher(), self::newConfig() );
+		$job = $this->newPrefetchJob( $params, $this->newNeverCalledPrefetcher(), self::newConfig() );
 
 		$this->assertTrue( $job->run() );
 		$this->assertStringContainsString( "unsupported entity_kind 'user'", $job->getLastError() );
@@ -162,7 +223,7 @@ class LinkedArtifactPrefetchJobTest extends MediaWikiUnitTestCase {
 		$params = self::jobParams();
 		unset( $params[LinkedArtifactPrefetchJob::REVISION_ID_PARAM] );
 
-		$job = new LinkedArtifactPrefetchJob( $params, $this->newNeverCalledPrefetcher(), self::newConfig() );
+		$job = $this->newPrefetchJob( $params, $this->newNeverCalledPrefetcher(), self::newConfig() );
 
 		$this->assertTrue( $job->run() );
 		$this->assertStringContainsString( 'no revision identifiers', $job->getLastError() );
@@ -178,7 +239,7 @@ class LinkedArtifactPrefetchJobTest extends MediaWikiUnitTestCase {
 			],
 		] );
 
-		$job = new LinkedArtifactPrefetchJob( self::jobParams(), $this->newNeverCalledPrefetcher(), $config );
+		$job = $this->newPrefetchJob( self::jobParams(), $this->newNeverCalledPrefetcher(), $config );
 
 		$this->assertTrue( $job->run() );
 	}
@@ -186,7 +247,7 @@ class LinkedArtifactPrefetchJobTest extends MediaWikiUnitTestCase {
 	public function testADisabledWikiDropsTheJobWithoutAnyRequest(): void {
 		// The feature can be switched off after a job is enqueued; queued jobs must not
 		// keep prefetching artifacts readers are no longer allowed to ask for.
-		$job = new LinkedArtifactPrefetchJob(
+		$job = $this->newPrefetchJob(
 			self::jobParams(),
 			$this->newNeverCalledPrefetcher(),
 			self::newConfig( false )

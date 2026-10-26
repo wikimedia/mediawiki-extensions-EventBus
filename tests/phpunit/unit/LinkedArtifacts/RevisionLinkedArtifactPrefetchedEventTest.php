@@ -14,9 +14,10 @@ class RevisionLinkedArtifactPrefetchedEventTest extends MediaWikiUnitTestCase {
 	public function testGetters(): void {
 		$timestamp = new ConvertibleTimestamp( '20261006120000' );
 		$computeTimestamp = new ConvertibleTimestamp( '20261006110000' );
+		$triggerTimestamp = new ConvertibleTimestamp( '20261006115959' );
 		$event = new RevisionLinkedArtifactPrefetchedEvent(
 			'my-artifact', 'enwiki', 42, 99, 'application/json', '{"a":1}',
-			$timestamp, $computeTimestamp, 'PageLatestRevisionChanged', 'edit', true
+			$timestamp, $computeTimestamp, true, 'PageLatestRevisionChanged', 'edit', $triggerTimestamp
 		);
 
 		$this->assertSame( RevisionLinkedArtifactPrefetchedEvent::TYPE, $event->getEventType() );
@@ -32,6 +33,7 @@ class RevisionLinkedArtifactPrefetchedEventTest extends MediaWikiUnitTestCase {
 		$this->assertSame( 'PageLatestRevisionChanged', $event->getTriggerEventType() );
 		$this->assertSame( 'edit', $event->getTriggerCause() );
 		$this->assertTrue( $event->isReconciliationRequest() );
+		$this->assertSame( $triggerTimestamp, $event->getTriggerTimestamp() );
 		$this->assertSame( 'my-artifact artifact linked to enwiki page 42 revision 99', $event->artifactDescription() );
 	}
 
@@ -45,5 +47,6 @@ class RevisionLinkedArtifactPrefetchedEventTest extends MediaWikiUnitTestCase {
 		$this->assertNull( $event->getTriggerEventType() );
 		$this->assertNull( $event->getTriggerCause() );
 		$this->assertFalse( $event->isReconciliationRequest() );
+		$this->assertNull( $event->getTriggerTimestamp() );
 	}
 }

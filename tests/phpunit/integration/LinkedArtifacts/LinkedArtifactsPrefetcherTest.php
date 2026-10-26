@@ -8,6 +8,7 @@ use MediaWiki\WikiMap\WikiMap;
 use MediaWikiIntegrationTestCase;
 use Psr\Log\NullLogger;
 use Wikimedia\Http\MultiHttpClient;
+use Wikimedia\Stats\StatsFactory;
 
 /**
  * @covers \MediaWiki\Extension\EventBus\LinkedArtifacts\LinkedArtifactsPrefetcher
@@ -35,7 +36,8 @@ class LinkedArtifactsPrefetcherTest extends MediaWikiIntegrationTestCase {
 		$this->setService( 'EventBus.LinkedArtifactsClient', new LinkedArtifactsClient(
 			$services->getService( 'EventBus.LinkedArtifactsConfig' ),
 			$http,
-			new NullLogger()
+			new NullLogger(),
+			StatsFactory::newNull()
 		) );
 
 		$received = [];
@@ -47,7 +49,7 @@ class LinkedArtifactsPrefetcherTest extends MediaWikiIntegrationTestCase {
 		);
 
 		$this->getServiceContainer()->getService( 'EventBus.LinkedArtifactsPrefetcher' )
-			->prefetchRevisionArtifact( 'my-artifact', false, 42, 99, 'PageLatestRevisionChanged', 'edit' );
+			->prefetchRevisionArtifact( 'my-artifact', false, 42, 99, false, 'PageLatestRevisionChanged', 'edit' );
 		$this->runDeferredUpdates();
 
 		$this->assertCount( 1, $received );

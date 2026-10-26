@@ -94,6 +94,24 @@ class LinkedArtifactsConfig {
 	public const REVISION_ENTITY_KIND = 'revision';
 
 	/**
+	 * The StatsLib component of the LinkedArtifacts metrics.
+	 * NOTE: It is not specific to LAC, because other linked artifact services might exist later.
+	 */
+	public const STATS_COMPONENT = 'linked_artifacts';
+
+	/**
+	 * The name of the linked artifacts cache service.
+	 * Used as the value of `linked_artifact_service` metric label.
+	 *
+	 * NOTE: For now only LAC is supported. If MediaWiki adds
+	 * support for more services (e.g. more LAC instances, or "Linked Artifact Storage"
+	 * (Cassandra through the Data Gateway)),
+	 * we will add configuration for the service name of each artifact.
+	 * Then we can set the label value from that config, not from this constant.
+	 */
+	public const LINKED_ARTIFACTS_CACHE_SERVICE_NAME = 'linked_artifacts_cache';
+
+	/**
 	 * The `entity_kind` values that the prefetch code can handle.
 	 * Add a kind here when code handles it.
 	 */
