@@ -11,12 +11,14 @@ use MediaWiki\Extension\EventBus\EventFactory;
 use MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress;
 use MediaWiki\Extension\EventBus\Serializers\MediaWiki\PageChangeEventSerializer;
 use MediaWiki\Page\ProperPageIdentity;
+use MediaWiki\Registration\ExtensionRegistry;
 use MediaWiki\Revision\RevisionRecord;
 use MediaWiki\RevisionDelete\RevisionDeleter;
 use MediaWiki\Tests\MockWikiMapTrait;
 use MediaWiki\Title\Title;
 use MediaWiki\WikiMap\WikiMap;
 use PHPUnit\Framework\Assert;
+use Wikimedia\ScopedCallback;
 
 /**
  * @covers \MediaWiki\Extension\EventBus\MediaWikiEventSubscribers\PageChangeEventIngress
@@ -25,6 +27,8 @@ use PHPUnit\Framework\Assert;
  */
 class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	use MockWikiMapTrait;
+
+	private ?ScopedCallback $domainEventIngressesScope = null;
 
 	/**
 	 * Sort page move events by page_change_kind enforces deterministic
@@ -75,12 +79,29 @@ class PageChangeEmissionTest extends \MediaWikiIntegrationTestCase {
 	}
 
 	public function setUp(): void {
+		// Remove all other domain event ingresses except the ones we're testing
+		// mockEventBusFactory() already filters by $streamName
+		// but the mock doesn't support EventBusSendUpdate which newer ingresses use
+		$registry = ExtensionRegistry::getInstance();
+		$this->domainEventIngressesScope = $registry->setAttributeForTest(
+			'DomainEventIngresses',
+			array_values( array_filter(
+				$registry->getAttribute( 'DomainEventIngresses' ),
+				static fn ( array $spec ): bool => ( $spec['class'] ?? null ) === PageChangeEventIngress::class
+			) )
+		);
+
 		parent::setUp();
 
 		$commentFormatter = $this->createMock( CommentFormatter::class );
 		$this->setService( 'CommentFormatter', $commentFormatter );
 
 		$this->mockWikiMap();
+	}
+
+	protected function tearDown(): void {
+		ScopedCallback::consume( $this->domainEventIngressesScope );
+		parent::tearDown();
 	}
 
 	/**
