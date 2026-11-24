@@ -249,11 +249,6 @@ class UserChangeHooks implements
 		$oldUGMs,
 		$newUGMs
 	) {
-		// Only set performer if they are a real named logged in user.
-		if ( $performer !== false && !$performer->isNamed() ) {
-			$performer = null;
-		}
-
 		// Pass the UserIdentity straight through to preserve cross-wiki context
 		// (interwiki rights changes via Special:UserRights deliver a UserIdentity
 		// whose getWikiId() refers to a foreign wiki).
@@ -273,7 +268,7 @@ class UserChangeHooks implements
 			wfTimestampNow(),
 			$userIdentity,
 			// Don't set performer if they are not a real logged in user.
-			$performer !== false && $performer->isNamed() ? $performer : null,
+			$performer && $performer->isNamed() ? $performer : null,
 			$groupsCurrent,
 			$groupsPrior,
 			$reason !== false ? $reason : null
